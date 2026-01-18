@@ -1,0 +1,24 @@
+version: '3.8'
+
+# Development compose - runs just the database
+# Frontend and backend run locally for hot-reload
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: asistrader
+      POSTGRES_PASSWORD: asistrader
+      POSTGRES_DB: asistrader
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asistrader"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

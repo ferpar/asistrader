@@ -1,0 +1,91 @@
+.app {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.header {
+  margin-bottom: 30px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: #1a1a2e;
+}
+
+.header p {
+  margin: 5px 0 0;
+  color: #666;
+}
+
+.main {
+  width: 100%;
+}
+
+.trades-section h2 {
+  margin-bottom: 15px;
+  font-size: 1.25rem;
+  color: #333;
+}
+
+.trade-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.trade-table th,
+.trade-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.trade-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+  color: #333;
+}
+
+.trade-table tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+.status-plan {
+  color: #666;
+}
+
+.status-open {
+  color: #2196f3;
+  font-weight: 500;
+}
+
+.status-close {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.positive {
+  color: #4caf50;
+}
+
+.negative {
+  color: #f44336;
+}
+
+.error {
+  padding: 15px;
+  background-color: #ffebee;
+  border: 1px solid #f44336;
+  border-radius: 4px;
+  color: #c62828;
+}
+
+@media (max-width: 1200px) {
+  .trade-table {
+    display: block;
+    overflow-x: auto;
+  }
+}
