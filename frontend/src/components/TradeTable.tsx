@@ -1,12 +1,32 @@
+import { useState } from 'react'
 import { Trade } from '../types/trade'
+import { TradeEditModal, EditMode } from './TradeEditModal'
 
 interface TradeTableProps {
   trades: Trade[]
   loading?: boolean
   error?: string | null
+  onTradeUpdated?: () => void
 }
 
-export function TradeTable({ trades, loading, error }: TradeTableProps) {
+export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTableProps) {
+  const [editingTrade, setEditingTrade] = useState<Trade | null>(null)
+  const [editMode, setEditMode] = useState<EditMode>('edit')
+
+  const handleOpenModal = (trade: Trade, mode: EditMode) => {
+    setEditingTrade(trade)
+    setEditMode(mode)
+  }
+
+  const handleCloseModal = () => {
+    setEditingTrade(null)
+  }
+
+  const handleTradeUpdated = () => {
+    if (onTradeUpdated) {
+      onTradeUpdated()
+    }
+  }
   if (loading) {
     return <div data-testid="loading">Loading trades...</div>
   }
@@ -55,6 +75,7 @@ export function TradeTable({ trades, loading, error }: TradeTableProps) {
   }
 
   return (
+    <>
     <table data-testid="trade-table" className="trade-table">
       <thead>
         <tr>
@@ -74,6 +95,7 @@ export function TradeTable({ trades, loading, error }: TradeTableProps) {
           <th>Strategy</th>
           <th>Planned</th>
           <th>Actual</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -103,9 +125,61 @@ export function TradeTable({ trades, loading, error }: TradeTableProps) {
             <td>{trade.strategy_name ?? '-'}</td>
             <td>{formatDate(trade.date_planned)}</td>
             <td>{formatDate(trade.date_actual)}</td>
+            <td className="trade-actions">
+              {trade.status === 'plan' && (
+                <>
+                  <button
+                    className="btn-action btn-open"
+                    onClick={() => handleOpenModal(trade, 'open')}
+                  >
+                    Open
+                  </button>
+                  <button
+                    className="btn-action btn-edit"
+                    onClick={() => handleOpenModal(trade, 'edit')}
+                  >
+                    Edit
+                  </button>
+                </>
+              )}
+              {trade.status === 'open' && (
+                <>
+                  <button
+                    className="btn-action btn-close"
+                    onClick={() => handleOpenModal(trade, 'close')}
+                  >
+                    Close
+                  </button>
+                  <button
+                    className="btn-action btn-edit"
+                    onClick={() => handleOpenModal(trade, 'edit')}
+                  >
+                    Edit
+                  </button>
+                </>
+              )}
+              {trade.status === 'close' && (
+                <button
+                  className="btn-action btn-edit"
+                  onClick={() => handleOpenModal(trade, 'edit')}
+                >
+                  Edit
+                </button>
+              )}
+            </td>
           </tr>
         ))}
       </tbody>
     </table>
+
+    {editingTrade && (
+      <TradeEditModal
+        trade={editingTrade}
+        mode={editMode}
+        onClose={handleCloseModal}
+        onTradeUpdated={handleTradeUpdated}
+      />
+    )}
+  </>
   )
 }

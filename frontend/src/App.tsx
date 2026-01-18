@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { TradeTable } from './components/TradeTable'
 import { TradeFilters, StatusFilter } from './components/TradeFilters'
+import { TradeCreationForm } from './components/TradeCreationForm'
 import { MarketDataSync } from './components/MarketDataSync'
 import { fetchTrades } from './api/trades'
 import { Trade } from './types/trade'
@@ -12,21 +13,22 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
-  useEffect(() => {
-    const loadTrades = async () => {
-      try {
-        const response = await fetchTrades()
-        setTrades(response.trades)
-        setError(null)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load trades')
-      } finally {
-        setLoading(false)
-      }
+  const loadTrades = useCallback(async () => {
+    try {
+      setLoading(true)
+      const response = await fetchTrades()
+      setTrades(response.trades)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load trades')
+    } finally {
+      setLoading(false)
     }
-
-    loadTrades()
   }, [])
+
+  useEffect(() => {
+    loadTrades()
+  }, [loadTrades])
 
   return (
     <div className="app">
@@ -36,6 +38,7 @@ function App() {
       </header>
       <main className="main">
         <MarketDataSync />
+        <TradeCreationForm onTradeCreated={loadTrades} />
         <section className="trades-section">
           <h2>Trades</h2>
           <TradeFilters value={statusFilter} onChange={setStatusFilter} />
@@ -43,6 +46,7 @@ function App() {
             trades={statusFilter === 'all' ? trades : trades.filter(t => t.status === statusFilter)}
             loading={loading}
             error={error}
+            onTradeUpdated={loadTrades}
           />
         </section>
       </main>

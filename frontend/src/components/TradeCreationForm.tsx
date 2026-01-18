@@ -1,0 +1,247 @@
+import { useState, useEffect, useMemo } from 'react'
+import { fetchTickers } from '../api/tickers'
+import { createTrade } from '../api/trades'
+import { Ticker, TradeCreateRequest } from '../types/trade'
+
+interface TradeCreationFormProps {
+  onTradeCreated: () => void
+}
+
+export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
+  const [tickers, setTickers] = useState<Ticker[]>([])
+  const [loadingTickers, setLoadingTickers] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [collapsed, setCollapsed] = useState(true)
+
+  const [formData, setFormData] = useState({
+    ticker: '',
+    entry_price: '',
+    stop_loss: '',
+    take_profit: '',
+    units: '',
+    date_planned: new Date().toISOString().split('T')[0],
+  })
+
+  useEffect(() => {
+    const loadTickers = async () => {
+      try {
+        const response = await fetchTickers()
+        setTickers(response.tickers)
+        if (response.tickers.length > 0) {
+          setFormData(prev => ({ ...prev, ticker: response.tickers[0].symbol }))
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load tickers')
+      } finally {
+        setLoadingTickers(false)
+      }
+    }
+    loadTickers()
+  }, [])
+
+  const preview = useMemo(() => {
+    const entryPrice = parseFloat(formData.entry_price) || 0
+    const stopLoss = parseFloat(formData.stop_loss) || 0
+    const takeProfit = parseFloat(formData.take_profit) || 0
+    const units = parseInt(formData.units) || 0
+
+    const amount = entryPrice * units
+    const riskAbs = (stopLoss - entryPrice) * units
+    const profitAbs = (takeProfit - entryPrice) * units
+    const riskPct = amount !== 0 ? riskAbs / amount : 0
+    const profitPct = amount !== 0 ? profitAbs / amount : 0
+    const ratio = riskAbs !== 0 ? -profitAbs / riskAbs : 0
+
+    return { amount, riskAbs, profitAbs, riskPct, profitPct, ratio }
+  }, [formData.entry_price, formData.stop_loss, formData.take_profit, formData.units])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+    setError(null)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const request: TradeCreateRequest = {
+        ticker: formData.ticker,
+        entry_price: parseFloat(formData.entry_price),
+        stop_loss: parseFloat(formData.stop_loss),
+        take_profit: parseFloat(formData.take_profit),
+        units: parseInt(formData.units),
+        date_planned: formData.date_planned,
+      }
+      await createTrade(request)
+      // Reset form
+      setFormData({
+        ticker: tickers.length > 0 ? tickers[0].symbol : '',
+        entry_price: '',
+        stop_loss: '',
+        take_profit: '',
+        units: '',
+        date_planned: new Date().toISOString().split('T')[0],
+      })
+      onTradeCreated()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create trade')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(value)
+  }
+
+  const formatPercent = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'percent',
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }).format(value)
+  }
+
+  if (loadingTickers) {
+    return <div className="trade-form">Loading tickers...</div>
+  }
+
+  return (
+    <div className={`trade-form ${collapsed ? 'collapsed' : ''}`}>
+      <div className="trade-form-header" onClick={() => setCollapsed(!collapsed)}>
+        <h3>New Trade</h3>
+        <button type="button" className="collapse-toggle">
+          {collapsed ? '+' : '-'}
+        </button>
+      </div>
+
+      {!collapsed && (
+        <form onSubmit={handleSubmit}>
+          {error && <div className="form-error">{error}</div>}
+
+          <div className="form-row">
+        <div className="form-group">
+          <label htmlFor="ticker">Ticker</label>
+          <select
+            id="ticker"
+            name="ticker"
+            value={formData.ticker}
+            onChange={handleChange}
+            required
+          >
+            {tickers.map(ticker => (
+              <option key={ticker.symbol} value={ticker.symbol}>
+                {ticker.symbol} {ticker.name ? `- ${ticker.name}` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="date_planned">Planned Date</label>
+          <input
+            type="date"
+            id="date_planned"
+            name="date_planned"
+            value={formData.date_planned}
+            onChange={handleChange}
+            required
+          />
+        </div>
+      </div>
+
+      <div className="form-row">
+        <div className="form-group">
+          <label htmlFor="entry_price">Entry Price</label>
+          <input
+            type="number"
+            id="entry_price"
+            name="entry_price"
+            value={formData.entry_price}
+            onChange={handleChange}
+            step="0.01"
+            min="0"
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="stop_loss">Stop Loss</label>
+          <input
+            type="number"
+            id="stop_loss"
+            name="stop_loss"
+            value={formData.stop_loss}
+            onChange={handleChange}
+            step="0.01"
+            min="0"
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="take_profit">Take Profit</label>
+          <input
+            type="number"
+            id="take_profit"
+            name="take_profit"
+            value={formData.take_profit}
+            onChange={handleChange}
+            step="0.01"
+            min="0"
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="units">Units</label>
+          <input
+            type="number"
+            id="units"
+            name="units"
+            value={formData.units}
+            onChange={handleChange}
+            min="1"
+            required
+          />
+        </div>
+      </div>
+
+      <div className="form-preview">
+        <div className="preview-item">
+          <span>Amount:</span>
+          <span>{formatCurrency(preview.amount)}</span>
+        </div>
+        <div className="preview-item">
+          <span>Risk:</span>
+          <span className={preview.riskAbs < 0 ? 'negative' : 'positive'}>
+            {formatCurrency(preview.riskAbs)} ({formatPercent(preview.riskPct)})
+          </span>
+        </div>
+        <div className="preview-item">
+          <span>Profit:</span>
+          <span className={preview.profitAbs > 0 ? 'positive' : 'negative'}>
+            {formatCurrency(preview.profitAbs)} ({formatPercent(preview.profitPct)})
+          </span>
+        </div>
+        <div className="preview-item">
+          <span>Ratio:</span>
+          <span>{preview.ratio.toFixed(2)}</span>
+        </div>
+      </div>
+
+          <button type="submit" disabled={submitting}>
+            {submitting ? 'Creating...' : 'Create Trade'}
+          </button>
+        </form>
+      )}
+    </div>
+  )
+}

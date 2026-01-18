@@ -43,10 +43,10 @@ This document maps functionality from the original Excel workbook to planned app
 |---------------|-----------------|-------------|----------|--------|
 | Amount | `=PE * Units` | Trade.amount (computed) | High | ✅ Done |
 | Risk Absolute | `=(SL - PE) * Units` | Trade.risk_abs | High | ✅ Done |
-| Risk % | `=Risk_Abs / Amount` | Trade.risk_pct | High | ⬜ Todo |
+| Risk % | `=Risk_Abs / Amount` | Trade.risk_pct | High | ✅ Done |
 | Profit Absolute | `=(TP - PE) * Units` | Trade.profit_abs | High | ✅ Done |
-| Profit % | `=Profit_Abs / Amount` | Trade.profit_pct | High | ⬜ Todo |
-| Reward/Risk Ratio | `=-Profit_Abs / Risk_Abs` | Trade.ratio | High | ⬜ Todo |
+| Profit % | `=Profit_Abs / Amount` | Trade.profit_pct | High | ✅ Done |
+| Reward/Risk Ratio | `=-Profit_Abs / Risk_Abs` | Trade.ratio | High | ✅ Done |
 | Days in trade | `=TODAY() - date_actual` | Trade.days_open | Medium | ⬜ Todo |
 | Delta to planned | `=date_actual - date_plan` | Trade.entry_delta | Low | ⬜ Todo |
 
@@ -65,22 +65,22 @@ This document maps functionality from the original Excel workbook to planned app
 | Excel Feature | Location | App Feature | Priority | Status |
 |---------------|----------|-------------|----------|--------|
 | Success probability | Swing_82 col C | Ticker.probability | High | ✅ Done |
-| Bias (Long/Short) | Swing_82 col D | Ticker.bias | Medium | ⬜ Todo |
-| Time horizon | Swing_82 col E | Ticker.horizon | Medium | ⬜ Todo |
-| Beta classification | Swing_82 col F | Ticker.beta | Medium | ⬜ Todo |
-| Recommended strategy | Swing_82 col G | Ticker.strategy_id | High | ⬜ Todo |
-| PE/SL/TP methodology | Swing_82 cols H-J | Strategy entity | High | ⬜ Todo |
+| Bias (Long/Short) | Swing_82 col D | Ticker.bias | Medium | ✅ Done |
+| Time horizon | Swing_82 col E | Ticker.horizon | Medium | ✅ Done |
+| Beta classification | Swing_82 col F | Ticker.beta | Medium | ✅ Done |
+| Recommended strategy | Swing_82 col G | Ticker.strategy_id | High | ✅ Done |
+| PE/SL/TP methodology | Swing_82 cols H-J | Strategy entity | High | ✅ Done |
 | Market phase | Swing_82 col K | Ticker.market_phase | Low | ⬜ Todo |
 
 ### 5. Strategy System
 
 | Excel Feature | Location | App Feature | Priority | Status |
 |---------------|----------|-------------|----------|--------|
-| Strategy name | Swing_82 col G | Strategy.name | High | ⬜ Todo |
-| Entry method type | Swing_82 col H | Strategy.pe_method | High | ⬜ Todo |
-| Stop-loss method type | Swing_82 col I | Strategy.sl_method | High | ⬜ Todo |
-| Take-profit method type | Swing_82 col J | Strategy.tp_method | High | ⬜ Todo |
-| Strategy per trade | (implicit) | Trade.strategy_id | High | ⬜ Todo |
+| Strategy name | Swing_82 col G | Strategy.name | High | ✅ Done |
+| Entry method type | Swing_82 col H | Strategy.pe_method | High | ✅ Done |
+| Stop-loss method type | Swing_82 col I | Strategy.sl_method | High | ✅ Done |
+| Take-profit method type | Swing_82 col J | Strategy.tp_method | High | ✅ Done |
+| Strategy per trade | (implicit) | Trade.strategy_id | High | ✅ Done |
 
 ### 6. Weekly Ranking / Watchlist
 
@@ -103,9 +103,9 @@ This document maps functionality from the original Excel workbook to planned app
 
 | Excel Feature | Sheet(s) | App Feature | Priority | Status |
 |---------------|----------|-------------|----------|--------|
-| Plan view | Plan | Filter: status=plan | High | ⬜ Todo |
-| Open positions | Open | Filter: status=open | High | ⬜ Todo |
-| All closed | Close All | Filter: status=close | High | ⬜ Todo |
+| Plan view | Plan | Filter: status=plan | High | ✅ Done |
+| Open positions | Open | Filter: status=open | High | ✅ Done |
+| All closed | Close All | Filter: status=close | High | ✅ Done |
 | Winners only | Close + | Filter: status=close, exit_type=tp | Medium | ⬜ Todo |
 | Losers only | Close - | Filter: status=close, exit_type=sl | Medium | ⬜ Todo |
 | Timeline analysis | Close dating +/- | Trades with date grouping | Low | ⬜ Todo |
@@ -132,12 +132,12 @@ This document maps functionality from the original Excel workbook to planned app
 - [x] Seed data
 
 ### Phase 2: Core Trade Management
-- [ ] Add Strategy entity
-- [ ] Extend Ticker with bias, horizon, beta, strategy_id
-- [ ] Add remaining calculated properties (risk_pct, profit_pct, ratio)
+- [x] Add Strategy entity
+- [x] Extend Ticker with bias, horizon, beta, strategy_id
+- [x] Add remaining calculated properties (risk_pct, profit_pct, ratio)
+- [x] Filtered views in UI (All, Plan, Open, Close tabs)
 - [ ] Trade creation form with validation
 - [ ] Trade status transitions (plan → open → close)
-- [ ] Filtered views in UI
 
 ### Phase 3: Market Data Integration
 - [x] MarketData entity
