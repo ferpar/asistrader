@@ -11,6 +11,8 @@ dependencies = [
     "pydantic>=2.5.3",
     "pydantic-settings>=2.1.0",
     "alembic>=1.13.1",
+    "yfinance>=0.2.36",
+    "pandas>=2.2.0",
 ]
 
 [project.optional-dependencies]

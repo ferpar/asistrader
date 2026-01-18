@@ -11,7 +11,7 @@ from sqlalchemy.pool import StaticPool
 
 from asistrader.db.database import get_db
 from asistrader.main import app
-from asistrader.models.db import Base, Bias, Strategy, Ticker, Trade, TradeStatus
+from asistrader.models.db import Base, Bias, MarketData, Strategy, Ticker, Trade, TradeStatus
 
 # Use in-memory SQLite for tests
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -108,3 +108,40 @@ def sample_trade(
     db_session.add(trade)
     db_session.commit()
     return trade
+
+
+@pytest.fixture
+def sample_market_data(db_session: Session, sample_ticker: Ticker) -> list[MarketData]:
+    """Create sample market data."""
+    data = [
+        MarketData(
+            ticker=sample_ticker.symbol,
+            date=date(2024, 1, 2),
+            open=100.0,
+            high=105.0,
+            low=99.0,
+            close=104.0,
+            volume=1000000.0,
+        ),
+        MarketData(
+            ticker=sample_ticker.symbol,
+            date=date(2024, 1, 3),
+            open=104.0,
+            high=108.0,
+            low=103.0,
+            close=107.0,
+            volume=1200000.0,
+        ),
+        MarketData(
+            ticker=sample_ticker.symbol,
+            date=date(2024, 1, 4),
+            open=107.0,
+            high=110.0,
+            low=106.0,
+            close=109.0,
+            volume=1100000.0,
+        ),
+    ]
+    db_session.add_all(data)
+    db_session.commit()
+    return data

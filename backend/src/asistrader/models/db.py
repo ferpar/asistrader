@@ -3,7 +3,7 @@
 from datetime import date
 from enum import Enum as PyEnum
 
-from sqlalchemy import Column, Date, Enum, Float, ForeignKey, Integer, String
+from sqlalchemy import Column, Date, Enum, Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -82,6 +82,7 @@ class Ticker(Base):
 
     trades = relationship("Trade", back_populates="ticker_rel")
     strategy_rel = relationship("Strategy", back_populates="tickers")
+    market_data = relationship("MarketData", back_populates="ticker_rel", order_by="MarketData.date")
 
 
 class Trade(Base):
@@ -128,3 +129,25 @@ class Trade(Base):
         if self.take_profit and self.entry_price and self.units:
             return (self.take_profit - self.entry_price) * self.units
         return 0.0
+
+
+class MarketData(Base):
+    """Market data model representing OHLCV data for a ticker."""
+
+    __tablename__ = "market_data"
+
+    id = Column(Integer, primary_key=True)
+    ticker = Column(String, ForeignKey("tickers.symbol"), nullable=False)
+    date = Column(Date, nullable=False)
+    open = Column(Float, nullable=True)
+    high = Column(Float, nullable=True)
+    low = Column(Float, nullable=True)
+    close = Column(Float, nullable=True)
+    volume = Column(Float, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("ticker", "date", name="uq_market_data_ticker_date"),
+        Index("ix_market_data_ticker_date", "ticker", "date"),
+    )
+
+    ticker_rel = relationship("Ticker", back_populates="market_data")

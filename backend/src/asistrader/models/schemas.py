@@ -2,6 +2,7 @@
 
 from datetime import date
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -104,3 +105,73 @@ class TradeListResponse(BaseModel):
 
     trades: list[TradeSchema]
     count: int
+
+
+class FetchMarketDataRequest(BaseModel):
+    """Request schema for fetching market data."""
+
+    start_date: date
+    end_date: date
+
+
+class ExtendMarketDataRequest(BaseModel):
+    """Request schema for extending market data series."""
+
+    direction: Literal["forward", "backward"]
+    target_date: date
+
+
+class MarketDataSchema(BaseModel):
+    """Schema for market data."""
+
+    id: int
+    ticker: str
+    date: date
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    close: float | None = None
+    volume: float | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class MarketDataListResponse(BaseModel):
+    """Response schema for market data list endpoint."""
+
+    data: list[MarketDataSchema]
+    count: int
+    earliest_date: date | None = None
+    latest_date: date | None = None
+
+
+class BulkFetchRequest(BaseModel):
+    """Request schema for bulk fetching market data."""
+
+    start_date: date
+    end_date: date
+    symbols: list[str] | None = None
+
+
+class BulkFetchResponse(BaseModel):
+    """Response schema for bulk fetch operation."""
+
+    results: dict[str, int]
+    total_rows: int
+    errors: dict[str, str]
+
+
+class BulkExtendRequest(BaseModel):
+    """Request schema for bulk extending market data."""
+
+    direction: Literal["forward", "backward"]
+    target_date: date
+    symbols: list[str] | None = None
+
+
+class BulkExtendResponse(BaseModel):
+    """Response schema for bulk extend operation."""
+
+    results: dict[str, int]
+    total_rows: int
+    errors: dict[str, str]

@@ -54,7 +54,7 @@ This document maps functionality from the original Excel workbook to planned app
 
 | Excel Feature | Formula Example | App Feature | Priority | Status |
 |---------------|-----------------|-------------|----------|--------|
-| Latest Quote | Manual input / VLOOKUP | MarketData.close | High | ⬜ Todo |
+| Latest Quote | Manual input / VLOOKUP | MarketData.close | High | ✅ Done |
 | Distance to PE | `=Latest / PE - 1` | Computed property | Medium | ⬜ Todo |
 | Distance to SL | `=Latest / SL - 1` | Computed property | Medium | ⬜ Todo |
 | Distance to TP | `=Latest / TP - 1` | Computed property | Medium | ⬜ Todo |
@@ -94,10 +94,10 @@ This document maps functionality from the original Excel workbook to planned app
 
 | Excel Feature | Location | App Feature | Priority | Status |
 |---------------|----------|-------------|----------|--------|
-| Daily price input | Input sheet | MarketData entity | High | ⬜ Todo |
-| 7-day rolling prices | Input cols B-H | MarketData records | Medium | ⬜ Todo |
+| Daily price input | Input sheet | MarketData entity | High | ✅ Done |
+| 7-day rolling prices | Input cols B-H | MarketData records | Medium | ✅ Done |
 | Min/Max calculations | Input cols I-J | Computed from MarketData | Low | ⬜ Todo |
-| Price data pipeline | Incoming sheet | External data import | Medium | ⬜ Todo |
+| Price data pipeline | Incoming sheet | yfinance integration | Medium | ✅ Done |
 
 ### 8. Filtered Views
 
@@ -140,10 +140,11 @@ This document maps functionality from the original Excel workbook to planned app
 - [ ] Filtered views in UI
 
 ### Phase 3: Market Data Integration
-- [ ] MarketData entity
+- [x] MarketData entity
+- [x] yfinance integration (fetch, store, extend)
+- [x] Bulk fetch/extend for all tickers
 - [ ] Manual price input form
 - [ ] Live monitoring calculations (distance to SL/TP)
-- [ ] External data import (optional: API integration)
 
 ### Phase 4: Strategy System
 - [ ] Strategy CRUD
