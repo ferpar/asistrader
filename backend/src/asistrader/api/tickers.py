@@ -8,6 +8,7 @@ from asistrader.models.schemas import (
     TickerCreateRequest,
     TickerCreateResponse,
     TickerListResponse,
+    TickerPriceResponse,
     TickerSchema,
     TickerSearchResponse,
     TickerSuggestion,
@@ -17,6 +18,7 @@ from asistrader.services.ticker_service import (
     TickerValidationError,
     create_ticker,
     get_all_tickers,
+    get_current_price,
     get_existing_symbols,
 )
 from asistrader.services.yahoo_search_service import search_yahoo_tickers
@@ -99,3 +101,15 @@ def create_new_ticker(
         raise HTTPException(status_code=409, detail=str(e))
     except TickerValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{symbol}/price", response_model=TickerPriceResponse)
+def get_ticker_price(symbol: str) -> TickerPriceResponse:
+    """Get current price for a ticker."""
+    result = get_current_price(symbol.upper())
+    return TickerPriceResponse(
+        symbol=symbol.upper(),
+        price=result["price"],
+        currency=result["currency"],
+        valid=result["valid"],
+    )

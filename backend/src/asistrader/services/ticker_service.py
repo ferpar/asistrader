@@ -88,3 +88,25 @@ def create_ticker(db: Session, symbol: str) -> Ticker:
     db.refresh(ticker)
 
     return ticker
+
+
+def get_current_price(symbol: str) -> dict:
+    """Get current price for a ticker via yfinance.
+
+    Args:
+        symbol: The ticker symbol
+
+    Returns:
+        dict with 'price', 'currency', and 'valid' keys
+    """
+    try:
+        ticker = yf.Ticker(symbol)
+        # Use fast_info for quicker price lookup
+        fast_info = ticker.fast_info
+        price = fast_info.get("lastPrice") or fast_info.get("regularMarketPrice")
+        if price is None:
+            return {"price": None, "currency": None, "valid": False}
+        currency = fast_info.get("currency", "USD")
+        return {"price": float(price), "currency": currency, "valid": True}
+    except Exception:
+        return {"price": None, "currency": None, "valid": False}

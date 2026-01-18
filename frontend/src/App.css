@@ -254,6 +254,18 @@
   color: #333;
 }
 
+.current-price-hint {
+  margin-left: 8px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #4caf50;
+}
+
+.current-price-hint.loading {
+  color: #666;
+  font-style: italic;
+}
+
 .form-group input,
 .form-group select {
   padding: 8px 12px;

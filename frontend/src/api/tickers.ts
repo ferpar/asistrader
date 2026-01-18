@@ -2,6 +2,7 @@ import {
   TickerCreateRequest,
   TickerCreateResponse,
   TickerListResponse,
+  TickerPriceResponse,
   TickerSearchResponse,
 } from '../types/trade'
 
@@ -38,6 +39,16 @@ export async function createTicker(
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
     throw new Error(error.detail || `Failed to create ticker: ${response.statusText}`)
+  }
+  return response.json()
+}
+
+export async function fetchTickerPrice(symbol: string): Promise<TickerPriceResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/tickers/${encodeURIComponent(symbol)}/price`
+  )
+  if (!response.ok) {
+    throw new Error(`Failed to fetch price: ${response.statusText}`)
   }
   return response.json()
 }

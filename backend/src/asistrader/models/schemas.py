@@ -103,6 +103,15 @@ class TickerCreateResponse(BaseModel):
     message: str
 
 
+class TickerPriceResponse(BaseModel):
+    """Response schema for ticker current price."""
+
+    symbol: str
+    price: float | None = None
+    currency: str | None = None
+    valid: bool
+
+
 class TradeSchema(BaseModel):
     """Schema for trade data."""
 

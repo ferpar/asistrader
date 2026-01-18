@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
-import { fetchTickers } from '../api/tickers'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { fetchTickers, fetchTickerPrice } from '../api/tickers'
 import { createTrade } from '../api/trades'
 import { Ticker, TradeCreateRequest } from '../types/trade'
 import { TickerSearchInput } from './TickerSearchInput'
@@ -14,6 +14,8 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState(true)
+  const [currentPrice, setCurrentPrice] = useState<number | null>(null)
+  const [loadingPrice, setLoadingPrice] = useState(false)
 
   const [formData, setFormData] = useState({
     ticker: '',
@@ -40,6 +42,26 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
     }
     loadTickers()
   }, [])
+
+  const loadCurrentPrice = useCallback(async (symbol: string) => {
+    if (!symbol) {
+      setCurrentPrice(null)
+      return
+    }
+    setLoadingPrice(true)
+    try {
+      const response = await fetchTickerPrice(symbol)
+      setCurrentPrice(response.valid ? response.price : null)
+    } catch {
+      setCurrentPrice(null)
+    } finally {
+      setLoadingPrice(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadCurrentPrice(formData.ticker)
+  }, [formData.ticker, loadCurrentPrice])
 
   const preview = useMemo(() => {
     const entryPrice = parseFloat(formData.entry_price) || 0
@@ -155,7 +177,15 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
 
       <div className="form-row">
         <div className="form-group">
-          <label htmlFor="entry_price">Entry Price</label>
+          <label htmlFor="entry_price">
+            Entry Price
+            {loadingPrice && <span className="current-price-hint loading">Loading...</span>}
+            {!loadingPrice && currentPrice !== null && (
+              <span className="current-price-hint">
+                Current: {formatCurrency(currentPrice)}
+              </span>
+            )}
+          </label>
           <input
             type="number"
             id="entry_price"

@@ -50,6 +50,13 @@ export interface TickerCreateResponse {
   message: string
 }
 
+export interface TickerPriceResponse {
+  symbol: string
+  price: number | null
+  currency: string | null
+  valid: boolean
+}
+
 export interface Trade {
   id: number
   number: number | null

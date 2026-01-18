@@ -3,16 +3,12 @@ import { TradeTable } from './components/TradeTable'
 import { TradeFilters, StatusFilter } from './components/TradeFilters'
 import { TradeCreationForm } from './components/TradeCreationForm'
 import { MarketDataSync } from './components/MarketDataSync'
-import { TickerSearchInput } from './components/TickerSearchInput'
 import { fetchTrades } from './api/trades'
-import { fetchTickers } from './api/tickers'
-import { Trade, Ticker } from './types/trade'
+import { Trade } from './types/trade'
 import './App.css'
 
 function App() {
   const [trades, setTrades] = useState<Trade[]>([])
-  const [tickers, setTickers] = useState<Ticker[]>([])
-  const [selectedTicker, setSelectedTicker] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
