@@ -15,6 +15,8 @@ from asistrader.models.schemas import (
     FetchMarketDataRequest,
     MarketDataListResponse,
     MarketDataSchema,
+    SyncRequest,
+    SyncResponse,
 )
 from asistrader.services import market_data_service
 
@@ -124,5 +126,28 @@ def bulk_extend_market_data(
     return BulkExtendResponse(
         results=result["results"],
         total_rows=result["total_rows"],
+        errors=result["errors"],
+    )
+
+
+@router.post("/sync-all", response_model=SyncResponse)
+def sync_all_market_data(
+    request: SyncRequest,
+    db: Session = Depends(get_db),
+) -> SyncResponse:
+    """Sync all tickers from start_date to today, only fetching missing data.
+
+    For each ticker:
+    - If no data exists: fetches from start_date to today
+    - If data exists but doesn't cover start_date: fills backward gap
+    - If data exists but doesn't cover today: fills forward gap
+    - Skips tickers that already have complete data coverage
+    """
+    result = market_data_service.sync_all(db, request.start_date, request.symbols)
+
+    return SyncResponse(
+        results=result["results"],
+        total_rows=result["total_rows"],
+        skipped=result["skipped"],
         errors=result["errors"],
     )

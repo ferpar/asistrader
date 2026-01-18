@@ -175,3 +175,19 @@ class BulkExtendResponse(BaseModel):
     results: dict[str, int]
     total_rows: int
     errors: dict[str, str]
+
+
+class SyncRequest(BaseModel):
+    """Request schema for syncing market data."""
+
+    start_date: date
+    symbols: list[str] | None = None  # None = all tickers
+
+
+class SyncResponse(BaseModel):
+    """Response schema for sync operation."""
+
+    results: dict[str, int]  # symbol -> rows fetched
+    total_rows: int
+    skipped: list[str]  # symbols that already had complete data
+    errors: dict[str, str]

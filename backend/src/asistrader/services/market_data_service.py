@@ -1,6 +1,6 @@
 """Market data service for fetching and managing OHLCV data."""
 
-from datetime import date
+from datetime import date, timedelta
 
 import pandas as pd
 import yfinance as yf
@@ -9,6 +9,46 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from asistrader.models.db import MarketData, Ticker
+
+
+def get_last_trading_day(reference_date: date) -> date:
+    """Get the expected last trading day based on the day of week.
+
+    Accounts for weekends but not holidays.
+
+    Args:
+        reference_date: The reference date
+
+    Returns:
+        The expected last trading day
+    """
+    weekday = reference_date.weekday()
+    if weekday == 0:  # Monday
+        return reference_date - timedelta(days=3)  # Friday
+    elif weekday == 6:  # Sunday
+        return reference_date - timedelta(days=2)  # Friday
+    else:  # Tuesday-Saturday
+        return reference_date - timedelta(days=1)  # Previous day
+
+
+def get_next_trading_day(reference_date: date) -> date:
+    """Get the expected next trading day based on the day of week.
+
+    Accounts for weekends but not holidays.
+
+    Args:
+        reference_date: The reference date
+
+    Returns:
+        The expected next trading day
+    """
+    weekday = reference_date.weekday()
+    if weekday == 4:  # Friday
+        return reference_date + timedelta(days=3)  # Monday
+    elif weekday == 5:  # Saturday
+        return reference_date + timedelta(days=2)  # Monday
+    else:  # Sunday-Thursday
+        return reference_date + timedelta(days=1)  # Next day
 
 
 def fetch_from_yfinance(symbol: str, start_date: date, end_date: date) -> pd.DataFrame:
@@ -271,3 +311,84 @@ def bulk_extend(
             results[symbol] = 0
 
     return {"results": results, "total_rows": total_rows, "errors": errors}
+
+
+def sync_ticker(db: Session, symbol: str, start_date: date) -> dict:
+    """Sync single ticker from start_date to today.
+
+    Intelligently fetches only missing data:
+    - If no data: fetch from start_date to today
+    - If has data but earliest > start_date: fetch start_date to earliest-1
+    - If has data but latest < today: fetch latest+1 to today
+    - Skip if data already covers start_date to today
+
+    Args:
+        db: Database session
+        symbol: Ticker symbol
+        start_date: Start date for sync range
+
+    Returns:
+        Dict with 'fetched' (int) and 'skipped' (bool)
+    """
+    today = date.today()
+    last_trading_day = get_last_trading_day(today)
+    earliest, latest = get_data_bounds(db, symbol)
+    fetched = 0
+
+    if earliest is None or latest is None:
+        # No data at all - fetch everything
+        fetched = fetch_and_store(db, symbol, start_date, today)
+    else:
+        # Check for backward gap (need older data)
+        # Use next trading day from start_date to avoid fetching holidays/weekends
+        first_expected_trading_day = get_next_trading_day(start_date)
+        if earliest > first_expected_trading_day:
+            backward_end = earliest - pd.Timedelta(days=1)
+            backward_end_date = backward_end.date() if hasattr(backward_end, "date") else backward_end
+            fetched += fetch_and_store(db, symbol, start_date, backward_end_date)
+
+        # Check for forward gap (need newer data)
+        # Use last_trading_day to avoid refetching on weekends
+        if latest < last_trading_day:
+            forward_start = latest + pd.Timedelta(days=1)
+            forward_start_date = forward_start.date() if hasattr(forward_start, "date") else forward_start
+            fetched += fetch_and_store(db, symbol, forward_start_date, today)
+
+    skipped = fetched == 0
+    return {"fetched": fetched, "skipped": skipped}
+
+
+def sync_all(db: Session, start_date: date, symbols: list[str] | None = None) -> dict:
+    """Sync all tickers from start_date to today.
+
+    Intelligently fetches only missing data for each ticker.
+
+    Args:
+        db: Database session
+        start_date: Start date for sync range
+        symbols: List of ticker symbols, or None for all tickers in db
+
+    Returns:
+        Dict with 'results' (symbol -> rows fetched), 'total_rows', 'skipped', and 'errors'
+    """
+    if symbols is None:
+        symbols = get_all_ticker_symbols(db)
+
+    results = {}
+    errors = {}
+    skipped = []
+    total_rows = 0
+
+    for symbol in symbols:
+        try:
+            ensure_ticker_exists(db, symbol)
+            result = sync_ticker(db, symbol, start_date)
+            results[symbol] = result["fetched"]
+            total_rows += result["fetched"]
+            if result["skipped"]:
+                skipped.append(symbol)
+        except Exception as e:
+            errors[symbol] = str(e)
+            results[symbol] = 0
+
+    return {"results": results, "total_rows": total_rows, "skipped": skipped, "errors": errors}
