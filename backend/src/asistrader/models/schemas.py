@@ -74,6 +74,35 @@ class TickerListResponse(BaseModel):
     count: int
 
 
+class TickerSuggestion(BaseModel):
+    """Schema for ticker suggestion from Yahoo Finance search."""
+
+    symbol: str
+    name: str | None = None
+    exchange: str | None = None
+    type: str | None = None  # "equity", "etf", etc.
+
+
+class TickerSearchResponse(BaseModel):
+    """Response schema for ticker search endpoint."""
+
+    suggestions: list[TickerSuggestion]
+    query: str
+
+
+class TickerCreateRequest(BaseModel):
+    """Request schema for creating a ticker."""
+
+    symbol: str
+
+
+class TickerCreateResponse(BaseModel):
+    """Response schema for ticker creation."""
+
+    ticker: TickerSchema
+    message: str
+
+
 class TradeSchema(BaseModel):
     """Schema for trade data."""
 

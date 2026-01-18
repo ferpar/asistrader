@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { fetchTickers } from '../api/tickers'
 import { createTrade } from '../api/trades'
 import { Ticker, TradeCreateRequest } from '../types/trade'
+import { TickerSearchInput } from './TickerSearchInput'
 
 interface TradeCreationFormProps {
   onTradeCreated: () => void
@@ -129,19 +130,14 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
           <div className="form-row">
         <div className="form-group">
           <label htmlFor="ticker">Ticker</label>
-          <select
-            id="ticker"
-            name="ticker"
-            value={formData.ticker}
-            onChange={handleChange}
-            required
-          >
-            {tickers.map(ticker => (
-              <option key={ticker.symbol} value={ticker.symbol}>
-                {ticker.symbol} {ticker.name ? `- ${ticker.name}` : ''}
-              </option>
-            ))}
-          </select>
+          <TickerSearchInput
+            existingTickers={tickers}
+            selectedTicker={formData.ticker}
+            onTickerSelect={(symbol) => setFormData(prev => ({ ...prev, ticker: symbol }))}
+            onTickerCreated={(newTicker) => {
+              setTickers(prev => [...prev, newTicker].sort((a, b) => a.symbol.localeCompare(b.symbol)))
+            }}
+          />
         </div>
 
         <div className="form-group">

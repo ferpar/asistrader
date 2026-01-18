@@ -29,6 +29,27 @@ export interface TickerListResponse {
   count: number
 }
 
+export interface TickerSuggestion {
+  symbol: string
+  name: string | null
+  exchange: string | null
+  type: string | null // "equity", "etf", etc.
+}
+
+export interface TickerSearchResponse {
+  suggestions: TickerSuggestion[]
+  query: string
+}
+
+export interface TickerCreateRequest {
+  symbol: string
+}
+
+export interface TickerCreateResponse {
+  ticker: Ticker
+  message: string
+}
+
 export interface Trade {
   id: number
   number: number | null
