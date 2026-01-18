@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { TradeTable } from './components/TradeTable'
+import { MarketDataSync } from './components/MarketDataSync'
 import { fetchTrades } from './api/trades'
 import { Trade } from './types/trade'
 import './App.css'
@@ -32,6 +33,7 @@ function App() {
         <p>Trading Operations Management</p>
       </header>
       <main className="main">
+        <MarketDataSync />
         <section className="trades-section">
           <h2>Trades</h2>
           <TradeTable trades={trades} loading={loading} error={error} />
