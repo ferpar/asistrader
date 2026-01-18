@@ -22,6 +22,9 @@ const mockTrade: Trade = {
   strategy_name: 'Swing_82',
   risk_abs: -50,
   profit_abs: 150,
+  risk_pct: -0.05,
+  profit_pct: 0.15,
+  ratio: 3.0,
 }
 
 describe('TradeTable', () => {
@@ -97,7 +100,10 @@ describe('TradeTable', () => {
     expect(screen.getByText('Stop Loss')).toBeInTheDocument()
     expect(screen.getByText('Take Profit')).toBeInTheDocument()
     expect(screen.getByText('Risk')).toBeInTheDocument()
+    expect(screen.getByText('Risk %')).toBeInTheDocument()
     expect(screen.getByText('Profit')).toBeInTheDocument()
+    expect(screen.getByText('Profit %')).toBeInTheDocument()
+    expect(screen.getByText('Ratio')).toBeInTheDocument()
     expect(screen.getByText('Strategy')).toBeInTheDocument()
   })
 

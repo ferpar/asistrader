@@ -34,6 +34,9 @@ def list_trades(db: Session = Depends(get_db)) -> TradeListResponse:
             strategy_name=t.strategy_rel.name if t.strategy_rel else None,
             risk_abs=t.risk_abs,
             profit_abs=t.profit_abs,
+            risk_pct=t.risk_pct,
+            profit_pct=t.profit_pct,
+            ratio=t.ratio,
         )
         for t in trades
     ]

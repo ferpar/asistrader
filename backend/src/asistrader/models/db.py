@@ -130,6 +130,27 @@ class Trade(Base):
             return (self.take_profit - self.entry_price) * self.units
         return 0.0
 
+    @property
+    def risk_pct(self) -> float:
+        """Calculate risk as percentage of amount."""
+        if self.amount and self.amount != 0:
+            return self.risk_abs / self.amount
+        return 0.0
+
+    @property
+    def profit_pct(self) -> float:
+        """Calculate profit as percentage of amount."""
+        if self.amount and self.amount != 0:
+            return self.profit_abs / self.amount
+        return 0.0
+
+    @property
+    def ratio(self) -> float:
+        """Calculate reward/risk ratio."""
+        if self.risk_abs and self.risk_abs != 0:
+            return -self.profit_abs / self.risk_abs
+        return 0.0
+
 
 class MarketData(Base):
     """Market data model representing OHLCV data for a ticker."""

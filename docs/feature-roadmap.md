@@ -143,6 +143,7 @@ This document maps functionality from the original Excel workbook to planned app
 - [x] MarketData entity
 - [x] yfinance integration (fetch, store, extend)
 - [x] Bulk fetch/extend for all tickers
+- [x] Market Data Sync UI (date picker, sync button, results display)
 - [ ] Manual price input form
 - [ ] Live monitoring calculations (distance to SL/TP)
 

@@ -31,6 +31,9 @@ export interface Trade {
   strategy_name: string | null
   risk_abs: number
   profit_abs: number
+  risk_pct: number
+  profit_pct: number
+  ratio: number
 }
 
 export interface TradeListResponse {

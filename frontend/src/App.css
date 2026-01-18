@@ -30,6 +30,32 @@
   color: #333;
 }
 
+.filter-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.filter-tab {
+  padding: 8px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.filter-tab:hover {
+  background-color: #f5f5f5;
+}
+
+.filter-tab.active {
+  background: #1a1a2e;
+  color: white;
+  border-color: #1a1a2e;
+}
+
 .trade-table {
   width: 100%;
   border-collapse: collapse;

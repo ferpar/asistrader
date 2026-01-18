@@ -96,6 +96,9 @@ class TradeSchema(BaseModel):
     # Calculated fields
     risk_abs: float
     profit_abs: float
+    risk_pct: float
+    profit_pct: float
+    ratio: float
 
     model_config = {"from_attributes": True}
 

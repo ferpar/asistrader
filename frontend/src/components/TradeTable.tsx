@@ -31,6 +31,18 @@ export function TradeTable({ trades, loading, error }: TradeTableProps) {
     return new Date(dateString).toLocaleDateString()
   }
 
+  const formatPercent = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'percent',
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }).format(value)
+  }
+
+  const formatRatio = (value: number) => {
+    return value.toFixed(2)
+  }
+
   const getStatusClass = (status: string) => {
     switch (status) {
       case 'open':
@@ -55,7 +67,10 @@ export function TradeTable({ trades, loading, error }: TradeTableProps) {
           <th>Stop Loss</th>
           <th>Take Profit</th>
           <th>Risk</th>
+          <th>Risk %</th>
           <th>Profit</th>
+          <th>Profit %</th>
+          <th>Ratio</th>
           <th>Strategy</th>
           <th>Planned</th>
           <th>Actual</th>
@@ -75,9 +90,16 @@ export function TradeTable({ trades, loading, error }: TradeTableProps) {
             <td className={trade.risk_abs < 0 ? 'negative' : 'positive'}>
               {formatCurrency(trade.risk_abs)}
             </td>
+            <td className={trade.risk_pct < 0 ? 'negative' : 'positive'}>
+              {formatPercent(trade.risk_pct)}
+            </td>
             <td className={trade.profit_abs > 0 ? 'positive' : 'negative'}>
               {formatCurrency(trade.profit_abs)}
             </td>
+            <td className={trade.profit_pct > 0 ? 'positive' : 'negative'}>
+              {formatPercent(trade.profit_pct)}
+            </td>
+            <td>{formatRatio(trade.ratio)}</td>
             <td>{trade.strategy_name ?? '-'}</td>
             <td>{formatDate(trade.date_planned)}</td>
             <td>{formatDate(trade.date_actual)}</td>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { TradeTable } from './components/TradeTable'
+import { TradeFilters, StatusFilter } from './components/TradeFilters'
 import { MarketDataSync } from './components/MarketDataSync'
 import { fetchTrades } from './api/trades'
 import { Trade } from './types/trade'
@@ -9,6 +10,7 @@ function App() {
   const [trades, setTrades] = useState<Trade[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
   useEffect(() => {
     const loadTrades = async () => {
@@ -36,7 +38,12 @@ function App() {
         <MarketDataSync />
         <section className="trades-section">
           <h2>Trades</h2>
-          <TradeTable trades={trades} loading={loading} error={error} />
+          <TradeFilters value={statusFilter} onChange={setStatusFilter} />
+          <TradeTable
+            trades={statusFilter === 'all' ? trades : trades.filter(t => t.status === statusFilter)}
+            loading={loading}
+            error={error}
+          />
         </section>
       </main>
     </div>
