@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend", "src
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from asistrader.models.db import Base, Ticker, Trade, TradeStatus
+from asistrader.models.db import Base, Bias, Strategy, Ticker, Trade, TradeStatus
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -43,42 +43,90 @@ def seed_database():
             print("Database already has data. Skipping seed.")
             return
 
+        # Create sample strategies
+        strategies = [
+            Strategy(
+                name="Swing_82",
+                pe_method="Breakout above resistance with volume confirmation",
+                sl_method="Below recent swing low",
+                tp_method="2R target",
+                description="Swing trading strategy with 82% historical win rate",
+            ),
+            Strategy(
+                name="Pullback",
+                pe_method="Entry on pullback to 20 EMA in uptrend",
+                sl_method="Below pullback low",
+                tp_method="Previous high or 1.5R",
+                description="Trend continuation pullback strategy",
+            ),
+            Strategy(
+                name="Breakout",
+                pe_method="Break of consolidation range with volume",
+                sl_method="Below consolidation low",
+                tp_method="Measured move equal to range height",
+                description="Range breakout momentum strategy",
+            ),
+        ]
+
+        session.add_all(strategies)
+        session.commit()
+        print(f"Created {len(strategies)} strategies")
+
+        # Get strategy IDs for reference
+        swing_strategy = session.query(Strategy).filter_by(name="Swing_82").first()
+        pullback_strategy = session.query(Strategy).filter_by(name="Pullback").first()
+        breakout_strategy = session.query(Strategy).filter_by(name="Breakout").first()
+
         # Create sample tickers
         tickers = [
             Ticker(
                 symbol="ASML",
                 name="ASML Holding N.V.",
-                ai_success_probability=0.75,
+                probability=0.75,
                 trend_mean_growth=0.12,
                 trend_std_deviation=0.05,
+                bias=Bias.LONG,
+                horizon="swing",
+                strategy_id=swing_strategy.id,
             ),
             Ticker(
                 symbol="NVDA",
                 name="NVIDIA Corporation",
-                ai_success_probability=0.82,
+                probability=0.82,
                 trend_mean_growth=0.18,
                 trend_std_deviation=0.08,
+                bias=Bias.LONG,
+                horizon="swing",
+                strategy_id=breakout_strategy.id,
             ),
             Ticker(
                 symbol="MSFT",
                 name="Microsoft Corporation",
-                ai_success_probability=0.70,
+                probability=0.70,
                 trend_mean_growth=0.10,
                 trend_std_deviation=0.04,
+                bias=Bias.LONG,
+                horizon="position",
+                strategy_id=pullback_strategy.id,
             ),
             Ticker(
                 symbol="AAPL",
                 name="Apple Inc.",
-                ai_success_probability=0.68,
+                probability=0.68,
                 trend_mean_growth=0.08,
                 trend_std_deviation=0.03,
+                bias=Bias.NEUTRAL,
+                horizon="swing",
             ),
             Ticker(
                 symbol="GOOGL",
                 name="Alphabet Inc.",
-                ai_success_probability=0.72,
+                probability=0.72,
                 trend_mean_growth=0.11,
                 trend_std_deviation=0.05,
+                bias=Bias.LONG,
+                horizon="swing",
+                strategy_id=swing_strategy.id,
             ),
         ]
 
@@ -102,6 +150,7 @@ def seed_database():
                 exit_date=date(2025, 1, 15),
                 exit_type="tp",
                 exit_price=795.0,
+                strategy_id=swing_strategy.id,
             ),
             Trade(
                 number=2,
@@ -114,6 +163,7 @@ def seed_database():
                 take_profit=145.0,
                 date_planned=date(2025, 1, 10),
                 date_actual=date(2025, 1, 11),
+                strategy_id=breakout_strategy.id,
             ),
             Trade(
                 number=3,
@@ -126,6 +176,7 @@ def seed_database():
                 take_profit=450.0,
                 date_planned=date(2025, 1, 12),
                 date_actual=date(2025, 1, 12),
+                strategy_id=pullback_strategy.id,
             ),
             Trade(
                 ticker="AAPL",
@@ -146,6 +197,7 @@ def seed_database():
                 stop_loss=165.0,
                 take_profit=200.0,
                 date_planned=date(2025, 1, 22),
+                strategy_id=swing_strategy.id,
             ),
             Trade(
                 number=4,
@@ -161,6 +213,7 @@ def seed_database():
                 exit_date=date(2024, 12, 28),
                 exit_type="sl",
                 exit_price=101.0,
+                strategy_id=breakout_strategy.id,
             ),
         ]
 

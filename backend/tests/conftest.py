@@ -11,7 +11,7 @@ from sqlalchemy.pool import StaticPool
 
 from asistrader.db.database import get_db
 from asistrader.main import app
-from asistrader.models.db import Base, Ticker, Trade, TradeStatus
+from asistrader.models.db import Base, Bias, Strategy, Ticker, Trade, TradeStatus
 
 # Use in-memory SQLite for tests
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -53,14 +53,33 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 
 
 @pytest.fixture
-def sample_ticker(db_session: Session) -> Ticker:
+def sample_strategy(db_session: Session) -> Strategy:
+    """Create a sample strategy."""
+    strategy = Strategy(
+        id=1,
+        name="Swing_82",
+        pe_method="Breakout above resistance",
+        sl_method="Below recent swing low",
+        tp_method="2R target",
+        description="Swing trading strategy with 82% win rate",
+    )
+    db_session.add(strategy)
+    db_session.commit()
+    return strategy
+
+
+@pytest.fixture
+def sample_ticker(db_session: Session, sample_strategy: Strategy) -> Ticker:
     """Create a sample ticker."""
     ticker = Ticker(
         symbol="ASML",
         name="ASML Holding N.V.",
-        ai_success_probability=0.75,
+        probability=0.75,
         trend_mean_growth=0.12,
         trend_std_deviation=0.05,
+        bias=Bias.LONG,
+        horizon="swing",
+        strategy_id=sample_strategy.id,
     )
     db_session.add(ticker)
     db_session.commit()
@@ -68,7 +87,9 @@ def sample_ticker(db_session: Session) -> Ticker:
 
 
 @pytest.fixture
-def sample_trade(db_session: Session, sample_ticker: Ticker) -> Trade:
+def sample_trade(
+    db_session: Session, sample_ticker: Ticker, sample_strategy: Strategy
+) -> Trade:
     """Create a sample trade."""
     trade = Trade(
         id=1,
@@ -82,6 +103,7 @@ def sample_trade(db_session: Session, sample_ticker: Ticker) -> Trade:
         take_profit=115.0,
         date_planned=date(2025, 1, 15),
         date_actual=date(2025, 1, 16),
+        strategy_id=sample_strategy.id,
     )
     db_session.add(trade)
     db_session.commit()

@@ -30,6 +30,8 @@ def list_trades(db: Session = Depends(get_db)) -> TradeListResponse:
             exit_date=t.exit_date,
             exit_type=t.exit_type,
             exit_price=t.exit_price,
+            strategy_id=t.strategy_id,
+            strategy_name=t.strategy_rel.name if t.strategy_rel else None,
             risk_abs=t.risk_abs,
             profit_abs=t.profit_abs,
         )

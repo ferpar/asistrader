@@ -1,13 +1,13 @@
 """Trade business logic service."""
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from asistrader.models.db import Trade
 
 
 def get_all_trades(db: Session) -> list[Trade]:
     """Get all trades from the database."""
-    return db.query(Trade).all()
+    return db.query(Trade).options(joinedload(Trade.strategy_rel)).all()
 
 
 def get_trade_by_id(db: Session, trade_id: int) -> Trade | None:

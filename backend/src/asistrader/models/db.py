@@ -28,6 +28,39 @@ class ExitType(str, PyEnum):
     TP = "tp"
 
 
+class Bias(str, PyEnum):
+    """Ticker bias enum."""
+
+    LONG = "long"
+    SHORT = "short"
+    NEUTRAL = "neutral"
+
+
+class Beta(str, PyEnum):
+    """Ticker beta/volatility enum."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class Strategy(Base):
+    """Strategy model representing a trading strategy."""
+
+    __tablename__ = "strategies"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False, unique=True)
+    pe_method = Column(String, nullable=True)
+    sl_method = Column(String, nullable=True)
+    tp_method = Column(String, nullable=True)
+    description = Column(String, nullable=True)
+
+    # Relationships
+    tickers = relationship("Ticker", back_populates="strategy_rel")
+    trades = relationship("Trade", back_populates="strategy_rel")
+
+
 class Ticker(Base):
     """Ticker model representing a stock/asset."""
 
@@ -35,11 +68,20 @@ class Ticker(Base):
 
     symbol = Column(String, primary_key=True)
     name = Column(String, nullable=True)
-    ai_success_probability = Column(Float, nullable=True)
+    probability = Column(Float, nullable=True)
     trend_mean_growth = Column(Float, nullable=True)
     trend_std_deviation = Column(Float, nullable=True)
+    bias = Column(
+        Enum(Bias, values_callable=lambda x: [e.value for e in x]), nullable=True
+    )
+    horizon = Column(String, nullable=True)
+    beta = Column(
+        Enum(Beta, values_callable=lambda x: [e.value for e in x]), nullable=True
+    )
+    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True)
 
     trades = relationship("Trade", back_populates="ticker_rel")
+    strategy_rel = relationship("Strategy", back_populates="tickers")
 
 
 class Trade(Base):
@@ -66,8 +108,12 @@ class Trade(Base):
     exit_type = Column(Enum(ExitType), nullable=True)
     exit_price = Column(Float, nullable=True)
 
+    # Strategy
+    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True)
+
     # Relationships
     ticker_rel = relationship("Ticker", back_populates="trades")
+    strategy_rel = relationship("Strategy", back_populates="trades")
 
     @property
     def risk_abs(self) -> float:

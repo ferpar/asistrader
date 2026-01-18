@@ -18,6 +18,8 @@ const mockTrade: Trade = {
   exit_date: null,
   exit_type: null,
   exit_price: null,
+  strategy_id: 1,
+  strategy_name: 'Swing_82',
   risk_abs: -50,
   profit_abs: 150,
 }
@@ -96,5 +98,22 @@ describe('TradeTable', () => {
     expect(screen.getByText('Take Profit')).toBeInTheDocument()
     expect(screen.getByText('Risk')).toBeInTheDocument()
     expect(screen.getByText('Profit')).toBeInTheDocument()
+    expect(screen.getByText('Strategy')).toBeInTheDocument()
+  })
+
+  it('displays strategy name', () => {
+    render(<TradeTable trades={[mockTrade]} />)
+    expect(screen.getByText('Swing_82')).toBeInTheDocument()
+  })
+
+  it('displays dash when no strategy', () => {
+    const tradeWithoutStrategy: Trade = {
+      ...mockTrade,
+      id: 3,
+      strategy_id: null,
+      strategy_name: null,
+    }
+    render(<TradeTable trades={[tradeWithoutStrategy]} />)
+    expect(screen.getByText('-')).toBeInTheDocument()
   })
 })

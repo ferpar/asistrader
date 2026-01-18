@@ -56,6 +56,7 @@ export function TradeTable({ trades, loading, error }: TradeTableProps) {
           <th>Take Profit</th>
           <th>Risk</th>
           <th>Profit</th>
+          <th>Strategy</th>
           <th>Planned</th>
           <th>Actual</th>
         </tr>
@@ -77,6 +78,7 @@ export function TradeTable({ trades, loading, error }: TradeTableProps) {
             <td className={trade.profit_abs > 0 ? 'positive' : 'negative'}>
               {formatCurrency(trade.profit_abs)}
             </td>
+            <td>{trade.strategy_name ?? '-'}</td>
             <td>{formatDate(trade.date_planned)}</td>
             <td>{formatDate(trade.date_actual)}</td>
           </tr>
