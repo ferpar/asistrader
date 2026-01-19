@@ -32,6 +32,8 @@ This document maps functionality from the original Excel workbook to planned app
 | Excel Feature | Location | App Feature | Priority | Status |
 |---------------|----------|-------------|----------|--------|
 | Trade entry (Ticker, PE, SL, TP, Units) | Trading Ops cols A-M | Trade creation form | High | ✅ Done |
+| Trade editing | Trading Ops | Edit modal with all fields | High | ✅ Done |
+| Status transitions | Trading Ops col F | Open/Close buttons + modal | High | ✅ Done |
 | Status tracking (Plan/Open/Close) | Trading Ops col F | Trade.status field | High | ✅ Done |
 | Date tracking (planned, actual, exit) | Trading Ops cols E,H,N,T | Trade date fields | High | ✅ Done |
 | Exit type (SL hit / TP hit) | Trading Ops cols N,T | Trade.exit_type | High | ✅ Done |
@@ -133,7 +135,7 @@ This document maps functionality from the original Excel workbook to planned app
 - [x] Docker setup (PostgreSQL, FastAPI, React)
 - [x] Seed data
 
-### Phase 2: Core Trade Management
+### Phase 2: Core Trade Management ✅
 - [x] Add Strategy entity
 - [x] Extend Ticker with bias, horizon, beta, strategy_id
 - [x] Add remaining calculated properties (risk_pct, profit_pct, ratio)
@@ -142,7 +144,8 @@ This document maps functionality from the original Excel workbook to planned app
 - [x] Ticker search with Yahoo Finance suggestions
 - [x] Add new tickers via search (validates with yfinance)
 - [x] Current price display when selecting ticker
-- [ ] Trade status transitions (plan → open → close)
+- [x] Trade status transitions (plan → open → close)
+- [x] Trade editing (update prices, dates, exit info)
 
 ### Phase 3: Market Data Integration
 - [x] MarketData entity

@@ -1,4 +1,5 @@
 import {
+  BatchPriceResponse,
   TickerCreateRequest,
   TickerCreateResponse,
   TickerListResponse,
@@ -49,6 +50,20 @@ export async function fetchTickerPrice(symbol: string): Promise<TickerPriceRespo
   )
   if (!response.ok) {
     throw new Error(`Failed to fetch price: ${response.statusText}`)
+  }
+  return response.json()
+}
+
+export async function fetchBatchPrices(symbols: string[]): Promise<BatchPriceResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/tickers/prices`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ symbols }),
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to fetch batch prices: ${response.statusText}`)
   }
   return response.json()
 }

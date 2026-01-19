@@ -101,6 +101,24 @@
   color: #f44336;
 }
 
+/* Live Monitoring Distance Indicators */
+.distance-danger {
+  background-color: #ffebee;
+  color: #c62828;
+  font-weight: 600;
+}
+
+.distance-warning {
+  background-color: #fff3e0;
+  color: #e65100;
+}
+
+.distance-near {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  font-weight: 600;
+}
+
 .error {
   padding: 15px;
   background-color: #ffebee;

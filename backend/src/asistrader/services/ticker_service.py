@@ -110,3 +110,18 @@ def get_current_price(symbol: str) -> dict:
         return {"price": float(price), "currency": currency, "valid": True}
     except Exception:
         return {"price": None, "currency": None, "valid": False}
+
+
+def get_batch_prices(symbols: list[str]) -> dict[str, dict]:
+    """Get current prices for multiple tickers.
+
+    Args:
+        symbols: List of ticker symbols
+
+    Returns:
+        dict mapping symbol to price data (price, currency, valid)
+    """
+    results = {}
+    for symbol in symbols:
+        results[symbol.upper()] = get_current_price(symbol)
+    return results

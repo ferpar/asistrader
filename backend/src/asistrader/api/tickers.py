@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session
 
 from asistrader.db.database import get_db
 from asistrader.models.schemas import (
+    BatchPriceRequest,
+    BatchPriceResponse,
+    PriceData,
     TickerCreateRequest,
     TickerCreateResponse,
     TickerListResponse,
@@ -18,6 +21,7 @@ from asistrader.services.ticker_service import (
     TickerValidationError,
     create_ticker,
     get_all_tickers,
+    get_batch_prices,
     get_current_price,
     get_existing_symbols,
 )
@@ -113,3 +117,18 @@ def get_ticker_price(symbol: str) -> TickerPriceResponse:
         currency=result["currency"],
         valid=result["valid"],
     )
+
+
+@router.post("/prices", response_model=BatchPriceResponse)
+def get_batch_prices_endpoint(request: BatchPriceRequest) -> BatchPriceResponse:
+    """Get current prices for multiple tickers in one call."""
+    results = get_batch_prices(request.symbols)
+    prices = {
+        symbol: PriceData(
+            price=data["price"],
+            currency=data["currency"],
+            valid=data["valid"],
+        )
+        for symbol, data in results.items()
+    }
+    return BatchPriceResponse(prices=prices)

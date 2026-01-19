@@ -112,3 +112,25 @@ export interface TradeResponse {
   trade: Trade
   message: string
 }
+
+export interface PriceData {
+  price: number | null
+  currency: string | null
+  valid: boolean
+}
+
+export interface BatchPriceRequest {
+  symbols: string[]
+}
+
+export interface BatchPriceResponse {
+  prices: Record<string, PriceData>
+}
+
+export interface LiveMetrics {
+  currentPrice: number | null
+  distanceToSL: number | null   // percentage
+  distanceToTP: number | null   // percentage
+  unrealizedPnL: number | null  // absolute
+  unrealizedPnLPct: number | null
+}

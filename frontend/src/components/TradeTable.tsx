@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Trade } from '../types/trade'
+import { Trade, LiveMetrics } from '../types/trade'
 import { TradeEditModal, EditMode } from './TradeEditModal'
+import { useLiveMetrics } from '../hooks/useLiveMetrics'
 
 interface TradeTableProps {
   trades: Trade[]
@@ -12,6 +13,7 @@ interface TradeTableProps {
 export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTableProps) {
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null)
   const [editMode, setEditMode] = useState<EditMode>('edit')
+  const { metrics: liveMetrics } = useLiveMetrics(trades)
 
   const handleOpenModal = (trade: Trade, mode: EditMode) => {
     setEditingTrade(trade)
@@ -74,6 +76,43 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
     }
   }
 
+  const getDistanceClass = (distance: number | null, isTP: boolean): string => {
+    if (distance === null) return ''
+    const absDistance = Math.abs(distance)
+    if (absDistance < 0.03) {
+      return isTP ? 'distance-near' : 'distance-danger'
+    }
+    if (absDistance < 0.10) {
+      return 'distance-warning'
+    }
+    return ''
+  }
+
+  const formatLiveMetric = (
+    trade: Trade,
+    metric: LiveMetrics | undefined,
+    type: 'price' | 'slDist' | 'tpDist' | 'pnl'
+  ): string => {
+    if (trade.status !== 'open') return '-'
+    if (!metric) return '-'
+
+    switch (type) {
+      case 'price':
+        return metric.currentPrice !== null ? formatCurrency(metric.currentPrice) : '-'
+      case 'slDist':
+        return metric.distanceToSL !== null ? formatPercent(metric.distanceToSL) : '-'
+      case 'tpDist':
+        return metric.distanceToTP !== null ? formatPercent(metric.distanceToTP) : '-'
+      case 'pnl':
+        if (metric.unrealizedPnL === null || metric.unrealizedPnLPct === null) return '-'
+        const pnlStr = formatCurrency(metric.unrealizedPnL)
+        const pctStr = formatPercent(metric.unrealizedPnLPct)
+        return `${pnlStr} (${pctStr})`
+      default:
+        return '-'
+    }
+  }
+
   return (
     <>
     <table data-testid="trade-table" className="trade-table">
@@ -87,6 +126,10 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
           <th>Entry</th>
           <th>Stop Loss</th>
           <th>Take Profit</th>
+          <th>Current</th>
+          <th>SL Dist</th>
+          <th>TP Dist</th>
+          <th>Unr. PnL</th>
           <th>Risk</th>
           <th>Risk %</th>
           <th>Profit</th>
@@ -109,6 +152,20 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
             <td>{formatCurrency(trade.entry_price)}</td>
             <td>{formatCurrency(trade.stop_loss)}</td>
             <td>{formatCurrency(trade.take_profit)}</td>
+            <td>{formatLiveMetric(trade, liveMetrics[trade.id], 'price')}</td>
+            <td className={getDistanceClass(liveMetrics[trade.id]?.distanceToSL ?? null, false)}>
+              {formatLiveMetric(trade, liveMetrics[trade.id], 'slDist')}
+            </td>
+            <td className={getDistanceClass(liveMetrics[trade.id]?.distanceToTP ?? null, true)}>
+              {formatLiveMetric(trade, liveMetrics[trade.id], 'tpDist')}
+            </td>
+            <td className={
+              liveMetrics[trade.id]?.unrealizedPnL !== null && liveMetrics[trade.id]?.unrealizedPnL !== undefined
+                ? (liveMetrics[trade.id]!.unrealizedPnL! > 0 ? 'positive' : 'negative')
+                : ''
+            }>
+              {formatLiveMetric(trade, liveMetrics[trade.id], 'pnl')}
+            </td>
             <td className={trade.risk_abs < 0 ? 'negative' : 'positive'}>
               {formatCurrency(trade.risk_abs)}
             </td>

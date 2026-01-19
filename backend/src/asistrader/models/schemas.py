@@ -272,3 +272,23 @@ class SyncResponse(BaseModel):
     total_rows: int
     skipped: list[str]  # symbols that already had complete data
     errors: dict[str, str]
+
+
+class BatchPriceRequest(BaseModel):
+    """Request schema for batch price lookup."""
+
+    symbols: list[str]
+
+
+class PriceData(BaseModel):
+    """Schema for individual price data."""
+
+    price: float | None = None
+    currency: str | None = None
+    valid: bool
+
+
+class BatchPriceResponse(BaseModel):
+    """Response schema for batch price lookup."""
+
+    prices: dict[str, PriceData]
