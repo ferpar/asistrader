@@ -31,7 +31,7 @@ This document maps functionality from the original Excel workbook to planned app
 
 | Excel Feature | Location | App Feature | Priority | Status |
 |---------------|----------|-------------|----------|--------|
-| Trade entry (Ticker, PE, SL, TP, Units) | Trading Ops cols A-M | Trade creation form | High | 🟡 Partial |
+| Trade entry (Ticker, PE, SL, TP, Units) | Trading Ops cols A-M | Trade creation form | High | ✅ Done |
 | Status tracking (Plan/Open/Close) | Trading Ops col F | Trade.status field | High | ✅ Done |
 | Date tracking (planned, actual, exit) | Trading Ops cols E,H,N,T | Trade date fields | High | ✅ Done |
 | Exit type (SL hit / TP hit) | Trading Ops cols N,T | Trade.exit_type | High | ✅ Done |
@@ -64,6 +64,8 @@ This document maps functionality from the original Excel workbook to planned app
 
 | Excel Feature | Location | App Feature | Priority | Status |
 |---------------|----------|-------------|----------|--------|
+| Add new tickers | Manual entry | Yahoo Finance search + yfinance validation | High | ✅ Done |
+| Current price lookup | Manual / VLOOKUP | yfinance price API | High | ✅ Done |
 | Success probability | Swing_82 col C | Ticker.probability | High | ✅ Done |
 | Bias (Long/Short) | Swing_82 col D | Ticker.bias | Medium | ✅ Done |
 | Time horizon | Swing_82 col E | Ticker.horizon | Medium | ✅ Done |
@@ -114,7 +116,7 @@ This document maps functionality from the original Excel workbook to planned app
 
 | Excel Feature | How it worked | App Feature | Priority | Status |
 |---------------|---------------|-------------|----------|--------|
-| Ticker lookup | VLOOKUP to master list | FK constraint + dropdown | High | ⬜ Todo |
+| Ticker lookup | VLOOKUP to master list | Searchable dropdown with Yahoo suggestions | High | ✅ Done |
 | Probability lookup | VLOOKUP(ticker, Probabilidad) | Auto-populated from Ticker | High | ⬜ Todo |
 | Trend lookup | VLOOKUP(ticker, DataTrend) | Auto-populated from Ticker | Medium | ⬜ Todo |
 | Conditional formatting | Cell colors by status | CSS classes by status | Medium | ⬜ Todo |
@@ -136,7 +138,10 @@ This document maps functionality from the original Excel workbook to planned app
 - [x] Extend Ticker with bias, horizon, beta, strategy_id
 - [x] Add remaining calculated properties (risk_pct, profit_pct, ratio)
 - [x] Filtered views in UI (All, Plan, Open, Close tabs)
-- [ ] Trade creation form with validation
+- [x] Trade creation form with validation
+- [x] Ticker search with Yahoo Finance suggestions
+- [x] Add new tickers via search (validates with yfinance)
+- [x] Current price display when selecting ticker
 - [ ] Trade status transitions (plan → open → close)
 
 ### Phase 3: Market Data Integration
