@@ -135,3 +135,16 @@ export interface LiveMetrics {
   unrealizedPnL: number | null  // absolute
   unrealizedPnLPct: number | null
 }
+
+export type TradeDirection = 'long' | 'short'
+
+export interface ValidationError {
+  field: string
+  message: string
+}
+
+export interface ValidationResult {
+  isValid: boolean
+  errors: ValidationError[]
+  direction: TradeDirection | null
+}

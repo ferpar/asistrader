@@ -113,8 +113,8 @@ This document maps functionality from the original Excel workbook to planned app
 | Plan view | Plan | Filter: status=plan | High | ✅ Done |
 | Open positions | Open | Filter: status=open | High | ✅ Done |
 | All closed | Close All | Filter: status=close | High | ✅ Done |
-| Winners only | Close + | Filter: status=close, exit_type=tp | Medium | ⬜ Todo |
-| Losers only | Close - | Filter: status=close, exit_type=sl | Medium | ⬜ Todo |
+| Winners only | Close + | Filter: status=close, exit_type=tp | Medium | ✅ Done |
+| Losers only | Close - | Filter: status=close, exit_type=sl | Medium | ✅ Done |
 | Timeline analysis | Close dating +/- | Trades with date grouping | Low | ⬜ Todo |
 
 ### 9. Validation & Error Prevention
@@ -167,7 +167,7 @@ This document maps functionality from the original Excel workbook to planned app
 - [ ] Compare actual vs recommended performance
 
 ### Phase 5: Analytics & Reporting
-- [ ] Win/loss statistics
+- [x] Win/loss statistics (stats panel: wins, losses, win rate, total P&L, avg win/loss, profit factor)
 - [ ] Performance by strategy
 - [ ] Performance by ticker
 - [ ] Timeline analysis

@@ -4,6 +4,7 @@ import { TradeFilters, StatusFilter } from './components/TradeFilters'
 import { TradeStatistics } from './components/TradeStatistics'
 import { TradeCreationForm } from './components/TradeCreationForm'
 import { MarketDataSync } from './components/MarketDataSync'
+import { ThemeToggle } from './components/ThemeToggle'
 import { fetchTrades } from './api/trades'
 import { Trade } from './types/trade'
 import './App.css'
@@ -52,8 +53,11 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>AsisTrader</h1>
-        <p>Trading Operations Management</p>
+        <div>
+          <h1>AsisTrader</h1>
+          <p>Trading Operations Management</p>
+        </div>
+        <ThemeToggle />
       </header>
       <main className="main">
         <MarketDataSync />

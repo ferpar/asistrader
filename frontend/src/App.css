@@ -1,23 +1,110 @@
+:root {
+  /* Base colors */
+  --color-bg: #ffffff;
+  --color-surface: #f5f5f5;
+  --color-surface-hover: #e8e8e8;
+  --color-border: #e0e0e0;
+
+  /* Text colors */
+  --color-text: #333333;
+  --color-text-muted: #666666;
+
+  /* Brand/Primary */
+  --color-primary: #1a1a2e;
+  --color-primary-hover: #2a2a4e;
+
+  /* Semantic colors */
+  --color-success: #4caf50;
+  --color-success-dark: #388e3c;
+  --color-error: #f44336;
+  --color-error-light: #ffebee;
+  --color-error-dark: #c62828;
+  --color-info: #2196f3;
+  --color-info-dark: #1976d2;
+  --color-warning: #ff9800;
+  --color-warning-dark: #f57c00;
+  --color-warning-light: #fff3e0;
+
+  /* Table specific */
+  --color-table-header: #f5f5f5;
+  --color-table-row-hover: #f9f9f9;
+
+  /* Distance indicators */
+  --color-distance-danger-bg: #ffebee;
+  --color-distance-danger-text: #c62828;
+  --color-distance-warning-bg: #fff3e0;
+  --color-distance-warning-text: #e65100;
+  --color-distance-near-bg: #e8f5e9;
+  --color-distance-near-text: #2e7d32;
+}
+
+[data-theme="dark"] {
+  --color-bg: #121212;
+  --color-surface: #1e1e1e;
+  --color-surface-hover: #2a2a2a;
+  --color-border: #333333;
+
+  --color-text: #e0e0e0;
+  --color-text-muted: #a0a0a0;
+
+  --color-primary: #4a4a6e;
+  --color-primary-hover: #5a5a8e;
+
+  --color-success: #66bb6a;
+  --color-success-dark: #4caf50;
+  --color-error: #ef5350;
+  --color-error-light: #2d1f1f;
+  --color-error-dark: #ff6b6b;
+  --color-info: #42a5f5;
+  --color-info-dark: #2196f3;
+  --color-warning: #ffb74d;
+  --color-warning-dark: #ffa726;
+  --color-warning-light: #2d2a1f;
+
+  --color-table-header: #252525;
+  --color-table-row-hover: #252525;
+
+  --color-distance-danger-bg: #2d1f1f;
+  --color-distance-danger-text: #ff6b6b;
+  --color-distance-warning-bg: #2d2a1f;
+  --color-distance-warning-text: #ffb74d;
+  --color-distance-near-bg: #1f2d1f;
+  --color-distance-near-text: #81c784;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  transition: background-color 0.2s, color 0.2s;
+}
+
 .app {
   max-width: 1400px;
   margin: 0 auto;
   padding: 20px;
   font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
 }
 
 .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 30px;
 }
 
 .header h1 {
   margin: 0;
   font-size: 2rem;
-  color: #1a1a2e;
+  color: var(--color-primary);
 }
 
 .header p {
   margin: 5px 0 0;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .main {
@@ -27,7 +114,22 @@
 .trades-section h2 {
   margin-bottom: 15px;
   font-size: 1.25rem;
-  color: #333;
+  color: var(--color-text);
+}
+
+/* Theme Toggle */
+.theme-toggle {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.theme-toggle:hover {
+  background: var(--color-surface-hover);
 }
 
 /* Trade Statistics Panel */
@@ -36,9 +138,9 @@
   gap: 20px;
   padding: 15px 20px;
   margin-bottom: 15px;
-  background-color: #f8f9fa;
+  background-color: var(--color-surface);
   border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-border);
   flex-wrap: wrap;
 }
 
@@ -50,26 +152,26 @@
 
 .stat-label {
   font-size: 0.75rem;
-  color: #666;
+  color: var(--color-text-muted);
   text-transform: uppercase;
 }
 
 .stat-value {
   font-size: 1rem;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text);
 }
 
 .stat-value.positive {
-  color: #4caf50;
+  color: var(--color-success);
 }
 
 .stat-value.negative {
-  color: #f44336;
+  color: var(--color-error);
 }
 
 .stat-value.neutral {
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .filter-tabs {
@@ -80,22 +182,28 @@
 
 .filter-tab {
   padding: 8px 16px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  background: white;
+  background: var(--color-bg);
+  color: var(--color-text);
   cursor: pointer;
   font-size: 0.875rem;
   transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 
 .filter-tab:hover {
-  background-color: #f5f5f5;
+  background-color: var(--color-surface);
 }
 
 .filter-tab.active {
-  background: #1a1a2e;
+  background: var(--color-primary);
   color: white;
-  border-color: #1a1a2e;
+  border-color: var(--color-primary);
+}
+
+.trade-table-container {
+  width: 100%;
+  overflow-x: auto;
 }
 
 .trade-table {
@@ -108,78 +216,78 @@
 .trade-table td {
   padding: 10px 12px;
   text-align: left;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .trade-table th {
-  background-color: #f5f5f5;
+  background-color: var(--color-table-header);
   font-weight: 600;
-  color: #333;
+  color: var(--color-text);
 }
 
 .trade-table tbody tr:hover {
-  background-color: #f9f9f9;
+  background-color: var(--color-table-row-hover);
 }
 
 .status-plan {
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .status-open {
-  color: #2196f3;
+  color: var(--color-info);
   font-weight: 500;
 }
 
 .status-close {
-  color: #4caf50;
+  color: var(--color-success);
   font-weight: 500;
 }
 
 .positive {
-  color: #4caf50;
+  color: var(--color-success);
 }
 
 .negative {
-  color: #f44336;
+  color: var(--color-error);
 }
 
 /* Live Monitoring Distance Indicators */
 .distance-danger {
-  background-color: #ffebee;
-  color: #c62828;
+  background-color: var(--color-distance-danger-bg);
+  color: var(--color-distance-danger-text);
   font-weight: 600;
 }
 
 .distance-warning {
-  background-color: #fff3e0;
-  color: #e65100;
+  background-color: var(--color-distance-warning-bg);
+  color: var(--color-distance-warning-text);
 }
 
 .distance-near {
-  background-color: #e8f5e9;
-  color: #2e7d32;
+  background-color: var(--color-distance-near-bg);
+  color: var(--color-distance-near-text);
   font-weight: 600;
 }
 
 .error {
   padding: 15px;
-  background-color: #ffebee;
-  border: 1px solid #f44336;
+  background-color: var(--color-error-light);
+  border: 1px solid var(--color-error);
   border-radius: 4px;
-  color: #c62828;
+  color: var(--color-error-dark);
 }
 
 .market-data-sync {
   margin-bottom: 30px;
   padding: 20px;
-  background-color: #f5f5f5;
+  background-color: var(--color-surface);
   border-radius: 8px;
 }
 
 .market-data-sync h2 {
   margin: 0 0 15px;
   font-size: 1.25rem;
-  color: #333;
+  color: var(--color-text);
 }
 
 .sync-controls {
@@ -190,14 +298,16 @@
 
 .sync-controls input[type="date"] {
   padding: 8px 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   font-size: 0.875rem;
+  background-color: var(--color-bg);
+  color: var(--color-text);
 }
 
 .sync-controls button {
   padding: 8px 16px;
-  background-color: #1a1a2e;
+  background-color: var(--color-primary);
   color: white;
   border: none;
   border-radius: 4px;
@@ -206,11 +316,11 @@
 }
 
 .sync-controls button:hover:not(:disabled) {
-  background-color: #2a2a4e;
+  background-color: var(--color-primary-hover);
 }
 
 .sync-controls button:disabled {
-  background-color: #666;
+  background-color: var(--color-text-muted);
   cursor: not-allowed;
 }
 
@@ -222,22 +332,22 @@
 }
 
 .sync-result.success {
-  background-color: #e8f5e9;
-  border: 1px solid #4caf50;
-  color: #2e7d32;
+  background-color: var(--color-distance-near-bg);
+  border: 1px solid var(--color-success);
+  color: var(--color-distance-near-text);
 }
 
 .sync-result.error {
-  background-color: #ffebee;
-  border: 1px solid #f44336;
-  color: #c62828;
+  background-color: var(--color-error-light);
+  border: 1px solid var(--color-error);
+  color: var(--color-error-dark);
 }
 
 /* Trade Creation Form */
 .trade-form {
   margin-bottom: 30px;
   padding: 20px;
-  background-color: #f5f5f5;
+  background-color: var(--color-surface);
   border-radius: 8px;
 }
 
@@ -262,13 +372,13 @@
 }
 
 .trade-form-header:hover {
-  background-color: #e8e8e8;
+  background-color: var(--color-surface-hover);
 }
 
 .trade-form-header h3 {
   margin: 0;
   font-size: 1.25rem;
-  color: #333;
+  color: var(--color-text);
 }
 
 .collapse-toggle {
@@ -277,7 +387,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #1a1a2e;
+  background-color: var(--color-primary);
   color: white;
   border: none;
   border-radius: 4px;
@@ -288,7 +398,7 @@
 }
 
 .collapse-toggle:hover {
-  background-color: #2a2a4e;
+  background-color: var(--color-primary-hover);
 }
 
 .trade-form form {
@@ -311,33 +421,35 @@
   margin-bottom: 5px;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #333;
+  color: var(--color-text);
 }
 
 .current-price-hint {
   margin-left: 8px;
   font-size: 0.75rem;
   font-weight: 400;
-  color: #4caf50;
+  color: var(--color-success);
 }
 
 .current-price-hint.loading {
-  color: #666;
+  color: var(--color-text-muted);
   font-style: italic;
 }
 
 .form-group input,
 .form-group select {
   padding: 8px 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   font-size: 0.875rem;
+  background-color: var(--color-bg);
+  color: var(--color-text);
 }
 
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #1a1a2e;
+  border-color: var(--color-primary);
 }
 
 .form-preview {
@@ -345,9 +457,9 @@
   gap: 20px;
   padding: 15px;
   margin-bottom: 15px;
-  background-color: white;
+  background-color: var(--color-bg);
   border-radius: 4px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-border);
 }
 
 .preview-item {
@@ -358,7 +470,7 @@
 
 .preview-item span:first-child {
   font-size: 0.75rem;
-  color: #666;
+  color: var(--color-text-muted);
   text-transform: uppercase;
 }
 
@@ -370,16 +482,16 @@
 .form-error {
   margin-bottom: 15px;
   padding: 10px 15px;
-  background-color: #ffebee;
-  border: 1px solid #f44336;
+  background-color: var(--color-error-light);
+  border: 1px solid var(--color-error);
   border-radius: 4px;
-  color: #c62828;
+  color: var(--color-error-dark);
   font-size: 0.875rem;
 }
 
 .trade-form button[type="submit"] {
   padding: 10px 20px;
-  background-color: #1a1a2e;
+  background-color: var(--color-primary);
   color: white;
   border: none;
   border-radius: 4px;
@@ -388,11 +500,11 @@
 }
 
 .trade-form button[type="submit"]:hover:not(:disabled) {
-  background-color: #2a2a4e;
+  background-color: var(--color-primary-hover);
 }
 
 .trade-form button[type="submit"]:disabled {
-  background-color: #666;
+  background-color: var(--color-text-muted);
   cursor: not-allowed;
 }
 
@@ -412,30 +524,30 @@
 }
 
 .btn-open {
-  background-color: #2196f3;
+  background-color: var(--color-info);
   color: white;
 }
 
 .btn-open:hover {
-  background-color: #1976d2;
+  background-color: var(--color-info-dark);
 }
 
 .btn-close {
-  background-color: #4caf50;
+  background-color: var(--color-success);
   color: white;
 }
 
 .btn-close:hover {
-  background-color: #388e3c;
+  background-color: var(--color-success-dark);
 }
 
 .btn-edit {
-  background-color: #ff9800;
+  background-color: var(--color-warning);
   color: white;
 }
 
 .btn-edit:hover {
-  background-color: #f57c00;
+  background-color: var(--color-warning-dark);
 }
 
 /* Modal */
@@ -453,7 +565,7 @@
 }
 
 .modal {
-  background-color: white;
+  background-color: var(--color-bg);
   border-radius: 8px;
   width: 100%;
   max-width: 400px;
@@ -467,27 +579,27 @@
   justify-content: space-between;
   align-items: center;
   padding: 15px 20px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .modal-header h3 {
   margin: 0;
   font-size: 1.1rem;
-  color: #333;
+  color: var(--color-text);
 }
 
 .modal-close {
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: #666;
+  color: var(--color-text-muted);
   cursor: pointer;
   padding: 0;
   line-height: 1;
 }
 
 .modal-close:hover {
-  color: #333;
+  color: var(--color-text);
 }
 
 .modal form {
@@ -507,16 +619,16 @@
 .modal-ticker {
   font-weight: 600;
   font-size: 1rem;
-  color: #1a1a2e;
+  color: var(--color-primary);
 }
 
 .modal-status {
   padding: 2px 8px;
-  background-color: #f5f5f5;
+  background-color: var(--color-surface);
   border-radius: 3px;
   font-size: 0.75rem;
   text-transform: uppercase;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .modal-actions {
@@ -534,28 +646,28 @@
 }
 
 .modal-actions button[type="submit"] {
-  background-color: #1a1a2e;
+  background-color: var(--color-primary);
   color: white;
   border: none;
 }
 
 .modal-actions button[type="submit"]:hover:not(:disabled) {
-  background-color: #2a2a4e;
+  background-color: var(--color-primary-hover);
 }
 
 .modal-actions button[type="submit"]:disabled {
-  background-color: #666;
+  background-color: var(--color-text-muted);
   cursor: not-allowed;
 }
 
 .btn-secondary {
-  background-color: white;
-  color: #333;
-  border: 1px solid #e0e0e0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
 }
 
 .btn-secondary:hover {
-  background-color: #f5f5f5;
+  background-color: var(--color-surface);
 }
 
 /* Ticker Search Input */
@@ -567,15 +679,17 @@
 .ticker-search-input {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   font-size: 0.875rem;
   box-sizing: border-box;
+  background-color: var(--color-bg);
+  color: var(--color-text);
 }
 
 .ticker-search-input:focus {
   outline: none;
-  border-color: #1a1a2e;
+  border-color: var(--color-primary);
 }
 
 .ticker-dropdown {
@@ -583,8 +697,8 @@
   top: 100%;
   left: 0;
   right: 0;
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   max-height: 300px;
@@ -594,7 +708,7 @@
 }
 
 .ticker-dropdown-section {
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .ticker-dropdown-section:last-child {
@@ -605,8 +719,8 @@
   padding: 8px 12px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #666;
-  background-color: #f5f5f5;
+  color: var(--color-text-muted);
+  background-color: var(--color-surface);
   text-transform: uppercase;
 }
 
@@ -617,7 +731,7 @@
 }
 
 .ticker-dropdown-item:hover {
-  background-color: #f5f5f5;
+  background-color: var(--color-surface);
 }
 
 .ticker-dropdown-item.creating {
@@ -640,11 +754,11 @@
 
 .ticker-symbol {
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--color-primary);
 }
 
 .ticker-name {
-  color: #666;
+  color: var(--color-text-muted);
   font-size: 0.8rem;
 }
 
@@ -652,16 +766,16 @@
 .ticker-type {
   font-size: 0.7rem;
   padding: 2px 6px;
-  background-color: #e0e0e0;
+  background-color: var(--color-border);
   border-radius: 3px;
-  color: #666;
+  color: var(--color-text-muted);
   text-transform: uppercase;
 }
 
 .add-badge {
   font-size: 0.75rem;
   padding: 2px 8px;
-  background-color: #4caf50;
+  background-color: var(--color-success);
   color: white;
   border-radius: 3px;
   font-weight: 500;
@@ -672,21 +786,15 @@
 .ticker-dropdown-error {
   padding: 12px;
   text-align: center;
-  color: #666;
+  color: var(--color-text-muted);
   font-size: 0.875rem;
 }
 
 .ticker-dropdown-error {
-  color: #c62828;
-  background-color: #ffebee;
+  color: var(--color-error-dark);
+  background-color: var(--color-error-light);
 }
 
-@media (max-width: 1200px) {
-  .trade-table {
-    display: block;
-    overflow-x: auto;
-  }
-}
 
 @media (max-width: 600px) {
   .form-row {
@@ -701,4 +809,17 @@
     margin: 10px;
     max-width: calc(100% - 20px);
   }
+}
+
+/* Field validation errors */
+.input-error {
+  border-color: var(--color-error) !important;
+  background-color: var(--color-error-light);
+}
+
+.field-error {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--color-error-dark);
 }

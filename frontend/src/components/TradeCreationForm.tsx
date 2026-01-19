@@ -3,6 +3,7 @@ import { fetchTickers, fetchTickerPrice } from '../api/tickers'
 import { createTrade } from '../api/trades'
 import { Ticker, TradeCreateRequest } from '../types/trade'
 import { TickerSearchInput } from './TickerSearchInput'
+import { useTradeValidation } from '../hooks/useTradeValidation'
 
 interface TradeCreationFormProps {
   onTradeCreated: () => void
@@ -79,6 +80,18 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
     return { amount, riskAbs, profitAbs, riskPct, profitPct, ratio }
   }, [formData.entry_price, formData.stop_loss, formData.take_profit, formData.units])
 
+  const validationValues = useMemo(() => ({
+    entry_price: parseFloat(formData.entry_price) || 0,
+    stop_loss: parseFloat(formData.stop_loss) || 0,
+    take_profit: parseFloat(formData.take_profit) || 0,
+    units: parseInt(formData.units) || 0,
+  }), [formData.entry_price, formData.stop_loss, formData.take_profit, formData.units])
+
+  const validation = useTradeValidation(validationValues)
+
+  const getFieldError = (field: string) =>
+    validation.errors.find(e => e.field === field)?.message ?? null
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
@@ -87,6 +100,12 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!validation.isValid) {
+      setError('Please fix the validation errors')
+      return
+    }
+
     setSubmitting(true)
     setError(null)
 
@@ -190,12 +209,14 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
             type="number"
             id="entry_price"
             name="entry_price"
+            className={getFieldError('entry_price') ? 'input-error' : ''}
             value={formData.entry_price}
             onChange={handleChange}
             step="0.01"
             min="0"
             required
           />
+          {getFieldError('entry_price') && <span className="field-error">{getFieldError('entry_price')}</span>}
         </div>
 
         <div className="form-group">
@@ -204,12 +225,14 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
             type="number"
             id="stop_loss"
             name="stop_loss"
+            className={getFieldError('stop_loss') ? 'input-error' : ''}
             value={formData.stop_loss}
             onChange={handleChange}
             step="0.01"
             min="0"
             required
           />
+          {getFieldError('stop_loss') && <span className="field-error">{getFieldError('stop_loss')}</span>}
         </div>
 
         <div className="form-group">
@@ -218,12 +241,14 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
             type="number"
             id="take_profit"
             name="take_profit"
+            className={getFieldError('take_profit') ? 'input-error' : ''}
             value={formData.take_profit}
             onChange={handleChange}
             step="0.01"
             min="0"
             required
           />
+          {getFieldError('take_profit') && <span className="field-error">{getFieldError('take_profit')}</span>}
         </div>
 
         <div className="form-group">
@@ -232,11 +257,13 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
             type="number"
             id="units"
             name="units"
+            className={getFieldError('units') ? 'input-error' : ''}
             value={formData.units}
             onChange={handleChange}
             min="1"
             required
           />
+          {getFieldError('units') && <span className="field-error">{getFieldError('units')}</span>}
         </div>
       </div>
 
@@ -260,6 +287,12 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
         <div className="preview-item">
           <span>Ratio:</span>
           <span>{preview.ratio.toFixed(2)}</span>
+        </div>
+        <div className="preview-item">
+          <span>Direction:</span>
+          <span className={validation.direction === 'long' ? 'positive' : validation.direction === 'short' ? 'negative' : ''}>
+            {validation.direction?.toUpperCase() ?? '-'}
+          </span>
         </div>
       </div>
 

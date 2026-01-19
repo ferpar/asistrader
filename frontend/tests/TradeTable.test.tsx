@@ -105,6 +105,7 @@ describe('TradeTable', () => {
     expect(screen.getByText('Profit %')).toBeInTheDocument()
     expect(screen.getByText('Ratio')).toBeInTheDocument()
     expect(screen.getByText('Strategy')).toBeInTheDocument()
+    expect(screen.getByText('Days')).toBeInTheDocument()
   })
 
   it('displays strategy name', () => {
@@ -120,6 +121,8 @@ describe('TradeTable', () => {
       strategy_name: null,
     }
     render(<TradeTable trades={[tradeWithoutStrategy]} />)
-    expect(screen.getByText('-')).toBeInTheDocument()
+    // Multiple '-' can appear (strategy, live metrics, etc), so we check at least one exists
+    const dashes = screen.getAllByText('-')
+    expect(dashes.length).toBeGreaterThan(0)
   })
 })

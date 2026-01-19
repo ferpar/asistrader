@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Trade, LiveMetrics } from '../types/trade'
 import { TradeEditModal, EditMode } from './TradeEditModal'
 import { useLiveMetrics } from '../hooks/useLiveMetrics'
+import { formatDaysInTrade } from '../utils/trade'
 
 interface TradeTableProps {
   trades: Trade[]
@@ -115,6 +116,7 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
 
   return (
     <>
+    <div className="trade-table-container">
     <table data-testid="trade-table" className="trade-table">
       <thead>
         <tr>
@@ -138,6 +140,7 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
           <th>Strategy</th>
           <th>Planned</th>
           <th>Actual</th>
+          <th>Days</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -182,6 +185,7 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
             <td>{trade.strategy_name ?? '-'}</td>
             <td>{formatDate(trade.date_planned)}</td>
             <td>{formatDate(trade.date_actual)}</td>
+            <td>{formatDaysInTrade(trade)}</td>
             <td className="trade-actions">
               {trade.status === 'plan' && (
                 <>
@@ -228,6 +232,7 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
         ))}
       </tbody>
     </table>
+    </div>
 
     {editingTrade && (
       <TradeEditModal
