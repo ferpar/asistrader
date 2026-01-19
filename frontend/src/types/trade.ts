@@ -1,5 +1,6 @@
 export type TradeStatus = 'plan' | 'open' | 'close'
 export type ExitType = 'sl' | 'tp'
+export type ExtendedFilter = 'all' | 'plan' | 'open' | 'close' | 'winners' | 'losers'
 export type Bias = 'long' | 'short' | 'neutral'
 export type Beta = 'low' | 'medium' | 'high'
 

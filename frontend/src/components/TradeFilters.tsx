@@ -1,8 +1,17 @@
-import { TradeStatus } from '../types/trade'
+import { ExtendedFilter } from '../types/trade'
 
-export type StatusFilter = 'all' | TradeStatus
+export type StatusFilter = ExtendedFilter
 
-const FILTER_OPTIONS: StatusFilter[] = ['all', 'plan', 'open', 'close']
+const FILTER_OPTIONS: StatusFilter[] = ['all', 'plan', 'open', 'close', 'winners', 'losers']
+
+const FILTER_LABELS: Record<StatusFilter, string> = {
+  all: 'All',
+  plan: 'Plan',
+  open: 'Open',
+  close: 'Closed',
+  winners: 'Winners',
+  losers: 'Losers',
+}
 
 interface TradeFiltersProps {
   value: StatusFilter
@@ -18,7 +27,7 @@ export function TradeFilters({ value, onChange }: TradeFiltersProps) {
           className={`filter-tab ${value === filter ? 'active' : ''}`}
           onClick={() => onChange(filter)}
         >
-          {filter.charAt(0).toUpperCase() + filter.slice(1)}
+          {FILTER_LABELS[filter]}
         </button>
       ))}
     </div>

@@ -57,9 +57,12 @@ This document maps functionality from the original Excel workbook to planned app
 | Excel Feature | Formula Example | App Feature | Priority | Status |
 |---------------|-----------------|-------------|----------|--------|
 | Latest Quote | Manual input / VLOOKUP | MarketData.close | High | ✅ Done |
-| Distance to PE | `=Latest / PE - 1` | Computed property | Medium | ⬜ Todo |
-| Distance to SL | `=Latest / SL - 1` | Computed property | Medium | ⬜ Todo |
-| Distance to TP | `=Latest / TP - 1` | Computed property | Medium | ⬜ Todo |
+| Current Price (live) | yfinance lookup | useLiveMetrics hook + batch API | High | ✅ Done |
+| Distance to SL | `=Latest / SL - 1` | LiveMetrics.distanceToSL | Medium | ✅ Done |
+| Distance to TP | `=Latest / TP - 1` | LiveMetrics.distanceToTP | Medium | ✅ Done |
+| Unrealized PnL | `=(Latest - PE) * Units` | LiveMetrics.unrealizedPnL | Medium | ✅ Done |
+| Visual indicators | Conditional formatting | CSS distance classes (danger/warning/near) | Medium | ✅ Done |
+| Distance to PE | `=Latest / PE - 1` | Computed property | Low | ⬜ Todo |
 | TP/SL ratio from current | `=-Dist_TP / Dist_SL` | Computed property | Low | ⬜ Todo |
 
 ### 4. Ticker Intelligence
@@ -147,13 +150,15 @@ This document maps functionality from the original Excel workbook to planned app
 - [x] Trade status transitions (plan → open → close)
 - [x] Trade editing (update prices, dates, exit info)
 
-### Phase 3: Market Data Integration
+### Phase 3: Market Data Integration ✅
 - [x] MarketData entity
 - [x] yfinance integration (fetch, store, extend)
 - [x] Bulk fetch/extend for all tickers
 - [x] Market Data Sync UI (date picker, sync button, results display)
-- [ ] Manual price input form
-- [ ] Live monitoring calculations (distance to SL/TP)
+- [x] Live monitoring calculations (distance to SL/TP, unrealized PnL)
+- [x] Batch price API endpoint
+- [x] Visual indicators for proximity to SL/TP
+- [ ] Manual price input form (deferred - yfinance preferred)
 
 ### Phase 4: Strategy System
 - [ ] Strategy CRUD

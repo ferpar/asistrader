@@ -30,6 +30,48 @@
   color: #333;
 }
 
+/* Trade Statistics Panel */
+.trade-statistics {
+  display: flex;
+  gap: 20px;
+  padding: 15px 20px;
+  margin-bottom: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #666;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.stat-value.positive {
+  color: #4caf50;
+}
+
+.stat-value.negative {
+  color: #f44336;
+}
+
+.stat-value.neutral {
+  color: #666;
+}
+
 .filter-tabs {
   display: flex;
   gap: 8px;
