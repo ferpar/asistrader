@@ -823,3 +823,47 @@ body {
   font-size: 0.75rem;
   color: var(--color-error-dark);
 }
+
+/* Ticker Performance Table */
+.ticker-performance {
+  margin-bottom: 20px;
+  background-color: var(--color-surface);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  padding: 15px;
+}
+
+.ticker-performance h3 {
+  margin: 0 0 10px 0;
+  font-size: 1rem;
+  color: var(--color-text);
+}
+
+.ticker-performance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.ticker-performance-table th,
+.ticker-performance-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ticker-performance-table th {
+  background-color: var(--color-table-header);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.ticker-performance-table tbody tr:hover {
+  background-color: var(--color-table-row-hover);
+}
+
+.ticker-performance-table .ticker-symbol {
+  font-weight: 600;
+}

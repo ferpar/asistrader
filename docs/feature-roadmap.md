@@ -160,9 +160,9 @@ This document maps functionality from the original Excel workbook to planned app
 - [x] Visual indicators for proximity to SL/TP
 - [ ] Manual price input form (deferred - yfinance preferred)
 
-### Phase 4: Strategy System
-- [ ] Strategy CRUD
-- [ ] Assign strategy to trades
+### Phase 4: Strategy System 🟡
+- [x] Strategy CRUD (list, create, update, delete with validation)
+- [x] Assign strategy to trades (dropdown in create/edit forms)
 - [ ] Strategy recommendation on Ticker
 - [ ] Compare actual vs recommended performance
 

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { TradeTable } from './components/TradeTable'
 import { TradeFilters, StatusFilter } from './components/TradeFilters'
 import { TradeStatistics } from './components/TradeStatistics'
+import { TickerPerformance } from './components/TickerPerformance'
 import { TradeCreationForm } from './components/TradeCreationForm'
 import { MarketDataSync } from './components/MarketDataSync'
 import { ThemeToggle } from './components/ThemeToggle'
@@ -65,6 +66,7 @@ function App() {
         <section className="trades-section">
           <h2>Trades</h2>
           <TradeStatistics trades={filteredTrades} />
+          <TickerPerformance trades={trades} />
           <TradeFilters value={statusFilter} onChange={setStatusFilter} />
           <TradeTable
             trades={filteredTrades}
