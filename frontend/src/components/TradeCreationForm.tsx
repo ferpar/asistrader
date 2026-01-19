@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { fetchStrategies } from '../api/strategies'
 import { fetchTickers, fetchTickerPrice } from '../api/tickers'
 import { createTrade } from '../api/trades'
-import { Ticker, TradeCreateRequest } from '../types/trade'
+import { Strategy, Ticker, TradeCreateRequest } from '../types/trade'
 import { TickerSearchInput } from './TickerSearchInput'
 import { useTradeValidation } from '../hooks/useTradeValidation'
 
@@ -11,6 +12,7 @@ interface TradeCreationFormProps {
 
 export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
   const [tickers, setTickers] = useState<Ticker[]>([])
+  const [strategies, setStrategies] = useState<Strategy[]>([])
   const [loadingTickers, setLoadingTickers] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -25,23 +27,28 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
     take_profit: '',
     units: '',
     date_planned: new Date().toISOString().split('T')[0],
+    strategy_id: '',
   })
 
   useEffect(() => {
-    const loadTickers = async () => {
+    const loadData = async () => {
       try {
-        const response = await fetchTickers()
-        setTickers(response.tickers)
-        if (response.tickers.length > 0) {
-          setFormData(prev => ({ ...prev, ticker: response.tickers[0].symbol }))
+        const [tickersResponse, strategiesResponse] = await Promise.all([
+          fetchTickers(),
+          fetchStrategies(),
+        ])
+        setTickers(tickersResponse.tickers)
+        setStrategies(strategiesResponse.strategies)
+        if (tickersResponse.tickers.length > 0) {
+          setFormData(prev => ({ ...prev, ticker: tickersResponse.tickers[0].symbol }))
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load tickers')
+        setError(err instanceof Error ? err.message : 'Failed to load data')
       } finally {
         setLoadingTickers(false)
       }
     }
-    loadTickers()
+    loadData()
   }, [])
 
   const loadCurrentPrice = useCallback(async (symbol: string) => {
@@ -117,6 +124,7 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
         take_profit: parseFloat(formData.take_profit),
         units: parseInt(formData.units),
         date_planned: formData.date_planned,
+        strategy_id: formData.strategy_id ? parseInt(formData.strategy_id) : null,
       }
       await createTrade(request)
       // Reset form
@@ -127,6 +135,7 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
         take_profit: '',
         units: '',
         date_planned: new Date().toISOString().split('T')[0],
+        strategy_id: '',
       })
       onTradeCreated()
     } catch (err) {
@@ -191,6 +200,23 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
             onChange={handleChange}
             required
           />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="strategy_id">Strategy</label>
+          <select
+            id="strategy_id"
+            name="strategy_id"
+            value={formData.strategy_id}
+            onChange={handleChange}
+          >
+            <option value="">None</option>
+            {strategies.map((strategy) => (
+              <option key={strategy.id} value={strategy.id}>
+                {strategy.name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

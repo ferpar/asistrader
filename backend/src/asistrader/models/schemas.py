@@ -51,6 +51,40 @@ class StrategySchema(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class StrategyCreateRequest(BaseModel):
+    """Request schema for creating a strategy."""
+
+    name: str
+    pe_method: str | None = None
+    sl_method: str | None = None
+    tp_method: str | None = None
+    description: str | None = None
+
+
+class StrategyUpdateRequest(BaseModel):
+    """Request schema for updating a strategy."""
+
+    name: str | None = None
+    pe_method: str | None = None
+    sl_method: str | None = None
+    tp_method: str | None = None
+    description: str | None = None
+
+
+class StrategyListResponse(BaseModel):
+    """Response schema for strategy list endpoint."""
+
+    strategies: list[StrategySchema]
+    count: int
+
+
+class StrategyResponse(BaseModel):
+    """Response schema for single strategy operations."""
+
+    strategy: StrategySchema
+    message: str
+
+
 class TickerSchema(BaseModel):
     """Schema for ticker data."""
 
@@ -179,6 +213,7 @@ class TradeUpdateRequest(BaseModel):
     exit_date: date | None = None
     exit_price: float | None = None
     exit_type: ExitType | None = None
+    strategy_id: int | None = None
 
 
 class TradeResponse(BaseModel):

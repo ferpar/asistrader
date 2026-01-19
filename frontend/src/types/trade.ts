@@ -13,6 +13,32 @@ export interface Strategy {
   description: string | null
 }
 
+export interface StrategyCreateRequest {
+  name: string
+  pe_method?: string | null
+  sl_method?: string | null
+  tp_method?: string | null
+  description?: string | null
+}
+
+export interface StrategyUpdateRequest {
+  name?: string | null
+  pe_method?: string | null
+  sl_method?: string | null
+  tp_method?: string | null
+  description?: string | null
+}
+
+export interface StrategyListResponse {
+  strategies: Strategy[]
+  count: number
+}
+
+export interface StrategyResponse {
+  strategy: Strategy
+  message: string
+}
+
 export interface Ticker {
   symbol: string
   name: string | null
@@ -107,6 +133,7 @@ export interface TradeUpdateRequest {
   exit_date?: string
   exit_price?: number
   exit_type?: ExitType
+  strategy_id?: number | null
 }
 
 export interface TradeResponse {

@@ -173,12 +173,16 @@ This document maps functionality from the original Excel workbook to planned app
 - [ ] Timeline analysis
 - [ ] Export functionality
 
-### Phase 6: Advanced Features (Future)
+### Phase 6: UI/UX Enhancements
+- [x] Theme system with dark mode (CSS variables, localStorage persistence, system preference detection)
+- [ ] Mobile-friendly responsive design
+- [ ] Keyboard shortcuts
+
+### Phase 7: Advanced Features (Future)
 - [ ] Watchlist / Weekly ranking
 - [ ] Position sizing calculator
 - [ ] AI-assisted trade suggestions
 - [ ] Real-time price updates (WebSockets)
-- [ ] Mobile-friendly UI
 
 ---
 

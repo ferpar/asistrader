@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import { fetchStrategies } from '../api/strategies'
 import { updateTrade } from '../api/trades'
-import { Trade, TradeUpdateRequest, ExitType } from '../types/trade'
+import { Strategy, Trade, TradeUpdateRequest, ExitType } from '../types/trade'
 
 export type EditMode = 'edit' | 'open' | 'close'
 
@@ -14,6 +15,7 @@ interface TradeEditModalProps {
 export function TradeEditModal({ trade, mode, onClose, onTradeUpdated }: TradeEditModalProps) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [strategies, setStrategies] = useState<Strategy[]>([])
 
   const [formData, setFormData] = useState({
     entry_price: trade.entry_price.toString(),
@@ -24,6 +26,7 @@ export function TradeEditModal({ trade, mode, onClose, onTradeUpdated }: TradeEd
     exit_price: '',
     exit_type: 'sl' as ExitType,
     exit_date: new Date().toISOString().split('T')[0],
+    strategy_id: trade.strategy_id?.toString() || '',
   })
 
   useEffect(() => {
@@ -34,6 +37,17 @@ export function TradeEditModal({ trade, mode, onClose, onTradeUpdated }: TradeEd
     document.addEventListener('keydown', handleEscape)
     return () => document.removeEventListener('keydown', handleEscape)
   }, [onClose])
+
+  useEffect(() => {
+    // Load strategies when in edit mode
+    if (mode === 'edit') {
+      fetchStrategies()
+        .then((response) => setStrategies(response.strategies))
+        .catch(() => {
+          // Silently fail - strategies dropdown will just be empty
+        })
+    }
+  }, [mode])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -55,6 +69,7 @@ export function TradeEditModal({ trade, mode, onClose, onTradeUpdated }: TradeEd
           stop_loss: parseFloat(formData.stop_loss),
           take_profit: parseFloat(formData.take_profit),
           units: parseInt(formData.units),
+          strategy_id: formData.strategy_id ? parseInt(formData.strategy_id) : null,
         }
       } else if (mode === 'open') {
         request = {
@@ -169,6 +184,23 @@ export function TradeEditModal({ trade, mode, onClose, onTradeUpdated }: TradeEd
                   required
                   disabled={trade.status !== 'plan'}
                 />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="strategy_id">Strategy</label>
+                <select
+                  id="strategy_id"
+                  name="strategy_id"
+                  value={formData.strategy_id}
+                  onChange={handleChange}
+                >
+                  <option value="">None</option>
+                  {strategies.map((strategy) => (
+                    <option key={strategy.id} value={strategy.id}>
+                      {strategy.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </>
           )}
