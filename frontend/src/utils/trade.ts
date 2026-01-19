@@ -19,3 +19,22 @@ export function formatDaysInTrade(trade: Trade): string {
   if (days === 1) return '1 day'
   return `${days} days`
 }
+
+export function calculateEntryDelta(trade: Trade): number | null {
+  if (!trade.date_actual) return null
+
+  const plannedDate = new Date(trade.date_planned)
+  const actualDate = new Date(trade.date_actual)
+
+  const diffTime = actualDate.getTime() - plannedDate.getTime()
+  return Math.round(diffTime / (1000 * 60 * 60 * 24))
+}
+
+export function formatEntryDelta(trade: Trade): string {
+  const days = calculateEntryDelta(trade)
+  if (days === null) return '-'
+  if (days === 0) return 'On time'
+  if (days === 1) return '+1 day'
+  if (days === -1) return '-1 day'
+  return days > 0 ? `+${days} days` : `${days} days`
+}

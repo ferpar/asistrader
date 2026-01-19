@@ -64,6 +64,7 @@ export function useLiveMetrics(trades: Trade[]): UseLiveMetricsResult {
           currentPrice: null,
           distanceToSL: null,
           distanceToTP: null,
+          distanceToPE: null,
           unrealizedPnL: null,
           unrealizedPnLPct: null,
         }
@@ -75,6 +76,7 @@ export function useLiveMetrics(trades: Trade[]): UseLiveMetricsResult {
       // distanceToTP: positive means price is below TP (room to grow for long)
       const distanceToSL = (currentPrice - trade.stop_loss) / currentPrice
       const distanceToTP = (trade.take_profit - currentPrice) / currentPrice
+      const distanceToPE = (currentPrice - trade.entry_price) / trade.entry_price
 
       // Calculate unrealized PnL
       const unrealizedPnL = (currentPrice - trade.entry_price) * trade.units
@@ -84,6 +86,7 @@ export function useLiveMetrics(trades: Trade[]): UseLiveMetricsResult {
         currentPrice,
         distanceToSL,
         distanceToTP,
+        distanceToPE,
         unrealizedPnL,
         unrealizedPnLPct,
       }

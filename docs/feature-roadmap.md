@@ -49,7 +49,7 @@ This document maps functionality from the original Excel workbook to planned app
 | Profit Absolute | `=(TP - PE) * Units` | Trade.profit_abs | High | ✅ Done |
 | Profit % | `=Profit_Abs / Amount` | Trade.profit_pct | High | ✅ Done |
 | Reward/Risk Ratio | `=-Profit_Abs / Risk_Abs` | Trade.ratio | High | ✅ Done |
-| Days in trade | `=TODAY() - date_actual` | Trade.days_open | Medium | ⬜ Todo |
+| Days in trade | `=TODAY() - date_actual` | calculateDaysInTrade() (client-side) | Medium | ✅ Done |
 | Delta to planned | `=date_actual - date_plan` | Trade.entry_delta | Low | ⬜ Todo |
 
 ### 3. Live Monitoring (Requires Market Data)
@@ -169,7 +169,7 @@ This document maps functionality from the original Excel workbook to planned app
 ### Phase 5: Analytics & Reporting
 - [x] Win/loss statistics (stats panel: wins, losses, win rate, total P&L, avg win/loss, profit factor)
 - [ ] Performance by strategy
-- [ ] Performance by ticker
+- [x] Performance by ticker (TickerPerformance component: trades, W/L, win rate, total/avg P&L per symbol)
 - [ ] Timeline analysis
 - [ ] Export functionality
 

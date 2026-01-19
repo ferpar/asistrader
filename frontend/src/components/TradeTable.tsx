@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Trade, LiveMetrics } from '../types/trade'
 import { TradeEditModal, EditMode } from './TradeEditModal'
 import { useLiveMetrics } from '../hooks/useLiveMetrics'
-import { formatDaysInTrade } from '../utils/trade'
+import { formatDaysInTrade, formatEntryDelta } from '../utils/trade'
 
 interface TradeTableProps {
   trades: Trade[]
@@ -89,10 +89,17 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
     return ''
   }
 
+  const getPEDistanceClass = (distance: number | null): string => {
+    if (distance === null) return ''
+    if (distance >= 0.05) return 'distance-near'      // +5% or more = good
+    if (distance <= -0.05) return 'distance-danger'   // -5% or more = bad
+    return ''
+  }
+
   const formatLiveMetric = (
     trade: Trade,
     metric: LiveMetrics | undefined,
-    type: 'price' | 'slDist' | 'tpDist' | 'pnl'
+    type: 'price' | 'slDist' | 'tpDist' | 'peDist' | 'pnl'
   ): string => {
     if (trade.status !== 'open') return '-'
     if (!metric) return '-'
@@ -104,6 +111,8 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
         return metric.distanceToSL !== null ? formatPercent(metric.distanceToSL) : '-'
       case 'tpDist':
         return metric.distanceToTP !== null ? formatPercent(metric.distanceToTP) : '-'
+      case 'peDist':
+        return metric.distanceToPE !== null ? formatPercent(metric.distanceToPE) : '-'
       case 'pnl':
         if (metric.unrealizedPnL === null || metric.unrealizedPnLPct === null) return '-'
         const pnlStr = formatCurrency(metric.unrealizedPnL)
@@ -131,6 +140,7 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
           <th>Current</th>
           <th>SL Dist</th>
           <th>TP Dist</th>
+          <th>PE Dist</th>
           <th>Unr. PnL</th>
           <th>Risk</th>
           <th>Risk %</th>
@@ -141,6 +151,7 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
           <th>Planned</th>
           <th>Actual</th>
           <th>Days</th>
+          <th>Delta</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -161,6 +172,9 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
             </td>
             <td className={getDistanceClass(liveMetrics[trade.id]?.distanceToTP ?? null, true)}>
               {formatLiveMetric(trade, liveMetrics[trade.id], 'tpDist')}
+            </td>
+            <td className={getPEDistanceClass(liveMetrics[trade.id]?.distanceToPE ?? null)}>
+              {formatLiveMetric(trade, liveMetrics[trade.id], 'peDist')}
             </td>
             <td className={
               liveMetrics[trade.id]?.unrealizedPnL !== null && liveMetrics[trade.id]?.unrealizedPnL !== undefined
@@ -186,6 +200,7 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
             <td>{formatDate(trade.date_planned)}</td>
             <td>{formatDate(trade.date_actual)}</td>
             <td>{formatDaysInTrade(trade)}</td>
+            <td>{formatEntryDelta(trade)}</td>
             <td className="trade-actions">
               {trade.status === 'plan' && (
                 <>

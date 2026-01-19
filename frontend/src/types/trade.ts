@@ -159,6 +159,7 @@ export interface LiveMetrics {
   currentPrice: number | null
   distanceToSL: number | null   // percentage
   distanceToTP: number | null   // percentage
+  distanceToPE: number | null   // percentage from entry price
   unrealizedPnL: number | null  // absolute
   unrealizedPnLPct: number | null
 }
