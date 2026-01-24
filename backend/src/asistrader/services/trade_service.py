@@ -7,14 +7,20 @@ from sqlalchemy.orm import Session, joinedload
 from asistrader.models.db import Trade, TradeStatus
 
 
-def get_all_trades(db: Session) -> list[Trade]:
-    """Get all trades from the database."""
-    return db.query(Trade).options(joinedload(Trade.strategy_rel)).all()
+def get_all_trades(db: Session, user_id: int | None = None) -> list[Trade]:
+    """Get all trades from the database, optionally filtered by user."""
+    query = db.query(Trade).options(joinedload(Trade.strategy_rel))
+    if user_id is not None:
+        query = query.filter(Trade.user_id == user_id)
+    return query.all()
 
 
-def get_trade_by_id(db: Session, trade_id: int) -> Trade | None:
-    """Get a single trade by ID."""
-    return db.query(Trade).filter(Trade.id == trade_id).first()
+def get_trade_by_id(db: Session, trade_id: int, user_id: int | None = None) -> Trade | None:
+    """Get a single trade by ID, optionally filtered by user."""
+    query = db.query(Trade).filter(Trade.id == trade_id)
+    if user_id is not None:
+        query = query.filter(Trade.user_id == user_id)
+    return query.first()
 
 
 def create_trade(
@@ -26,6 +32,7 @@ def create_trade(
     units: int,
     date_planned: date,
     strategy_id: int | None = None,
+    user_id: int | None = None,
 ) -> Trade:
     """Create a new trade with status=PLAN."""
     amount = entry_price * units
@@ -38,6 +45,7 @@ def create_trade(
         amount=amount,
         date_planned=date_planned,
         strategy_id=strategy_id,
+        user_id=user_id,
         status=TradeStatus.PLAN,
     )
     db.add(trade)

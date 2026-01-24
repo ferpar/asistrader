@@ -6,6 +6,9 @@ import { TickerPerformance } from './components/TickerPerformance'
 import { TradeCreationForm } from './components/TradeCreationForm'
 import { MarketDataSync } from './components/MarketDataSync'
 import { ThemeToggle } from './components/ThemeToggle'
+import { AuthForm } from './components/AuthForm'
+import { UserHeader } from './components/UserHeader'
+import { useAuth } from './context/AuthContext'
 import { fetchTrades } from './api/trades'
 import { Trade } from './types/trade'
 import './App.css'
@@ -24,6 +27,7 @@ const getFilteredTrades = (trades: Trade[], filter: StatusFilter): Trade[] => {
 }
 
 function App() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [trades, setTrades] = useState<Trade[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -43,13 +47,31 @@ function App() {
   }, [])
 
   useEffect(() => {
-    loadTrades()
-  }, [loadTrades])
+    if (isAuthenticated) {
+      loadTrades()
+    }
+  }, [loadTrades, isAuthenticated])
 
   const filteredTrades = useMemo(
     () => getFilteredTrades(trades, statusFilter),
     [trades, statusFilter]
   )
+
+  if (authLoading) {
+    return (
+      <div className="app">
+        <div className="auth-loading">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="app">
+        <AuthForm />
+      </div>
+    )
+  }
 
   return (
     <div className="app">
@@ -58,7 +80,10 @@ function App() {
           <h1>AsisTrader</h1>
           <p>Trading Operations Management</p>
         </div>
-        <ThemeToggle />
+        <div className="header-actions">
+          <UserHeader />
+          <ThemeToggle />
+        </div>
       </header>
       <main className="main">
         <MarketDataSync />

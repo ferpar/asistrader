@@ -1,10 +1,10 @@
 """Pydantic schemas for API request/response validation."""
 
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 
 class TradeStatus(str, Enum):
@@ -327,3 +327,71 @@ class BatchPriceResponse(BaseModel):
     """Response schema for batch price lookup."""
 
     prices: dict[str, PriceData]
+
+
+# --- Authentication Schemas ---
+
+
+class UserSchema(BaseModel):
+    """Schema for user data."""
+
+    id: int
+    email: str
+    is_active: bool
+    created_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class UserRegisterRequest(BaseModel):
+    """Request schema for user registration."""
+
+    email: EmailStr
+    password: str
+
+
+class UserLoginRequest(BaseModel):
+    """Request schema for user login."""
+
+    email: EmailStr
+    password: str
+
+
+class TokenResponse(BaseModel):
+    """Response schema for authentication tokens."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request schema for token refresh."""
+
+    refresh_token: str
+
+
+class AccessTokenResponse(BaseModel):
+    """Response schema for refreshed access token."""
+
+    access_token: str
+    token_type: str = "bearer"
+
+
+class LogoutRequest(BaseModel):
+    """Request schema for logout."""
+
+    refresh_token: str
+
+
+class AuthResponse(BaseModel):
+    """Response schema for auth operations with user and tokens."""
+
+    user: UserSchema
+    tokens: TokenResponse
+
+
+class MessageResponse(BaseModel):
+    """Generic message response."""
+
+    message: str

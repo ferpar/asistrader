@@ -4,11 +4,22 @@ import {
   StrategyResponse,
   StrategyUpdateRequest,
 } from '../types/trade'
+import { getAccessToken } from '../utils/tokenStorage'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
+function getAuthHeaders(): Record<string, string> {
+  const token = getAccessToken()
+  if (!token) return {}
+  return { Authorization: `Bearer ${token}` }
+}
+
 export async function fetchStrategies(): Promise<StrategyListResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/strategies`)
+  const response = await fetch(`${API_BASE_URL}/api/strategies`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  })
   if (!response.ok) {
     throw new Error(`Failed to fetch strategies: ${response.statusText}`)
   }
@@ -22,6 +33,7 @@ export async function createStrategy(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(request),
   })
@@ -40,6 +52,7 @@ export async function updateStrategy(
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(request),
   })
@@ -53,6 +66,9 @@ export async function updateStrategy(
 export async function deleteStrategy(id: number): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/strategies/${id}`, {
     method: 'DELETE',
+    headers: {
+      ...getAuthHeaders(),
+    },
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))

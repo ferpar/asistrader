@@ -6,11 +6,22 @@ import {
   TickerPriceResponse,
   TickerSearchResponse,
 } from '../types/trade'
+import { getAccessToken } from '../utils/tokenStorage'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
+function getAuthHeaders(): Record<string, string> {
+  const token = getAccessToken()
+  if (!token) return {}
+  return { Authorization: `Bearer ${token}` }
+}
+
 export async function fetchTickers(): Promise<TickerListResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/tickers`)
+  const response = await fetch(`${API_BASE_URL}/api/tickers`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  })
   if (!response.ok) {
     throw new Error(`Failed to fetch tickers: ${response.statusText}`)
   }
@@ -19,7 +30,12 @@ export async function fetchTickers(): Promise<TickerListResponse> {
 
 export async function searchTickers(query: string): Promise<TickerSearchResponse> {
   const response = await fetch(
-    `${API_BASE_URL}/api/tickers/search?q=${encodeURIComponent(query)}`
+    `${API_BASE_URL}/api/tickers/search?q=${encodeURIComponent(query)}`,
+    {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    }
   )
   if (!response.ok) {
     throw new Error(`Failed to search tickers: ${response.statusText}`)
@@ -34,6 +50,7 @@ export async function createTicker(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(request),
   })
@@ -46,7 +63,12 @@ export async function createTicker(
 
 export async function fetchTickerPrice(symbol: string): Promise<TickerPriceResponse> {
   const response = await fetch(
-    `${API_BASE_URL}/api/tickers/${encodeURIComponent(symbol)}/price`
+    `${API_BASE_URL}/api/tickers/${encodeURIComponent(symbol)}/price`,
+    {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    }
   )
   if (!response.ok) {
     throw new Error(`Failed to fetch price: ${response.statusText}`)
@@ -59,6 +81,7 @@ export async function fetchBatchPrices(symbols: string[]): Promise<BatchPriceRes
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({ symbols }),
   })

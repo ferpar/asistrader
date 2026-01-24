@@ -1,4 +1,12 @@
+import { getAccessToken } from '../utils/tokenStorage'
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
+
+function getAuthHeaders(): Record<string, string> {
+  const token = getAccessToken()
+  if (!token) return {}
+  return { Authorization: `Bearer ${token}` }
+}
 
 export interface SyncRequest {
   start_date: string  // YYYY-MM-DD
@@ -17,6 +25,7 @@ export async function syncMarketData(request: SyncRequest): Promise<SyncResponse
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(request),
   })

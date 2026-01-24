@@ -9,9 +9,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from asistrader.auth.jwt import create_access_token
+from asistrader.auth.password import hash_password
 from asistrader.db.database import get_db
 from asistrader.main import app
-from asistrader.models.db import Base, Bias, MarketData, Strategy, Ticker, Trade, TradeStatus
+from asistrader.models.db import Base, Bias, MarketData, Strategy, Ticker, Trade, TradeStatus, User
 
 # Use in-memory SQLite for tests
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -88,7 +90,7 @@ def sample_ticker(db_session: Session, sample_strategy: Strategy) -> Ticker:
 
 @pytest.fixture
 def sample_trade(
-    db_session: Session, sample_ticker: Ticker, sample_strategy: Strategy
+    db_session: Session, sample_ticker: Ticker, sample_strategy: Strategy, sample_user: User
 ) -> Trade:
     """Create a sample trade."""
     trade = Trade(
@@ -104,6 +106,7 @@ def sample_trade(
         date_planned=date(2025, 1, 15),
         date_actual=date(2025, 1, 16),
         strategy_id=sample_strategy.id,
+        user_id=sample_user.id,
     )
     db_session.add(trade)
     db_session.commit()
@@ -145,3 +148,24 @@ def sample_market_data(db_session: Session, sample_ticker: Ticker) -> list[Marke
     db_session.add_all(data)
     db_session.commit()
     return data
+
+
+@pytest.fixture
+def sample_user(db_session: Session) -> User:
+    """Create a sample user for authentication tests."""
+    user = User(
+        id=1,
+        email="test@example.com",
+        hashed_password=hash_password("testpassword123"),
+        is_active=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+    return user
+
+
+@pytest.fixture
+def auth_headers(sample_user: User) -> dict[str, str]:
+    """Create authentication headers with a valid access token."""
+    token = create_access_token(sample_user.id, sample_user.email)
+    return {"Authorization": f"Bearer {token}"}

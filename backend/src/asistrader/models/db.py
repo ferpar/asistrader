@@ -1,9 +1,9 @@
 """SQLAlchemy database models."""
 
-from datetime import date
+from datetime import date, datetime, timezone
 from enum import Enum as PyEnum
 
-from sqlalchemy import Column, Date, Enum, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, Date, DateTime, Enum, Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -42,6 +42,36 @@ class Beta(str, PyEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+
+
+class User(Base):
+    """User model for authentication."""
+
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String, unique=True, nullable=False, index=True)
+    hashed_password = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    trades = relationship("Trade", back_populates="user_rel")
+    refresh_tokens = relationship("RefreshToken", back_populates="user_rel")
+
+
+class RefreshToken(Base):
+    """Refresh token model for JWT authentication."""
+
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    token = Column(String, unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    revoked = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    user_rel = relationship("User", back_populates="refresh_tokens")
 
 
 class Strategy(Base):
@@ -112,9 +142,13 @@ class Trade(Base):
     # Strategy
     strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True)
 
+    # User (owner)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     # Relationships
     ticker_rel = relationship("Ticker", back_populates="trades")
     strategy_rel = relationship("Strategy", back_populates="trades")
+    user_rel = relationship("User", back_populates="trades")
 
     @property
     def risk_abs(self) -> float:
