@@ -25,7 +25,7 @@ COPY . .
 RUN uv pip install --system -e .
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8005
 
 # Run the application
-CMD ["uvicorn", "asistrader.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "asistrader.main:app", "--host", "0.0.0.0", "--port", "8005"]
