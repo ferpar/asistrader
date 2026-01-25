@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Trade, LiveMetrics } from '../types/trade'
 import { TradeEditModal, EditMode } from './TradeEditModal'
 import { useLiveMetrics } from '../hooks/useLiveMetrics'
-import { formatDaysInTrade, formatEntryDelta } from '../utils/trade'
+import { formatPlanAge, formatOpenAge, formatPlanToOpen, formatOpenToClose } from '../utils/trade'
 
 interface TradeTableProps {
   trades: Trade[]
@@ -156,8 +156,10 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
           <th>Strategy</th>
           <th>Planned</th>
           <th>Actual</th>
-          <th>Days</th>
-          <th>Delta</th>
+          <th>Plan Age</th>
+          <th>Open Age</th>
+          <th>Plan→Open</th>
+          <th>Open→Close</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -205,8 +207,10 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
             <td>{trade.strategy_name ?? '-'}</td>
             <td>{formatDate(trade.date_planned)}</td>
             <td>{formatDate(trade.date_actual)}</td>
-            <td>{formatDaysInTrade(trade)}</td>
-            <td>{formatEntryDelta(trade)}</td>
+            <td>{formatPlanAge(trade)}</td>
+            <td>{formatOpenAge(trade)}</td>
+            <td>{formatPlanToOpen(trade)}</td>
+            <td>{formatOpenToClose(trade)}</td>
             <td className="trade-actions">
               {trade.status === 'plan' && (
                 <>
