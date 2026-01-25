@@ -1,4 +1,4 @@
-import { TradeCreateRequest, TradeListResponse, TradeResponse, TradeUpdateRequest } from '../types/trade'
+import { SLTPDetectionResponse, TradeCreateRequest, TradeListResponse, TradeResponse, TradeUpdateRequest } from '../types/trade'
 import { getAccessToken } from '../utils/tokenStorage'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
@@ -49,6 +49,17 @@ export async function updateTrade(id: number, request: TradeUpdateRequest): Prom
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
     throw new Error(errorData.detail || `Failed to update trade: ${response.statusText}`)
+  }
+  return response.json()
+}
+
+export async function detectSLTPHits(): Promise<SLTPDetectionResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/trades/detect-sltp`, {
+    method: 'POST',
+    headers: { ...getAuthHeaders() },
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to detect SL/TP hits: ${response.statusText}`)
   }
   return response.json()
 }

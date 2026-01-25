@@ -154,6 +154,7 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
           <th>Profit %</th>
           <th>Ratio</th>
           <th>Strategy</th>
+          <th>Paper</th>
           <th>Planned</th>
           <th>Actual</th>
           <th>Plan Age</th>
@@ -205,6 +206,7 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
             </td>
             <td>{formatRatio(trade.ratio)}</td>
             <td>{trade.strategy_name ?? '-'}</td>
+            <td>{trade.paper_trade ? 'Yes' : '-'}</td>
             <td>{formatDate(trade.date_planned)}</td>
             <td>{formatDate(trade.date_actual)}</td>
             <td>{formatPlanAge(trade)}</td>

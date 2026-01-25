@@ -139,6 +139,9 @@ class Trade(Base):
     exit_type = Column(Enum(ExitType), nullable=True)
     exit_price = Column(Float, nullable=True)
 
+    # Paper trading
+    paper_trade = Column(Boolean, default=False)
+
     # Strategy
     strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True)
 

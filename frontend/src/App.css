@@ -1085,3 +1085,169 @@ body {
   align-items: center;
   gap: 16px;
 }
+
+/* Paper Trade Checkbox in Form */
+.form-group-checkbox {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-group-checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
+.form-group-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.form-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* SL/TP Alert Banner */
+.sltp-alert-banner {
+  margin-bottom: 20px;
+  padding: 15px 20px;
+  background-color: var(--color-surface);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.sltp-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-detect-sltp {
+  padding: 8px 16px;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.btn-detect-sltp:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.btn-detect-sltp:disabled {
+  background-color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.sltp-summary {
+  display: flex;
+  gap: 12px;
+  font-size: 0.875rem;
+}
+
+.summary-auto-closed {
+  color: var(--color-success);
+}
+
+.summary-conflict {
+  color: var(--color-warning);
+}
+
+.btn-dismiss-all {
+  margin-left: auto;
+  padding: 6px 12px;
+  background-color: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.btn-dismiss-all:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.sltp-error {
+  margin-top: 10px;
+  padding: 10px 15px;
+  background-color: var(--color-error-light);
+  border: 1px solid var(--color-error);
+  border-radius: 4px;
+  color: var(--color-error-dark);
+  font-size: 0.875rem;
+}
+
+.sltp-alerts {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sltp-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.sltp-alert .alert-icon {
+  font-weight: bold;
+  width: 24px;
+  text-align: center;
+}
+
+.sltp-alert .alert-message {
+  flex: 1;
+}
+
+.sltp-alert .btn-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0 4px;
+}
+
+.sltp-alert .btn-dismiss:hover {
+  opacity: 1;
+}
+
+/* Alert type styles */
+.alert-sl {
+  background-color: var(--color-error-light);
+  border: 1px solid var(--color-error);
+  color: var(--color-error-dark);
+}
+
+.alert-tp {
+  background-color: var(--color-distance-near-bg);
+  border: 1px solid var(--color-success);
+  color: var(--color-distance-near-text);
+}
+
+.alert-conflict {
+  background-color: var(--color-warning-light);
+  border: 1px solid var(--color-warning);
+  color: var(--color-warning-dark);
+}
+
+.alert-auto-closed {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}

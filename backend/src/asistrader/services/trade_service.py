@@ -33,6 +33,7 @@ def create_trade(
     date_planned: date,
     strategy_id: int | None = None,
     user_id: int | None = None,
+    paper_trade: bool = False,
 ) -> Trade:
     """Create a new trade with status=PLAN."""
     amount = entry_price * units
@@ -47,6 +48,7 @@ def create_trade(
         strategy_id=strategy_id,
         user_id=user_id,
         status=TradeStatus.PLAN,
+        paper_trade=paper_trade,
     )
     db.add(trade)
     db.commit()

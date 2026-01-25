@@ -5,6 +5,7 @@ import { TradeStatistics } from '../components/TradeStatistics'
 import { TickerPerformance } from '../components/TickerPerformance'
 import { TradeCreationForm } from '../components/TradeCreationForm'
 import { MarketDataSync } from '../components/MarketDataSync'
+import { SLTPAlertBanner } from '../components/SLTPAlertBanner'
 import { fetchTrades } from '../api/trades'
 import { Trade } from '../types/trade'
 
@@ -53,6 +54,7 @@ export function TradeDashboard() {
     <>
       <MarketDataSync />
       <TradeCreationForm onTradeCreated={loadTrades} />
+      <SLTPAlertBanner onTradesClosed={loadTrades} />
       <section className="trades-section">
         <h2>Trades</h2>
         <TradeStatistics trades={filteredTrades} />

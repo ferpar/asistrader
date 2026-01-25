@@ -168,6 +168,9 @@ class TradeSchema(BaseModel):
     exit_type: ExitType | None = None
     exit_price: float | None = None
 
+    # Paper trading
+    paper_trade: bool
+
     # Strategy
     strategy_id: int | None = None
     strategy_name: str | None = None
@@ -199,6 +202,7 @@ class TradeCreateRequest(BaseModel):
     units: int
     date_planned: date
     strategy_id: int | None = None
+    paper_trade: bool = False
 
 
 class TradeUpdateRequest(BaseModel):
@@ -214,6 +218,7 @@ class TradeUpdateRequest(BaseModel):
     exit_price: float | None = None
     exit_type: ExitType | None = None
     strategy_id: int | None = None
+    paper_trade: bool | None = None
 
 
 class TradeResponse(BaseModel):
@@ -395,3 +400,35 @@ class MessageResponse(BaseModel):
     """Generic message response."""
 
     message: str
+
+
+# --- SL/TP Detection Schemas ---
+
+
+class SLTPHitType(str, Enum):
+    """Type of SL/TP hit."""
+
+    SL = "sl"
+    TP = "tp"
+    BOTH = "both"
+
+
+class SLTPAlert(BaseModel):
+    """Schema for an SL/TP alert."""
+
+    trade_id: int
+    ticker: str
+    hit_type: SLTPHitType
+    hit_date: date
+    hit_price: float
+    paper_trade: bool
+    auto_closed: bool
+    message: str
+
+
+class SLTPDetectionResponse(BaseModel):
+    """Response schema for SL/TP detection endpoint."""
+
+    alerts: list[SLTPAlert]
+    auto_closed_count: int
+    conflict_count: int

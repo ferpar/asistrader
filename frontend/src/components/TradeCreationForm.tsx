@@ -28,6 +28,7 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
     units: '',
     date_planned: new Date().toISOString().split('T')[0],
     strategy_id: '',
+    paper_trade: false,
   })
 
   useEffect(() => {
@@ -125,6 +126,7 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
         units: parseInt(formData.units),
         date_planned: formData.date_planned,
         strategy_id: formData.strategy_id ? parseInt(formData.strategy_id) : null,
+        paper_trade: formData.paper_trade,
       }
       await createTrade(request)
       // Reset form
@@ -136,6 +138,7 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
         units: '',
         date_planned: new Date().toISOString().split('T')[0],
         strategy_id: '',
+        paper_trade: false,
       })
       onTradeCreated()
     } catch (err) {
@@ -217,6 +220,19 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="form-group form-group-checkbox">
+          <label htmlFor="paper_trade">
+            <input
+              type="checkbox"
+              id="paper_trade"
+              checked={formData.paper_trade}
+              onChange={(e) => setFormData(prev => ({ ...prev, paper_trade: e.target.checked }))}
+            />
+            Paper Trade
+          </label>
+          <span className="form-hint">Auto-close on SL/TP hit</span>
         </div>
       </div>
 

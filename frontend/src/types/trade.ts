@@ -99,6 +99,7 @@ export interface Trade {
   exit_date: string | null
   exit_type: ExitType | null
   exit_price: number | null
+  paper_trade: boolean
   strategy_id: number | null
   strategy_name: string | null
   risk_abs: number
@@ -121,6 +122,7 @@ export interface TradeCreateRequest {
   units: number
   date_planned: string
   strategy_id?: number | null
+  paper_trade?: boolean
 }
 
 export interface TradeUpdateRequest {
@@ -175,4 +177,24 @@ export interface ValidationResult {
   isValid: boolean
   errors: ValidationError[]
   direction: TradeDirection | null
+}
+
+// SL/TP Detection types
+export type SLTPHitType = 'sl' | 'tp' | 'both'
+
+export interface SLTPAlert {
+  trade_id: number
+  ticker: string
+  hit_type: SLTPHitType
+  hit_date: string
+  hit_price: number
+  paper_trade: boolean
+  auto_closed: boolean
+  message: string
+}
+
+export interface SLTPDetectionResponse {
+  alerts: SLTPAlert[]
+  auto_closed_count: number
+  conflict_count: number
 }
