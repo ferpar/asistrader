@@ -20,16 +20,36 @@ interface TradeFiltersProps {
 
 export function TradeFilters({ value, onChange }: TradeFiltersProps) {
   return (
-    <div className="filter-tabs">
-      {FILTER_OPTIONS.map((filter) => (
-        <button
-          key={filter}
-          className={`filter-tab ${value === filter ? 'active' : ''}`}
-          onClick={() => onChange(filter)}
+    <>
+      {/* Desktop: button tabs */}
+      <div className="filter-tabs filter-tabs-desktop">
+        {FILTER_OPTIONS.map((filter) => (
+          <button
+            key={filter}
+            className={`filter-tab ${value === filter ? 'active' : ''}`}
+            onClick={() => onChange(filter)}
+          >
+            {FILTER_LABELS[filter]}
+          </button>
+        ))}
+      </div>
+
+      {/* Mobile: dropdown select */}
+      <div className="filter-tabs filter-tabs-mobile">
+        <label htmlFor="filter-select" className="filter-label">Filter:</label>
+        <select
+          id="filter-select"
+          className="filter-select"
+          value={value}
+          onChange={(e) => onChange(e.target.value as StatusFilter)}
         >
-          {FILTER_LABELS[filter]}
-        </button>
-      ))}
-    </div>
+          {FILTER_OPTIONS.map((filter) => (
+            <option key={filter} value={filter}>
+              {FILTER_LABELS[filter]}
+            </option>
+          ))}
+        </select>
+      </div>
+    </>
   )
 }
