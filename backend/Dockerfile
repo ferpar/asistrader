@@ -27,5 +27,5 @@ RUN uv pip install --system -e .
 # Expose port
 EXPOSE 8005
 
-# Run the application
-CMD ["uvicorn", "asistrader.main:app", "--host", "0.0.0.0", "--port", "8005"]
+# Run migrations and start the application
+CMD ["sh", "-c", "alembic upgrade head && uvicorn asistrader.main:app --host 0.0.0.0 --port 8005"]
