@@ -15,16 +15,16 @@ export function useLiveMetrics(trades: Trade[]): UseLiveMetricsResult {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Filter open trades and get unique symbols
-  const openTrades = useMemo(
-    () => trades.filter((trade) => trade.status === 'open'),
+  // Filter open and plan trades and get unique symbols
+  const activeTrades = useMemo(
+    () => trades.filter((trade) => trade.status === 'open' || trade.status === 'plan'),
     [trades]
   )
 
   const uniqueSymbols = useMemo(() => {
-    const symbols = new Set(openTrades.map((trade) => trade.ticker.toUpperCase()))
+    const symbols = new Set(activeTrades.map((trade) => trade.ticker.toUpperCase()))
     return Array.from(symbols)
-  }, [openTrades])
+  }, [activeTrades])
 
   // Fetch prices for all unique symbols
   const fetchPrices = useCallback(async () => {
@@ -51,11 +51,11 @@ export function useLiveMetrics(trades: Trade[]): UseLiveMetricsResult {
     fetchPrices()
   }, [fetchPrices])
 
-  // Calculate metrics for each open trade
+  // Calculate metrics for each active trade (open and plan)
   const metrics = useMemo(() => {
     const result: Record<number, LiveMetrics> = {}
 
-    for (const trade of openTrades) {
+    for (const trade of activeTrades) {
       const priceData = prices[trade.ticker.toUpperCase()]
       const currentPrice = priceData?.valid ? priceData.price : null
 
@@ -93,7 +93,7 @@ export function useLiveMetrics(trades: Trade[]): UseLiveMetricsResult {
     }
 
     return result
-  }, [openTrades, prices])
+  }, [activeTrades, prices])
 
   return {
     metrics,

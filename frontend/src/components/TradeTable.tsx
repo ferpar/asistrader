@@ -101,7 +101,13 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
     metric: LiveMetrics | undefined,
     type: 'price' | 'slDist' | 'tpDist' | 'peDist' | 'pnl'
   ): string => {
-    if (trade.status !== 'open') return '-'
+    // PE distance only shown for plan trades
+    if (type === 'peDist') {
+      if (trade.status !== 'plan') return '-'
+    } else {
+      // All other metrics only shown for open trades
+      if (trade.status !== 'open') return '-'
+    }
     if (!metric) return '-'
 
     switch (type) {
