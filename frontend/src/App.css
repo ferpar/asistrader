@@ -1251,3 +1251,26 @@ body {
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
 }
+
+/* Entry alert styles */
+.alert-entry {
+  background-color: #e3f2fd;
+  border: 1px solid var(--color-info);
+  color: var(--color-info-dark);
+}
+
+.alert-entry-opened {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.summary-auto-opened {
+  color: var(--color-info);
+}
+
+[data-theme="dark"] .alert-entry {
+  background-color: #1a3a5c;
+  border: 1px solid var(--color-info);
+  color: var(--color-info);
+}

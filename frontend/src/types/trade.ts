@@ -179,8 +179,9 @@ export interface ValidationResult {
   direction: TradeDirection | null
 }
 
-// SL/TP Detection types
+// Trade Detection types
 export type SLTPHitType = 'sl' | 'tp' | 'both'
+export type EntryHitType = 'entry'
 
 export interface SLTPAlert {
   trade_id: number
@@ -193,8 +194,21 @@ export interface SLTPAlert {
   message: string
 }
 
-export interface SLTPDetectionResponse {
-  alerts: SLTPAlert[]
+export interface EntryAlert {
+  trade_id: number
+  ticker: string
+  hit_type: EntryHitType
+  hit_date: string
+  entry_price: number
+  paper_trade: boolean
+  auto_opened: boolean
+  message: string
+}
+
+export interface TradeDetectionResponse {
+  entry_alerts: EntryAlert[]
+  sltp_alerts: SLTPAlert[]
+  auto_opened_count: number
   auto_closed_count: number
   conflict_count: number
 }

@@ -1,13 +1,12 @@
-"""SL/TP detection service for paper trading auto-close functionality."""
+"""Trade detection service for paper trading auto-open and auto-close functionality."""
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Literal
 
 from sqlalchemy.orm import Session
 
 from asistrader.models.db import ExitType, MarketData, Trade, TradeStatus
-from asistrader.models.schemas import SLTPAlert, SLTPHitType
+from asistrader.models.schemas import EntryAlert, EntryHitType, SLTPAlert, SLTPHitType
 
 
 @dataclass
@@ -17,6 +16,14 @@ class SLTPHit:
     hit_type: SLTPHitType
     hit_date: date
     hit_price: float
+
+
+@dataclass
+class EntryHit:
+    """Represents an entry price hit detection result."""
+
+    hit_date: date
+    entry_price: float
 
 
 def is_long_trade(trade: Trade) -> bool:
@@ -130,14 +137,123 @@ def auto_close_paper_trade(
     db.commit()
 
 
-def process_all_open_trades(
-    db: Session, user_id: int
-) -> dict[Literal["alerts", "auto_closed_count", "conflict_count"], list[SLTPAlert] | int]:
+def check_entry_hit_for_day(trade: Trade, market_day: MarketData) -> bool:
     """
-    Process all open trades for a user to detect SL/TP hits.
+    Check if entry price was hit on a specific market day.
 
-    Returns a dict with:
-      - alerts: list of SLTPAlert objects
+    For long positions (SL < entry): Entry hit if low <= entry_price
+    For short positions (SL > entry): Entry hit if high >= entry_price
+
+    Returns True if entry was hit, False otherwise.
+    """
+    if market_day.low is None or market_day.high is None:
+        return False
+
+    long = is_long_trade(trade)
+    if long:
+        return market_day.low <= trade.entry_price
+    else:
+        return market_day.high >= trade.entry_price
+
+
+def detect_entry_hit(db: Session, trade: Trade) -> EntryHit | None:
+    """
+    Scan market data from trade's date_planned to find first entry price hit.
+
+    Returns the first hit found, or None if no hit detected.
+    """
+    if trade.status != TradeStatus.PLAN or trade.date_planned is None:
+        return None
+
+    market_data = (
+        db.query(MarketData)
+        .filter(
+            MarketData.ticker == trade.ticker,
+            MarketData.date >= trade.date_planned,
+        )
+        .order_by(MarketData.date)
+        .all()
+    )
+
+    for day in market_data:
+        if check_entry_hit_for_day(trade, day):
+            return EntryHit(hit_date=day.date, entry_price=trade.entry_price)
+
+    return None
+
+
+def auto_open_paper_trade(db: Session, trade: Trade, hit: EntryHit) -> None:
+    """
+    Auto-open a paper trade with the entry hit information.
+
+    Sets status=OPEN and date_actual to the hit date.
+    """
+    trade.status = TradeStatus.OPEN
+    trade.date_actual = hit.hit_date
+    db.commit()
+
+
+def process_plan_trades(
+    db: Session, user_id: int
+) -> tuple[list[EntryAlert], int]:
+    """
+    Process all PLAN trades for a user to detect entry price hits.
+
+    Returns a tuple of:
+      - entry_alerts: list of EntryAlert objects
+      - auto_opened_count: number of paper trades auto-opened
+    """
+    plan_trades = (
+        db.query(Trade)
+        .filter(
+            Trade.user_id == user_id,
+            Trade.status == TradeStatus.PLAN,
+        )
+        .all()
+    )
+
+    entry_alerts: list[EntryAlert] = []
+    auto_opened_count = 0
+
+    for trade in plan_trades:
+        hit = detect_entry_hit(db, trade)
+        if not hit:
+            continue
+
+        auto_opened = False
+
+        if trade.paper_trade:
+            auto_open_paper_trade(db, trade, hit)
+            auto_opened = True
+            auto_opened_count += 1
+            message = f"{trade.ticker}: Entry hit on {hit.hit_date}. Trade auto-opened."
+        else:
+            message = f"{trade.ticker}: Entry hit on {hit.hit_date} at ${trade.entry_price:.2f}. Review to open."
+
+        entry_alerts.append(
+            EntryAlert(
+                trade_id=trade.id,
+                ticker=trade.ticker,
+                hit_type=EntryHitType.ENTRY,
+                hit_date=hit.hit_date,
+                entry_price=hit.entry_price,
+                paper_trade=trade.paper_trade,
+                auto_opened=auto_opened,
+                message=message,
+            )
+        )
+
+    return entry_alerts, auto_opened_count
+
+
+def process_open_trades(
+    db: Session, user_id: int
+) -> tuple[list[SLTPAlert], int, int]:
+    """
+    Process all OPEN trades for a user to detect SL/TP hits.
+
+    Returns a tuple of:
+      - sltp_alerts: list of SLTPAlert objects
       - auto_closed_count: number of paper trades auto-closed
       - conflict_count: number of trades with both SL and TP hit same day
     """
@@ -150,7 +266,7 @@ def process_all_open_trades(
         .all()
     )
 
-    alerts: list[SLTPAlert] = []
+    sltp_alerts: list[SLTPAlert] = []
     auto_closed_count = 0
     conflict_count = 0
 
@@ -174,7 +290,7 @@ def process_all_open_trades(
             hit_label = "Stop Loss" if hit.hit_type == SLTPHitType.SL else "Take Profit"
             message = f"{trade.ticker}: {hit_label} hit on {hit.hit_date} at ${hit.hit_price:.2f}. Consider closing manually."
 
-        alerts.append(
+        sltp_alerts.append(
             SLTPAlert(
                 trade_id=trade.id,
                 ticker=trade.ticker,
@@ -187,8 +303,34 @@ def process_all_open_trades(
             )
         )
 
+    return sltp_alerts, auto_closed_count, conflict_count
+
+
+def process_all_trades(db: Session, user_id: int) -> dict:
+    """
+    Process both PLAN and OPEN trades for a user.
+
+    For PLAN trades: detect entry price hits and auto-open paper trades.
+    For OPEN trades: detect SL/TP hits and auto-close paper trades.
+
+    Returns a dict with:
+      - entry_alerts: list of EntryAlert objects
+      - sltp_alerts: list of SLTPAlert objects
+      - auto_opened_count: number of paper trades auto-opened
+      - auto_closed_count: number of paper trades auto-closed
+      - conflict_count: number of trades with both SL and TP hit same day
+    """
+    # Process PLAN trades for entry hits
+    entry_alerts, auto_opened_count = process_plan_trades(db, user_id)
+
+    # Process OPEN trades for SL/TP hits
+    # Note: This includes trades that were just auto-opened above
+    sltp_alerts, auto_closed_count, conflict_count = process_open_trades(db, user_id)
+
     return {
-        "alerts": alerts,
+        "entry_alerts": entry_alerts,
+        "sltp_alerts": sltp_alerts,
+        "auto_opened_count": auto_opened_count,
         "auto_closed_count": auto_closed_count,
         "conflict_count": conflict_count,
     }

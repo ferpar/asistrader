@@ -7,8 +7,8 @@ from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
 from asistrader.models.db import Trade, User
 from asistrader.models.schemas import (
-    SLTPDetectionResponse,
     TradeCreateRequest,
+    TradeDetectionResponse,
     TradeListResponse,
     TradeResponse,
     TradeSchema,
@@ -118,15 +118,21 @@ def update_existing_trade(
     return TradeResponse(trade=_trade_to_schema(trade), message="Trade updated successfully")
 
 
-@router.post("/detect-sltp", response_model=SLTPDetectionResponse)
-def detect_sltp_hits(
+@router.post("/detect-hits", response_model=TradeDetectionResponse)
+def detect_trade_hits(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> SLTPDetectionResponse:
-    """Detect SL/TP hits for all open trades and auto-close paper trades."""
-    result = sltp_detection_service.process_all_open_trades(db, user_id=current_user.id)
-    return SLTPDetectionResponse(
-        alerts=result["alerts"],
+) -> TradeDetectionResponse:
+    """Detect entry and SL/TP hits for all trades.
+
+    For PLAN trades: detects entry price hits and auto-opens paper trades.
+    For OPEN trades: detects SL/TP hits and auto-closes paper trades.
+    """
+    result = sltp_detection_service.process_all_trades(db, user_id=current_user.id)
+    return TradeDetectionResponse(
+        entry_alerts=result["entry_alerts"],
+        sltp_alerts=result["sltp_alerts"],
+        auto_opened_count=result["auto_opened_count"],
         auto_closed_count=result["auto_closed_count"],
         conflict_count=result["conflict_count"],
     )

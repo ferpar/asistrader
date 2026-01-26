@@ -402,7 +402,7 @@ class MessageResponse(BaseModel):
     message: str
 
 
-# --- SL/TP Detection Schemas ---
+# --- Trade Detection Schemas ---
 
 
 class SLTPHitType(str, Enum):
@@ -411,6 +411,12 @@ class SLTPHitType(str, Enum):
     SL = "sl"
     TP = "tp"
     BOTH = "both"
+
+
+class EntryHitType(str, Enum):
+    """Type of entry hit."""
+
+    ENTRY = "entry"
 
 
 class SLTPAlert(BaseModel):
@@ -426,9 +432,24 @@ class SLTPAlert(BaseModel):
     message: str
 
 
-class SLTPDetectionResponse(BaseModel):
-    """Response schema for SL/TP detection endpoint."""
+class EntryAlert(BaseModel):
+    """Schema for an entry price hit alert."""
 
-    alerts: list[SLTPAlert]
+    trade_id: int
+    ticker: str
+    hit_type: EntryHitType
+    hit_date: date
+    entry_price: float
+    paper_trade: bool
+    auto_opened: bool
+    message: str
+
+
+class TradeDetectionResponse(BaseModel):
+    """Response schema for trade detection endpoint."""
+
+    entry_alerts: list[EntryAlert]
+    sltp_alerts: list[SLTPAlert]
+    auto_opened_count: int
     auto_closed_count: int
     conflict_count: int
