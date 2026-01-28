@@ -62,6 +62,7 @@ export function TradeDashboard() {
         <TradeFilters value={statusFilter} onChange={setStatusFilter} />
         <TradeTable
           trades={filteredTrades}
+          allTrades={trades}
           loading={loading}
           error={error}
           onTradeUpdated={loadTrades}

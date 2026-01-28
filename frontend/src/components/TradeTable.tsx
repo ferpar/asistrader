@@ -6,15 +6,16 @@ import { formatPlanAge, formatOpenAge, formatPlanToOpen, formatOpenToClose } fro
 
 interface TradeTableProps {
   trades: Trade[]
+  allTrades?: Trade[]
   loading?: boolean
   error?: string | null
   onTradeUpdated?: () => void
 }
 
-export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTableProps) {
+export function TradeTable({ trades, allTrades, loading, error, onTradeUpdated }: TradeTableProps) {
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null)
   const [editMode, setEditMode] = useState<EditMode>('edit')
-  const { metrics: liveMetrics } = useLiveMetrics(trades)
+  const { metrics: liveMetrics } = useLiveMetrics(allTrades || trades)
 
   const handleOpenModal = (trade: Trade, mode: EditMode) => {
     setEditingTrade(trade)
@@ -104,8 +105,11 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
     // PE distance only shown for plan trades
     if (type === 'peDist') {
       if (trade.status !== 'plan') return '-'
+    } else if (type === 'price') {
+      // Current price shown for open and plan trades
+      if (trade.status !== 'open' && trade.status !== 'plan') return '-'
     } else {
-      // All other metrics only shown for open trades
+      // SL/TP distance, PnL only shown for open trades
       if (trade.status !== 'open') return '-'
     }
     if (!metric) return '-'

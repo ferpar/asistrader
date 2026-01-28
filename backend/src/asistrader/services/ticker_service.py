@@ -1,7 +1,11 @@
 """Ticker business logic service."""
 
+import logging
+
 import yfinance as yf
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from asistrader.models.db import Ticker
 
@@ -52,6 +56,7 @@ def validate_ticker_with_yfinance(symbol: str) -> dict:
         name = info.get("shortName") or info.get("longName")
         return {"name": name, "valid": True}
     except Exception:
+        logger.exception("Failed to validate ticker %s with yfinance", symbol)
         return {"name": None, "valid": False}
 
 
@@ -109,6 +114,7 @@ def get_current_price(symbol: str) -> dict:
         currency = fast_info.get("currency", "USD")
         return {"price": float(price), "currency": currency, "valid": True}
     except Exception:
+        logger.exception("Failed to get current price for %s", symbol)
         return {"price": None, "currency": None, "valid": False}
 
 

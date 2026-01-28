@@ -41,9 +41,9 @@ def upgrade() -> None:
     for trade in trades:
         trade_id, stop_loss, take_profit, units, status, exit_type, exit_date = trade
 
-        if str(status) == "close":
-            sl_status = "hit" if exit_type == "sl" else "cancelled"
-            tp_status = "hit" if exit_type == "tp" else "cancelled"
+        if str(status) == "CLOSE":
+            sl_status = "hit" if str(exit_type) == "SL" else "cancelled"
+            tp_status = "hit" if str(exit_type) == "TP" else "cancelled"
             hit_date = exit_date
             units_closed = units
         else:
