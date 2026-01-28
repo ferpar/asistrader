@@ -18,6 +18,7 @@ const mockTrade: Trade = {
   exit_date: null,
   exit_type: null,
   exit_price: null,
+  paper_trade: false,
   strategy_id: 1,
   strategy_name: 'Swing_82',
   risk_abs: -50,
@@ -25,6 +26,9 @@ const mockTrade: Trade = {
   risk_pct: -0.05,
   profit_pct: 0.15,
   ratio: 3.0,
+  is_layered: false,
+  remaining_units: null,
+  exit_levels: [],
 }
 
 describe('TradeTable', () => {
@@ -105,7 +109,8 @@ describe('TradeTable', () => {
     expect(screen.getByText('Profit %')).toBeInTheDocument()
     expect(screen.getByText('Ratio')).toBeInTheDocument()
     expect(screen.getByText('Strategy')).toBeInTheDocument()
-    expect(screen.getByText('Days')).toBeInTheDocument()
+    expect(screen.getByText('Mode')).toBeInTheDocument()
+    expect(screen.getByText('Remaining')).toBeInTheDocument()
   })
 
   it('displays strategy name', () => {
@@ -124,5 +129,71 @@ describe('TradeTable', () => {
     // Multiple '-' can appear (strategy, live metrics, etc), so we check at least one exists
     const dashes = screen.getAllByText('-')
     expect(dashes.length).toBeGreaterThan(0)
+  })
+})
+
+// Layered trade tests
+describe('TradeTable with layered trades', () => {
+  const layeredMockTrade: Trade = {
+    ...mockTrade,
+    id: 10,
+    units: 100,
+    amount: 10000,
+    is_layered: true,
+    remaining_units: 50,
+    exit_levels: [
+      {
+        id: 1,
+        trade_id: 10,
+        level_type: 'tp',
+        price: 110,
+        units_pct: 0.5,
+        order_index: 1,
+        status: 'hit',
+        hit_date: '2025-01-17',
+        units_closed: 50,
+        move_sl_to_breakeven: true,
+      },
+      {
+        id: 2,
+        trade_id: 10,
+        level_type: 'tp',
+        price: 120,
+        units_pct: 0.3,
+        order_index: 2,
+        status: 'pending',
+        hit_date: null,
+        units_closed: null,
+        move_sl_to_breakeven: false,
+      },
+      {
+        id: 3,
+        trade_id: 10,
+        level_type: 'tp',
+        price: 130,
+        units_pct: 0.2,
+        order_index: 3,
+        status: 'pending',
+        hit_date: null,
+        units_closed: null,
+        move_sl_to_breakeven: false,
+      },
+    ],
+  }
+
+  it('displays layered indicator for layered trades', () => {
+    render(<TradeTable trades={[layeredMockTrade]} />)
+    expect(screen.getByText('Layered')).toBeInTheDocument()
+  })
+
+  it('shows remaining units for partially closed trades', () => {
+    render(<TradeTable trades={[layeredMockTrade]} />)
+    // remaining_units is 50
+    expect(screen.getByText('50/100')).toBeInTheDocument()
+  })
+
+  it('displays simple indicator for non-layered trades', () => {
+    render(<TradeTable trades={[mockTrade]} />)
+    expect(screen.getByText('Simple')).toBeInTheDocument()
   })
 })

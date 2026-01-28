@@ -1274,3 +1274,221 @@ body {
   border: 1px solid var(--color-info);
   color: var(--color-info);
 }
+
+/* Layered Exit Levels Styles */
+.layered-levels-section {
+  margin-bottom: 15px;
+  padding: 15px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.layered-levels-group {
+  margin-bottom: 15px;
+}
+
+.layered-levels-group:last-child {
+  margin-bottom: 0;
+}
+
+.layered-levels-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.levels-total {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.levels-total.complete {
+  background-color: var(--color-distance-near-bg);
+  color: var(--color-distance-near-text);
+}
+
+.levels-total.incomplete {
+  background-color: var(--color-warning-light);
+  color: var(--color-warning-dark);
+}
+
+.level-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.level-label {
+  font-weight: 500;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  width: 30px;
+}
+
+.level-input-row input[type="number"] {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+.level-input-row .pct-input {
+  width: 60px;
+  flex: none;
+}
+
+.be-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.be-checkbox input {
+  width: 14px;
+  height: 14px;
+}
+
+.be-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.btn-remove-level {
+  background: none;
+  border: none;
+  color: var(--color-error);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.btn-remove-level:hover {
+  color: var(--color-error-dark);
+}
+
+.btn-add-level {
+  background: none;
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-muted);
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border-radius: 4px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.btn-add-level:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* Mode indicators in Trade Table */
+.mode-layered {
+  color: var(--color-info);
+  font-weight: 500;
+}
+
+.mode-simple {
+  color: var(--color-text-muted);
+}
+
+/* Exit Level Summary Styles */
+.exit-level-summary {
+  padding: 10px;
+  background-color: var(--color-surface);
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.exit-level-section {
+  margin-bottom: 15px;
+}
+
+.exit-level-section:last-child {
+  margin-bottom: 0;
+}
+
+.exit-level-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.exit-level-title {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.exit-level-total {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.exit-level-total.complete {
+  background-color: var(--color-distance-near-bg);
+  color: var(--color-distance-near-text);
+}
+
+.exit-level-total.incomplete {
+  background-color: var(--color-warning-light);
+  color: var(--color-warning-dark);
+}
+
+.exit-level-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.exit-level-table th,
+.exit-level-table td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.exit-level-table th {
+  background-color: var(--color-table-header);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  font-size: 0.7rem;
+}
+
+.level-status {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.level-status-hit {
+  background-color: var(--color-distance-near-bg);
+  color: var(--color-distance-near-text);
+}
+
+.level-status-pending {
+  background-color: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.level-status-cancelled {
+  background-color: var(--color-error-light);
+  color: var(--color-error-dark);
+  text-decoration: line-through;
+}

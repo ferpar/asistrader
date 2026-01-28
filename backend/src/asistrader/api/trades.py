@@ -29,6 +29,24 @@ router = APIRouter(prefix="/api/trades", tags=["trades"])
 
 def _trade_to_schema(t: Trade) -> TradeSchema:
     """Convert a Trade ORM model to a TradeSchema."""
+    from asistrader.models.schemas import ExitLevelSchema
+
+    exit_level_schemas = [
+        ExitLevelSchema(
+            id=level.id,
+            trade_id=level.trade_id,
+            level_type=level.level_type,
+            price=level.price,
+            units_pct=level.units_pct,
+            order_index=level.order_index,
+            status=level.status,
+            hit_date=level.hit_date,
+            units_closed=level.units_closed,
+            move_sl_to_breakeven=level.move_sl_to_breakeven,
+        )
+        for level in (t.exit_levels or [])
+    ]
+
     return TradeSchema(
         id=t.id,
         number=t.number,
@@ -45,6 +63,9 @@ def _trade_to_schema(t: Trade) -> TradeSchema:
         exit_type=t.exit_type,
         exit_price=t.exit_price,
         paper_trade=t.paper_trade or False,
+        is_layered=t.is_layered or False,
+        remaining_units=t.remaining_units,
+        exit_levels=exit_level_schemas,
         strategy_id=t.strategy_id,
         strategy_name=t.strategy_rel.name if t.strategy_rel else None,
         risk_abs=t.risk_abs,
@@ -72,24 +93,54 @@ def create_new_trade(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> TradeResponse:
-    """Create a new trade for the current user."""
+    """Create a new trade for the current user.
+
+    Must provide either exit_levels OR both stop_loss and take_profit.
+    If exit_levels are provided, stop_loss and take_profit are ignored.
+    """
+    from asistrader.services.exit_level_service import ExitLevelValidationError
+
     # Validate ticker exists
     ticker = get_ticker_by_symbol(db, request.ticker)
     if not ticker:
         raise HTTPException(status_code=400, detail=f"Ticker '{request.ticker}' not found")
 
-    trade = create_trade(
-        db=db,
-        ticker=request.ticker,
-        entry_price=request.entry_price,
-        stop_loss=request.stop_loss,
-        take_profit=request.take_profit,
-        units=request.units,
-        date_planned=request.date_planned,
-        strategy_id=request.strategy_id,
-        user_id=current_user.id,
-        paper_trade=request.paper_trade,
-    )
+    # Convert exit levels to dict format if provided
+    exit_levels_data = None
+    if request.exit_levels:
+        exit_levels_data = [
+            {
+                "level_type": level.level_type,
+                "price": level.price,
+                "units_pct": level.units_pct,
+                "move_sl_to_breakeven": level.move_sl_to_breakeven,
+            }
+            for level in request.exit_levels
+        ]
+
+    # Validate: must have either exit_levels or both stop_loss and take_profit
+    if not exit_levels_data and (request.stop_loss is None or request.take_profit is None):
+        raise HTTPException(
+            status_code=400,
+            detail="Must provide either exit_levels or both stop_loss and take_profit",
+        )
+
+    try:
+        trade = create_trade(
+            db=db,
+            ticker=request.ticker,
+            entry_price=request.entry_price,
+            units=request.units,
+            date_planned=request.date_planned,
+            stop_loss=request.stop_loss,
+            take_profit=request.take_profit,
+            strategy_id=request.strategy_id,
+            user_id=current_user.id,
+            paper_trade=request.paper_trade,
+            exit_levels=exit_levels_data,
+        )
+    except (ExitLevelValidationError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     return TradeResponse(trade=_trade_to_schema(trade), message="Trade created successfully")
 
@@ -127,12 +178,15 @@ def detect_trade_hits(
 
     For PLAN trades: detects entry price hits and auto-opens paper trades.
     For OPEN trades: detects SL/TP hits and auto-closes paper trades.
+    For layered trades: processes partial closes when individual levels are hit.
     """
     result = sltp_detection_service.process_all_trades(db, user_id=current_user.id)
     return TradeDetectionResponse(
         entry_alerts=result["entry_alerts"],
         sltp_alerts=result["sltp_alerts"],
+        layered_alerts=result["layered_alerts"],
         auto_opened_count=result["auto_opened_count"],
         auto_closed_count=result["auto_closed_count"],
+        partial_close_count=result["partial_close_count"],
         conflict_count=result["conflict_count"],
     )

@@ -155,6 +155,8 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
           <th>Ratio</th>
           <th>Strategy</th>
           <th>Paper</th>
+          <th>Mode</th>
+          <th>Remaining</th>
           <th>Planned</th>
           <th>Actual</th>
           <th>Plan Age</th>
@@ -207,6 +209,14 @@ export function TradeTable({ trades, loading, error, onTradeUpdated }: TradeTabl
             <td>{formatRatio(trade.ratio)}</td>
             <td>{trade.strategy_name ?? '-'}</td>
             <td>{trade.paper_trade ? 'Yes' : '-'}</td>
+            <td className={trade.is_layered ? 'mode-layered' : 'mode-simple'}>
+              {trade.is_layered ? 'Layered' : 'Simple'}
+            </td>
+            <td>
+              {trade.is_layered && trade.remaining_units !== null
+                ? `${trade.remaining_units}/${trade.units}`
+                : '-'}
+            </td>
             <td>{formatDate(trade.date_planned)}</td>
             <td>{formatDate(trade.date_actual)}</td>
             <td>{formatPlanAge(trade)}</td>

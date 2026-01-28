@@ -22,6 +22,21 @@ class ExitType(str, Enum):
     TP = "tp"
 
 
+class ExitLevelType(str, Enum):
+    """Exit level type enum for layered SL/TP."""
+
+    SL = "sl"
+    TP = "tp"
+
+
+class ExitLevelStatus(str, Enum):
+    """Exit level status enum."""
+
+    PENDING = "pending"
+    HIT = "hit"
+    CANCELLED = "cancelled"
+
+
 class Bias(str, Enum):
     """Ticker bias enum."""
 
@@ -146,6 +161,32 @@ class TickerPriceResponse(BaseModel):
     valid: bool
 
 
+class ExitLevelSchema(BaseModel):
+    """Schema for exit level data."""
+
+    id: int
+    trade_id: int
+    level_type: ExitLevelType
+    price: float
+    units_pct: float
+    order_index: int
+    status: ExitLevelStatus
+    hit_date: date | None = None
+    units_closed: int | None = None
+    move_sl_to_breakeven: bool
+
+    model_config = {"from_attributes": True}
+
+
+class ExitLevelCreateRequest(BaseModel):
+    """Request schema for creating an exit level."""
+
+    level_type: Literal["sl", "tp"]
+    price: float
+    units_pct: float  # 0.0-1.0, must sum to 1.0 for each type
+    move_sl_to_breakeven: bool = False
+
+
 class TradeSchema(BaseModel):
     """Schema for trade data."""
 
@@ -171,6 +212,11 @@ class TradeSchema(BaseModel):
     # Paper trading
     paper_trade: bool
 
+    # Layered SL/TP
+    is_layered: bool = False
+    remaining_units: int | None = None
+    exit_levels: list[ExitLevelSchema] = []
+
     # Strategy
     strategy_id: int | None = None
     strategy_name: str | None = None
@@ -193,24 +239,30 @@ class TradeListResponse(BaseModel):
 
 
 class TradeCreateRequest(BaseModel):
-    """Request schema for creating a trade."""
+    """Request schema for creating a trade.
+
+    Must provide either exit_levels OR both stop_loss and take_profit.
+    If exit_levels are provided, stop_loss and take_profit are ignored.
+    """
 
     ticker: str
     entry_price: float
-    stop_loss: float
-    take_profit: float
+    stop_loss: float | None = None  # Optional: creates simple exit_level if no exit_levels
+    take_profit: float | None = None  # Optional: creates simple exit_level if no exit_levels
     units: int
     date_planned: date
     strategy_id: int | None = None
     paper_trade: bool = False
+    exit_levels: list[ExitLevelCreateRequest] | None = None
 
 
 class TradeUpdateRequest(BaseModel):
-    """Request schema for updating a trade."""
+    """Request schema for updating a trade.
+
+    SL/TP updates must be done through exit_levels.
+    """
 
     entry_price: float | None = None
-    stop_loss: float | None = None
-    take_profit: float | None = None
     units: int | None = None
     status: TradeStatus | None = None
     date_actual: date | None = None
@@ -219,6 +271,7 @@ class TradeUpdateRequest(BaseModel):
     exit_type: ExitType | None = None
     strategy_id: int | None = None
     paper_trade: bool | None = None
+    exit_levels: list[ExitLevelCreateRequest] | None = None
 
 
 class TradeResponse(BaseModel):
@@ -445,11 +498,29 @@ class EntryAlert(BaseModel):
     message: str
 
 
+class LayeredAlert(BaseModel):
+    """Schema for a layered exit level hit alert."""
+
+    trade_id: int
+    ticker: str
+    level_type: str  # "sl" or "tp"
+    level_index: int
+    hit_date: date
+    hit_price: float
+    units_closed: int
+    remaining_units: int
+    paper_trade: bool
+    auto_processed: bool
+    message: str
+
+
 class TradeDetectionResponse(BaseModel):
     """Response schema for trade detection endpoint."""
 
     entry_alerts: list[EntryAlert]
     sltp_alerts: list[SLTPAlert]
+    layered_alerts: list[LayeredAlert] = []
     auto_opened_count: int
     auto_closed_count: int
+    partial_close_count: int = 0
     conflict_count: int

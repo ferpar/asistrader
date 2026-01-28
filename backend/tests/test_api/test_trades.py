@@ -5,7 +5,7 @@ from datetime import date
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from asistrader.models.db import Ticker, Trade, TradeStatus, User
+from asistrader.models.db import ExitLevel, ExitLevelStatus, ExitLevelType, Ticker, Trade, TradeStatus, User
 
 
 def test_list_trades_empty(
@@ -40,6 +40,7 @@ def test_list_trades_with_data(
     assert trade["amount"] == 1000.0
     assert trade["units"] == 10
     assert trade["entry_price"] == 100.0
+    # stop_loss and take_profit are now computed from exit_levels
     assert trade["stop_loss"] == 95.0
     assert trade["take_profit"] == 115.0
 
@@ -81,10 +82,9 @@ def test_list_trades_multiple(
         amount=1000.0,
         units=10,
         entry_price=100.0,
-        stop_loss=95.0,
-        take_profit=115.0,
         date_planned=date(2025, 1, 15),
         user_id=sample_user.id,
+        remaining_units=10,
     )
     trade2 = Trade(
         id=2,
@@ -93,12 +93,24 @@ def test_list_trades_multiple(
         amount=2000.0,
         units=5,
         entry_price=200.0,
-        stop_loss=190.0,
-        take_profit=230.0,
         date_planned=date(2025, 1, 16),
         user_id=sample_user.id,
+        remaining_units=5,
     )
     db_session.add_all([trade1, trade2])
+    db_session.commit()
+
+    # Add exit levels for trade1 (SL=95, TP=115)
+    trade1_levels = [
+        ExitLevel(trade_id=1, level_type=ExitLevelType.SL, price=95.0, units_pct=1.0, order_index=1, status=ExitLevelStatus.PENDING, move_sl_to_breakeven=False),
+        ExitLevel(trade_id=1, level_type=ExitLevelType.TP, price=115.0, units_pct=1.0, order_index=1, status=ExitLevelStatus.PENDING, move_sl_to_breakeven=False),
+    ]
+    # Add exit levels for trade2 (SL=190, TP=230)
+    trade2_levels = [
+        ExitLevel(trade_id=2, level_type=ExitLevelType.SL, price=190.0, units_pct=1.0, order_index=1, status=ExitLevelStatus.PENDING, move_sl_to_breakeven=False),
+        ExitLevel(trade_id=2, level_type=ExitLevelType.TP, price=230.0, units_pct=1.0, order_index=1, status=ExitLevelStatus.PENDING, move_sl_to_breakeven=False),
+    ]
+    db_session.add_all(trade1_levels + trade2_levels)
     db_session.commit()
 
     response = client.get("/api/trades", headers=auth_headers)

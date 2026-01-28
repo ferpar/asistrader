@@ -28,6 +28,21 @@ class ExitType(str, PyEnum):
     TP = "tp"
 
 
+class ExitLevelType(str, PyEnum):
+    """Exit level type enum for layered SL/TP."""
+
+    SL = "sl"
+    TP = "tp"
+
+
+class ExitLevelStatus(str, PyEnum):
+    """Exit level status enum."""
+
+    PENDING = "pending"
+    HIT = "hit"
+    CANCELLED = "cancelled"
+
+
 class Bias(str, PyEnum):
     """Ticker bias enum."""
 
@@ -129,8 +144,6 @@ class Trade(Base):
 
     # Entry
     entry_price = Column(Float)
-    stop_loss = Column(Float)
-    take_profit = Column(Float)
     date_planned = Column(Date)
     date_actual = Column(Date, nullable=True)
 
@@ -142,6 +155,10 @@ class Trade(Base):
     # Paper trading
     paper_trade = Column(Boolean, default=False)
 
+    # Layered SL/TP support (is_layered is a UI hint: true = multiple levels, false = simple view)
+    is_layered = Column(Boolean, default=False)
+    remaining_units = Column(Integer, nullable=True)
+
     # Strategy
     strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True)
 
@@ -152,6 +169,29 @@ class Trade(Base):
     ticker_rel = relationship("Ticker", back_populates="trades")
     strategy_rel = relationship("Strategy", back_populates="trades")
     user_rel = relationship("User", back_populates="trades")
+    exit_levels = relationship("ExitLevel", back_populates="trade_rel", cascade="all, delete-orphan")
+
+    @property
+    def stop_loss(self) -> float:
+        """Compute stop_loss from exit_levels (weighted average of SL levels)."""
+        sl_levels = [l for l in self.exit_levels if l.level_type == ExitLevelType.SL]
+        if not sl_levels:
+            return 0.0
+        total_pct = sum(l.units_pct for l in sl_levels)
+        if total_pct == 0:
+            return 0.0
+        return sum(l.price * l.units_pct for l in sl_levels) / total_pct
+
+    @property
+    def take_profit(self) -> float:
+        """Compute take_profit from exit_levels (weighted average of TP levels)."""
+        tp_levels = [l for l in self.exit_levels if l.level_type == ExitLevelType.TP]
+        if not tp_levels:
+            return 0.0
+        total_pct = sum(l.units_pct for l in tp_levels)
+        if total_pct == 0:
+            return 0.0
+        return sum(l.price * l.units_pct for l in tp_levels) / total_pct
 
     @property
     def risk_abs(self) -> float:
@@ -209,3 +249,32 @@ class MarketData(Base):
     )
 
     ticker_rel = relationship("Ticker", back_populates="market_data")
+
+
+class ExitLevel(Base):
+    """Exit level model for layered SL/TP support."""
+
+    __tablename__ = "exit_levels"
+
+    id = Column(Integer, primary_key=True)
+    trade_id = Column(Integer, ForeignKey("trades.id"), nullable=False)
+    level_type = Column(
+        Enum(ExitLevelType, values_callable=lambda x: [e.value for e in x]), nullable=False
+    )
+    price = Column(Float, nullable=False)
+    units_pct = Column(Float, nullable=False)  # 0.0-1.0
+    order_index = Column(Integer, nullable=False)  # 1, 2, 3...
+    status = Column(
+        Enum(ExitLevelStatus, values_callable=lambda x: [e.value for e in x]),
+        default=ExitLevelStatus.PENDING,
+        nullable=False,
+    )
+    hit_date = Column(Date, nullable=True)
+    units_closed = Column(Integer, nullable=True)
+    move_sl_to_breakeven = Column(Boolean, default=False)
+
+    __table_args__ = (
+        Index("ix_exit_levels_trade_id", "trade_id"),
+    )
+
+    trade_rel = relationship("Trade", back_populates="exit_levels")
