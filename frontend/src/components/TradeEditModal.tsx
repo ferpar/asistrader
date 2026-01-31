@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { fetchStrategies } from '../api/strategies'
-import { Strategy, Trade, TradeUpdateRequest, ExitType, ExitLevelCreateRequest } from '../types/trade'
+import { Strategy, TradeUpdateRequest, ExitType, ExitLevelCreateRequest } from '../types/trade'
+import type { TradeWithMetrics } from '../domain/trade/types'
 import { useTradeStore } from '../container/ContainerContext'
 
 export type EditMode = 'edit' | 'open' | 'close'
@@ -12,7 +13,7 @@ interface ExitLevelInput {
 }
 
 interface TradeEditModalProps {
-  trade: Trade
+  trade: TradeWithMetrics
   mode: EditMode
   onClose: () => void
 }
@@ -24,41 +25,41 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
   const [strategies, setStrategies] = useState<Strategy[]>([])
 
   const [formData, setFormData] = useState({
-    entry_price: trade.entry_price.toString(),
-    stop_loss: trade.stop_loss.toString(),
-    take_profit: trade.take_profit.toString(),
+    entry_price: trade.entryPrice.toNumber().toString(),
+    stop_loss: trade.stopLoss.toNumber().toString(),
+    take_profit: trade.takeProfit.toNumber().toString(),
     units: trade.units.toString(),
     date_actual: new Date().toISOString().split('T')[0],
     exit_price: '',
     exit_type: 'sl' as ExitType,
     exit_date: new Date().toISOString().split('T')[0],
-    strategy_id: trade.strategy_id?.toString() || '',
+    strategy_id: trade.strategyId?.toString() || '',
   })
 
   // Layered mode state
-  const [layeredMode, setLayeredMode] = useState(trade.is_layered)
+  const [layeredMode, setLayeredMode] = useState(trade.isLayered)
   const [tpLevels, setTpLevels] = useState<ExitLevelInput[]>(() => {
-    if (trade.is_layered && trade.exit_levels.length > 0) {
-      const levels = trade.exit_levels
-        .filter(l => l.level_type === 'tp' && l.status === 'pending')
-        .sort((a, b) => a.order_index - b.order_index)
+    if (trade.isLayered && trade.exitLevels.length > 0) {
+      const levels = trade.exitLevels
+        .filter(l => l.levelType === 'tp' && l.status === 'pending')
+        .sort((a, b) => a.orderIndex - b.orderIndex)
         .map(l => ({
-          price: l.price.toString(),
-          units_pct: (l.units_pct * 100).toString(),
-          move_sl_to_breakeven: l.move_sl_to_breakeven,
+          price: l.price.toNumber().toString(),
+          units_pct: (l.unitsPct.toNumber() * 100).toString(),
+          move_sl_to_breakeven: l.moveSlToBreakeven,
         }))
       return levels.length > 0 ? levels : [{ price: '', units_pct: '100', move_sl_to_breakeven: false }]
     }
     return [{ price: '', units_pct: '100', move_sl_to_breakeven: false }]
   })
   const [slLevels, setSlLevels] = useState<ExitLevelInput[]>(() => {
-    if (trade.is_layered && trade.exit_levels.length > 0) {
-      const levels = trade.exit_levels
-        .filter(l => l.level_type === 'sl' && l.status === 'pending')
-        .sort((a, b) => a.order_index - b.order_index)
+    if (trade.isLayered && trade.exitLevels.length > 0) {
+      const levels = trade.exitLevels
+        .filter(l => l.levelType === 'sl' && l.status === 'pending')
+        .sort((a, b) => a.orderIndex - b.orderIndex)
         .map(l => ({
-          price: l.price.toString(),
-          units_pct: (l.units_pct * 100).toString(),
+          price: l.price.toNumber().toString(),
+          units_pct: (l.unitsPct.toNumber() * 100).toString(),
           move_sl_to_breakeven: false,
         }))
       return levels.length > 0 ? levels : [{ price: '', units_pct: '100', move_sl_to_breakeven: false }]

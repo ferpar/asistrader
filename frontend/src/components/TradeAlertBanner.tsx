@@ -1,6 +1,6 @@
 import { observer } from '@legendapp/state/react'
 import { useTradeStore } from '../container/ContainerContext'
-import { EntryAlert, SLTPAlert } from '../types/trade'
+import type { EntryAlert, SLTPAlert } from '../domain/trade/types'
 
 export const TradeAlertBanner = observer(function TradeAlertBanner() {
   const store = useTradeStore()
@@ -15,26 +15,26 @@ export const TradeAlertBanner = observer(function TradeAlertBanner() {
   }
 
   const getEntryAlertClass = (alert: EntryAlert): string => {
-    if (alert.auto_opened) return 'alert-entry-opened'
+    if (alert.autoOpened) return 'alert-entry-opened'
     return 'alert-entry'
   }
 
   const getSltpAlertClass = (alert: SLTPAlert): string => {
-    if (alert.auto_closed) return 'alert-auto-closed'
-    if (alert.hit_type === 'both') return 'alert-conflict'
-    if (alert.hit_type === 'sl') return 'alert-sl'
+    if (alert.autoClosed) return 'alert-auto-closed'
+    if (alert.hitType === 'both') return 'alert-conflict'
+    if (alert.hitType === 'sl') return 'alert-sl'
     return 'alert-tp'
   }
 
   const getEntryAlertIcon = (alert: EntryAlert): string => {
-    if (alert.auto_opened) return 'check'
+    if (alert.autoOpened) return 'check'
     return 'arrow-right'
   }
 
   const getSltpAlertIcon = (alert: SLTPAlert): string => {
-    if (alert.auto_closed) return 'check'
-    if (alert.hit_type === 'both') return 'warning'
-    if (alert.hit_type === 'sl') return 'X'
+    if (alert.autoClosed) return 'check'
+    if (alert.hitType === 'both') return 'warning'
+    if (alert.hitType === 'sl') return 'X'
     return 'check'
   }
 
@@ -80,14 +80,14 @@ export const TradeAlertBanner = observer(function TradeAlertBanner() {
         <div className="sltp-alerts">
           {entryAlerts.map(alert => (
             <div
-              key={`entry-${alert.trade_id}`}
+              key={`entry-${alert.tradeId}`}
               className={`sltp-alert ${getEntryAlertClass(alert)}`}
             >
               <span className="alert-icon">{getEntryAlertIcon(alert)}</span>
               <span className="alert-message">{alert.message}</span>
               <button
                 className="btn-dismiss"
-                onClick={() => store.dismissEntryAlert(alert.trade_id)}
+                onClick={() => store.dismissEntryAlert(alert.tradeId)}
               >
                 x
               </button>
@@ -95,14 +95,14 @@ export const TradeAlertBanner = observer(function TradeAlertBanner() {
           ))}
           {sltpAlerts.map(alert => (
             <div
-              key={`sltp-${alert.trade_id}`}
+              key={`sltp-${alert.tradeId}`}
               className={`sltp-alert ${getSltpAlertClass(alert)}`}
             >
               <span className="alert-icon">{getSltpAlertIcon(alert)}</span>
               <span className="alert-message">{alert.message}</span>
               <button
                 className="btn-dismiss"
-                onClick={() => store.dismissSltpAlert(alert.trade_id)}
+                onClick={() => store.dismissSltpAlert(alert.tradeId)}
               >
                 x
               </button>

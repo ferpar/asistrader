@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { Trade } from '../types/trade'
+import { Decimal } from '../domain/shared/Decimal'
+import type { TradeWithMetrics } from '../domain/trade/types'
 
 interface TickerStats {
   symbol: string
@@ -11,11 +12,11 @@ interface TickerStats {
   avgPnL: number
 }
 
-function calculateTickerPerformance(trades: Trade[]): TickerStats[] {
+function calculateTickerPerformance(trades: TradeWithMetrics[]): TickerStats[] {
   const closedTrades = trades.filter(t => t.status === 'close')
 
   // Group by ticker
-  const byTicker = new Map<string, Trade[]>()
+  const byTicker = new Map<string, TradeWithMetrics[]>()
   closedTrades.forEach(trade => {
     const list = byTicker.get(trade.ticker) || []
     list.push(trade)
@@ -25,13 +26,15 @@ function calculateTickerPerformance(trades: Trade[]): TickerStats[] {
   // Calculate stats per ticker
   const stats: TickerStats[] = []
   byTicker.forEach((tickerTrades, symbol) => {
-    const winners = tickerTrades.filter(t => t.exit_type === 'tp')
-    const losers = tickerTrades.filter(t => t.exit_type === 'sl')
+    const winners = tickerTrades.filter(t => t.exitType === 'tp')
+    const losers = tickerTrades.filter(t => t.exitType === 'sl')
 
-    const calculatePnL = (t: Trade) =>
-      t.exit_price ? (t.exit_price - t.entry_price) * t.units : 0
+    const calculatePnL = (t: TradeWithMetrics): Decimal =>
+      t.exitPrice
+        ? t.exitPrice.minus(t.entryPrice).times(Decimal.from(t.units))
+        : Decimal.zero()
 
-    const totalPnL = tickerTrades.reduce((sum, t) => sum + calculatePnL(t), 0)
+    const totalPnL = tickerTrades.reduce((sum, t) => sum.plus(calculatePnL(t)), Decimal.zero())
 
     stats.push({
       symbol,
@@ -41,8 +44,8 @@ function calculateTickerPerformance(trades: Trade[]): TickerStats[] {
       winRate: tickerTrades.length > 0
         ? (winners.length / tickerTrades.length) * 100
         : 0,
-      totalPnL,
-      avgPnL: tickerTrades.length > 0 ? totalPnL / tickerTrades.length : 0,
+      totalPnL: totalPnL.toNumber(),
+      avgPnL: tickerTrades.length > 0 ? totalPnL.div(Decimal.from(tickerTrades.length)).toNumber() : 0,
     })
   })
 
@@ -51,7 +54,7 @@ function calculateTickerPerformance(trades: Trade[]): TickerStats[] {
 }
 
 interface TickerPerformanceProps {
-  trades: Trade[]
+  trades: TradeWithMetrics[]
 }
 
 export function TickerPerformance({ trades }: TickerPerformanceProps) {

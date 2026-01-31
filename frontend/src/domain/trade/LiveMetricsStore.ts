@@ -1,8 +1,8 @@
 import { observable, computed } from '@legendapp/state'
-import { PriceData, LiveMetrics } from '../../types/trade'
 import { IPriceProvider } from './ITradeRepository'
 import { TradeStore } from './TradeStore'
 import { computeMetrics } from './computeMetrics'
+import type { PriceData, LiveMetrics } from './types'
 
 export class LiveMetricsStore {
   readonly prices$ = observable<Record<string, PriceData>>({})

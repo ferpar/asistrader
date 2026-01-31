@@ -1,32 +1,33 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { Decimal } from '../src/domain/shared/Decimal'
 import { ExitLevelSummary } from '../src/components/ExitLevelSummary'
-import { ExitLevel } from '../src/types/trade'
+import type { ExitLevel } from '../src/domain/trade/types'
 
 const mockLevels: ExitLevel[] = [
   {
     id: 1,
-    trade_id: 1,
-    level_type: 'tp',
-    price: 110,
-    units_pct: 0.5,
-    order_index: 1,
+    tradeId: 1,
+    levelType: 'tp',
+    price: Decimal.from(110),
+    unitsPct: Decimal.from(0.5),
+    orderIndex: 1,
     status: 'hit',
-    hit_date: '2025-01-17',
-    units_closed: 50,
-    move_sl_to_breakeven: true,
+    hitDate: new Date('2025-01-17'),
+    unitsClosed: 50,
+    moveSlToBreakeven: true,
   },
   {
     id: 2,
-    trade_id: 1,
-    level_type: 'tp',
-    price: 120,
-    units_pct: 0.3,
-    order_index: 2,
+    tradeId: 1,
+    levelType: 'tp',
+    price: Decimal.from(120),
+    unitsPct: Decimal.from(0.3),
+    orderIndex: 2,
     status: 'pending',
-    hit_date: null,
-    units_closed: null,
-    move_sl_to_breakeven: false,
+    hitDate: null,
+    unitsClosed: null,
+    moveSlToBreakeven: false,
   },
 ]
 
@@ -56,7 +57,9 @@ describe('ExitLevelSummary', () => {
 
   it('displays hit date for completed levels', () => {
     render(<ExitLevelSummary levels={mockLevels} entryPrice={100} units={100} />)
-    expect(screen.getByText('2025-01-17')).toBeInTheDocument()
+    // Date is rendered via toLocaleDateString(), check it's present
+    const hitDate = new Date('2025-01-17').toLocaleDateString()
+    expect(screen.getByText(hitDate)).toBeInTheDocument()
   })
 
   it('calculates units per level correctly', () => {
@@ -68,7 +71,7 @@ describe('ExitLevelSummary', () => {
 
   it('shows move SL to BE indicator', () => {
     render(<ExitLevelSummary levels={mockLevels} entryPrice={100} units={100} />)
-    // TP1 has move_sl_to_breakeven=true, should have at least one BE indicator
+    // TP1 has moveSlToBreakeven=true, should have at least one BE indicator
     const beElements = screen.getAllByText('BE')
     expect(beElements.length).toBeGreaterThan(0)
   })

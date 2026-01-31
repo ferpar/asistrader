@@ -1,9 +1,10 @@
 import { observable, computed } from '@legendapp/state'
-import { Trade, ExtendedFilter, EntryAlert, SLTPAlert, TradeCreateRequest, TradeUpdateRequest, TradeDetectionResponse } from '../../types/trade'
-import { ITradeRepository } from './ITradeRepository'
+import { ExtendedFilter, TradeCreateRequest, TradeUpdateRequest } from '../../types/trade'
+import { ITradeRepository, DetectionResponse } from './ITradeRepository'
+import type { TradeWithMetrics, EntryAlert, SLTPAlert, DetectionResult } from './types'
 
 export class TradeStore {
-  readonly trades$ = observable<Trade[]>([])
+  readonly trades$ = observable<TradeWithMetrics[]>([])
   readonly loading$ = observable(false)
   readonly error$ = observable<string | null>(null)
   readonly filter$ = observable<ExtendedFilter>('all')
@@ -11,11 +12,7 @@ export class TradeStore {
   readonly entryAlerts$ = observable<EntryAlert[]>([])
   readonly sltpAlerts$ = observable<SLTPAlert[]>([])
   readonly detecting$ = observable(false)
-  readonly lastDetectionResult$ = observable<{
-    autoOpenedCount: number
-    autoClosedCount: number
-    conflictCount: number
-  } | null>(null)
+  readonly lastDetectionResult$ = observable<DetectionResult | null>(null)
 
   readonly filteredTrades$ = computed(() => {
     const trades = this.trades$.get()
@@ -24,9 +21,9 @@ export class TradeStore {
       case 'all':
         return trades
       case 'winners':
-        return trades.filter(t => t.status === 'close' && t.exit_type === 'tp')
+        return trades.filter(t => t.status === 'close' && t.exitType === 'tp')
       case 'losers':
-        return trades.filter(t => t.status === 'close' && t.exit_type === 'sl')
+        return trades.filter(t => t.status === 'close' && t.exitType === 'sl')
       default:
         return trades.filter(t => t.status === filter)
     }
@@ -61,21 +58,17 @@ export class TradeStore {
     await this.loadTrades()
   }
 
-  async detectTradeHits(): Promise<TradeDetectionResponse> {
+  async detectTradeHits(): Promise<DetectionResponse> {
     this.detecting$.set(true)
     try {
-      const result = await this.repo.detectTradeHits()
-      this.entryAlerts$.set(result.entry_alerts)
-      this.sltpAlerts$.set(result.sltp_alerts)
-      this.lastDetectionResult$.set({
-        autoOpenedCount: result.auto_opened_count,
-        autoClosedCount: result.auto_closed_count,
-        conflictCount: result.conflict_count,
-      })
-      if (result.auto_opened_count > 0 || result.auto_closed_count > 0) {
+      const detection = await this.repo.detectTradeHits()
+      this.entryAlerts$.set(detection.entryAlerts)
+      this.sltpAlerts$.set(detection.sltpAlerts)
+      this.lastDetectionResult$.set(detection.result)
+      if (detection.result.autoOpenedCount > 0 || detection.result.autoClosedCount > 0) {
         await this.loadTrades()
       }
-      return result
+      return detection
     } finally {
       this.detecting$.set(false)
     }
@@ -86,11 +79,11 @@ export class TradeStore {
   }
 
   dismissEntryAlert(tradeId: number): void {
-    this.entryAlerts$.set(prev => prev.filter(a => a.trade_id !== tradeId))
+    this.entryAlerts$.set(prev => prev.filter(a => a.tradeId !== tradeId))
   }
 
   dismissSltpAlert(tradeId: number): void {
-    this.sltpAlerts$.set(prev => prev.filter(a => a.trade_id !== tradeId))
+    this.sltpAlerts$.set(prev => prev.filter(a => a.tradeId !== tradeId))
   }
 
   dismissAllAlerts(): void {

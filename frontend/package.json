@@ -1,31 +1,34 @@
 {
-  "name": "asistrader-frontend",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
-  },
-  "dependencies": {
-    "@legendapp/state": "^2.1.15",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
-    "@testing-library/jest-dom": "^6.4.0",
-    "@testing-library/react": "^14.2.0",
-    "@types/react": "^18.2.48",
-    "@types/react-dom": "^18.2.18",
-    "@vitejs/plugin-react": "^4.2.1",
-    "jsdom": "^24.0.0",
-    "typescript": "^5.3.3",
-    "vite": "^5.0.12",
-    "vitest": "^1.2.2"
-  }
+    "name": "asistrader-frontend",
+    "private": true,
+    "version": "0.1.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "tsc && vite build",
+        "preview": "vite preview",
+        "test": "vitest",
+        "test:ui": "vitest --ui",
+        "test:coverage": "vitest --coverage",
+        "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+        "check-types": "npx tsc -p tsconfig.json"
+    },
+    "dependencies": {
+        "@legendapp/state": "^2.1.15",
+        "big.js": "^7.0.1",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0"
+    },
+    "devDependencies": {
+        "@testing-library/jest-dom": "^6.4.0",
+        "@testing-library/react": "^14.2.0",
+        "@types/big.js": "^6.2.2",
+        "@types/react": "^18.2.48",
+        "@types/react-dom": "^18.2.18",
+        "@vitejs/plugin-react": "^4.2.1",
+        "jsdom": "^24.0.0",
+        "typescript": "^5.3.3",
+        "vite": "^5.0.12",
+        "vitest": "^1.2.2"
+    }
 }

@@ -1,4 +1,4 @@
-import { ExitLevel } from '../types/trade'
+import type { ExitLevel } from '../domain/trade/types'
 
 interface ExitLevelSummaryProps {
   levels: ExitLevel[]
@@ -9,8 +9,8 @@ interface ExitLevelSummaryProps {
 export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units }: ExitLevelSummaryProps) {
   // entryPrice is available for future use (e.g., calculating profit per level)
   void _entryPrice
-  const tpLevels = levels.filter(l => l.level_type === 'tp').sort((a, b) => a.order_index - b.order_index)
-  const slLevels = levels.filter(l => l.level_type === 'sl').sort((a, b) => a.order_index - b.order_index)
+  const tpLevels = levels.filter(l => l.levelType === 'tp').sort((a, b) => a.orderIndex - b.orderIndex)
+  const slLevels = levels.filter(l => l.levelType === 'sl').sort((a, b) => a.orderIndex - b.orderIndex)
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -23,9 +23,9 @@ export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units }: Exi
     return `${Math.round(value * 100)}%`
   }
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return '-'
-    return dateString
+  const formatDate = (date: Date | null) => {
+    if (!date) return '-'
+    return date.toLocaleDateString()
   }
 
   const getStatusClass = (status: string) => {
@@ -42,7 +42,7 @@ export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units }: Exi
   const renderLevelTable = (levelList: ExitLevel[], title: string) => {
     if (levelList.length === 0) return null
 
-    const totalPct = levelList.reduce((sum, l) => sum + l.units_pct, 0)
+    const totalPct = levelList.reduce((sum, l) => sum + l.unitsPct.toNumber(), 0)
     const isComplete = Math.abs(totalPct - 1.0) < 0.001
 
     return (
@@ -67,19 +67,19 @@ export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units }: Exi
           </thead>
           <tbody>
             {levelList.map((level) => {
-              const levelUnits = Math.round(units * level.units_pct)
+              const levelUnits = Math.round(units * level.unitsPct.toNumber())
               return (
                 <tr key={level.id} className={getStatusClass(level.status)}>
-                  <td>{level.order_index}</td>
-                  <td>{formatCurrency(level.price)}</td>
-                  <td>{formatPercent(level.units_pct)}</td>
+                  <td>{level.orderIndex}</td>
+                  <td>{formatCurrency(level.price.toNumber())}</td>
+                  <td>{formatPercent(level.unitsPct.toNumber())}</td>
                   <td>{levelUnits} units</td>
                   <td className={`level-status ${getStatusClass(level.status)}`}>
                     {level.status.charAt(0).toUpperCase() + level.status.slice(1)}
                   </td>
-                  <td>{formatDate(level.hit_date)}</td>
+                  <td>{formatDate(level.hitDate)}</td>
                   {title.includes('Take Profit') && (
-                    <td>{level.move_sl_to_breakeven ? 'BE' : '-'}</td>
+                    <td>{level.moveSlToBreakeven ? 'BE' : '-'}</td>
                   )}
                 </tr>
               )

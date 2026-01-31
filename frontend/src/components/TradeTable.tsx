@@ -1,18 +1,18 @@
 import { useState, useEffect } from 'react'
 import { observer } from '@legendapp/state/react'
-import { Trade, LiveMetrics } from '../types/trade'
+import type { TradeWithMetrics, LiveMetrics } from '../domain/trade/types'
 import { TradeEditModal, EditMode } from './TradeEditModal'
 import { useLiveMetricsStore } from '../container/ContainerContext'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen, formatOpenToClose } from '../utils/trade'
 
 interface TradeTableProps {
-  trades: Trade[]
+  trades: TradeWithMetrics[]
   loading?: boolean
   error?: string | null
 }
 
 export const TradeTable = observer(function TradeTable({ trades, loading, error }: TradeTableProps) {
-  const [editingTrade, setEditingTrade] = useState<Trade | null>(null)
+  const [editingTrade, setEditingTrade] = useState<TradeWithMetrics | null>(null)
   const [editMode, setEditMode] = useState<EditMode>('edit')
   const metricsStore = useLiveMetricsStore()
 
@@ -22,7 +22,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
 
   const liveMetrics = metricsStore.metrics$.get()
 
-  const handleOpenModal = (trade: Trade, mode: EditMode) => {
+  const handleOpenModal = (trade: TradeWithMetrics, mode: EditMode) => {
     setEditingTrade(trade)
     setEditMode(mode)
   }
@@ -50,9 +50,9 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
     }).format(value)
   }
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return '-'
-    return new Date(dateString).toLocaleDateString()
+  const formatDate = (date: Date | null) => {
+    if (!date) return '-'
+    return date.toLocaleDateString()
   }
 
   const formatPercent = (value: number) => {
@@ -98,7 +98,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
   }
 
   const formatLiveMetric = (
-    trade: Trade,
+    trade: TradeWithMetrics,
     metric: LiveMetrics | undefined,
     type: 'price' | 'slDist' | 'tpDist' | 'peDist' | 'pnl'
   ): string => {
@@ -116,17 +116,17 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
 
     switch (type) {
       case 'price':
-        return metric.currentPrice !== null ? formatCurrency(metric.currentPrice) : '-'
+        return metric.currentPrice !== null ? formatCurrency(metric.currentPrice.toNumber()) : '-'
       case 'slDist':
-        return metric.distanceToSL !== null ? formatPercent(metric.distanceToSL) : '-'
+        return metric.distanceToSL !== null ? formatPercent(metric.distanceToSL.toNumber()) : '-'
       case 'tpDist':
-        return metric.distanceToTP !== null ? formatPercent(metric.distanceToTP) : '-'
+        return metric.distanceToTP !== null ? formatPercent(metric.distanceToTP.toNumber()) : '-'
       case 'peDist':
-        return metric.distanceToPE !== null ? formatPercent(metric.distanceToPE) : '-'
+        return metric.distanceToPE !== null ? formatPercent(metric.distanceToPE.toNumber()) : '-'
       case 'pnl':
         if (metric.unrealizedPnL === null || metric.unrealizedPnLPct === null) return '-'
-        const pnlStr = formatCurrency(metric.unrealizedPnL)
-        const pctStr = formatPercent(metric.unrealizedPnLPct)
+        const pnlStr = formatCurrency(metric.unrealizedPnL.toNumber())
+        const pctStr = formatPercent(metric.unrealizedPnLPct.toNumber())
         return `${pnlStr} (${pctStr})`
       default:
         return '-'
@@ -171,58 +171,64 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
         </tr>
       </thead>
       <tbody>
-        {trades.map((trade) => (
+        {trades.map((trade) => {
+          const slDistNum = liveMetrics[trade.id]?.distanceToSL?.toNumber() ?? null
+          const tpDistNum = liveMetrics[trade.id]?.distanceToTP?.toNumber() ?? null
+          const peDistNum = liveMetrics[trade.id]?.distanceToPE?.toNumber() ?? null
+          const pnlNum = liveMetrics[trade.id]?.unrealizedPnL?.toNumber() ?? null
+
+          return (
           <tr key={trade.id} data-testid={`trade-row-${trade.id}`}>
             <td>{trade.number ?? trade.id}</td>
             <td>{trade.ticker}</td>
             <td className={getStatusClass(trade.status)}>{trade.status}</td>
-            <td>{formatCurrency(trade.amount)}</td>
+            <td>{formatCurrency(trade.amount.toNumber())}</td>
             <td>{trade.units}</td>
-            <td>{formatCurrency(trade.entry_price)}</td>
-            <td>{formatCurrency(trade.stop_loss)}</td>
-            <td>{formatCurrency(trade.take_profit)}</td>
+            <td>{formatCurrency(trade.entryPrice.toNumber())}</td>
+            <td>{formatCurrency(trade.stopLoss.toNumber())}</td>
+            <td>{formatCurrency(trade.takeProfit.toNumber())}</td>
             <td>{formatLiveMetric(trade, liveMetrics[trade.id], 'price')}</td>
-            <td className={getDistanceClass(liveMetrics[trade.id]?.distanceToSL ?? null, false)}>
+            <td className={getDistanceClass(slDistNum, false)}>
               {formatLiveMetric(trade, liveMetrics[trade.id], 'slDist')}
             </td>
-            <td className={getDistanceClass(liveMetrics[trade.id]?.distanceToTP ?? null, true)}>
+            <td className={getDistanceClass(tpDistNum, true)}>
               {formatLiveMetric(trade, liveMetrics[trade.id], 'tpDist')}
             </td>
-            <td className={getPEDistanceClass(liveMetrics[trade.id]?.distanceToPE ?? null)}>
+            <td className={getPEDistanceClass(peDistNum)}>
               {formatLiveMetric(trade, liveMetrics[trade.id], 'peDist')}
             </td>
             <td className={
-              liveMetrics[trade.id]?.unrealizedPnL !== null && liveMetrics[trade.id]?.unrealizedPnL !== undefined
-                ? (liveMetrics[trade.id]!.unrealizedPnL! > 0 ? 'positive' : 'negative')
+              pnlNum !== null
+                ? (pnlNum > 0 ? 'positive' : 'negative')
                 : ''
             }>
               {formatLiveMetric(trade, liveMetrics[trade.id], 'pnl')}
             </td>
-            <td className={trade.risk_abs < 0 ? 'negative' : 'positive'}>
-              {formatCurrency(trade.risk_abs)}
+            <td className={trade.riskAbs.isNegative() ? 'negative' : 'positive'}>
+              {formatCurrency(trade.riskAbs.toNumber())}
             </td>
-            <td className={trade.risk_pct < 0 ? 'negative' : 'positive'}>
-              {formatPercent(trade.risk_pct)}
+            <td className={trade.riskPct.isNegative() ? 'negative' : 'positive'}>
+              {formatPercent(trade.riskPct.toNumber())}
             </td>
-            <td className={trade.profit_abs > 0 ? 'positive' : 'negative'}>
-              {formatCurrency(trade.profit_abs)}
+            <td className={trade.profitAbs.isPositive() ? 'positive' : 'negative'}>
+              {formatCurrency(trade.profitAbs.toNumber())}
             </td>
-            <td className={trade.profit_pct > 0 ? 'positive' : 'negative'}>
-              {formatPercent(trade.profit_pct)}
+            <td className={trade.profitPct.isPositive() ? 'positive' : 'negative'}>
+              {formatPercent(trade.profitPct.toNumber())}
             </td>
-            <td>{formatRatio(trade.ratio)}</td>
-            <td>{trade.strategy_name ?? '-'}</td>
-            <td>{trade.paper_trade ? 'Yes' : '-'}</td>
-            <td className={trade.is_layered ? 'mode-layered' : 'mode-simple'}>
-              {trade.is_layered ? 'Layered' : 'Simple'}
+            <td>{formatRatio(trade.ratio.toNumber())}</td>
+            <td>{trade.strategyName ?? '-'}</td>
+            <td>{trade.paperTrade ? 'Yes' : '-'}</td>
+            <td className={trade.isLayered ? 'mode-layered' : 'mode-simple'}>
+              {trade.isLayered ? 'Layered' : 'Simple'}
             </td>
             <td>
-              {trade.is_layered && trade.remaining_units !== null
-                ? `${trade.remaining_units}/${trade.units}`
+              {trade.isLayered && trade.remainingUnits !== null
+                ? `${trade.remainingUnits}/${trade.units}`
                 : '-'}
             </td>
-            <td>{formatDate(trade.date_planned)}</td>
-            <td>{formatDate(trade.date_actual)}</td>
+            <td>{formatDate(trade.datePlanned)}</td>
+            <td>{formatDate(trade.dateActual)}</td>
             <td>{formatPlanAge(trade)}</td>
             <td>{formatOpenAge(trade)}</td>
             <td>{formatPlanToOpen(trade)}</td>
@@ -270,7 +276,8 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
               )}
             </td>
           </tr>
-        ))}
+          )
+        })}
       </tbody>
     </table>
     </div>

@@ -1,18 +1,20 @@
-import { ITradeRepository, IPriceProvider } from '../ITradeRepository'
+import { ITradeRepository, IPriceProvider, DetectionResponse } from '../ITradeRepository'
 
 export function createStubTradeRepository(overrides?: Partial<ITradeRepository>): ITradeRepository {
   return {
     fetchTrades: async () => [],
     createTrade: async () => { throw new Error('not implemented') },
     updateTrade: async () => { throw new Error('not implemented') },
-    detectTradeHits: async () => ({
-      entry_alerts: [],
-      sltp_alerts: [],
-      layered_alerts: [],
-      auto_opened_count: 0,
-      auto_closed_count: 0,
-      partial_close_count: 0,
-      conflict_count: 0,
+    detectTradeHits: async (): Promise<DetectionResponse> => ({
+      entryAlerts: [],
+      sltpAlerts: [],
+      layeredAlerts: [],
+      result: {
+        autoOpenedCount: 0,
+        autoClosedCount: 0,
+        partialCloseCount: 0,
+        conflictCount: 0,
+      },
     }),
     ...overrides,
   }

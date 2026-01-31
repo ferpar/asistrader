@@ -1,12 +1,14 @@
 import { describe, it, expect, vi } from 'vitest'
+import { Decimal } from '../../shared/Decimal'
 import { TradeStore } from '../TradeStore'
 import { LiveMetricsStore } from '../LiveMetricsStore'
 import { createStubTradeRepository, createStubPriceProvider } from '../testing/stubs'
-import { buildTrade } from '../testing/fixtures'
+import { buildTrade, buildPriceData } from '../testing/fixtures'
+import type { PriceData } from '../types'
 
 function setup(overrides?: {
   trades?: ReturnType<typeof buildTrade>[]
-  prices?: Record<string, { price: number | null; currency: string | null; valid: boolean }>
+  prices?: Record<string, PriceData>
 }) {
   const trades = overrides?.trades ?? []
   const prices = overrides?.prices ?? {}
@@ -27,8 +29,8 @@ describe('LiveMetricsStore', () => {
       buildTrade({ id: 3, status: 'close', ticker: 'GOOG' }),
     ]
     const fetchBatchPrices = vi.fn().mockResolvedValue({
-      AAPL: { price: 155, currency: 'USD', valid: true },
-      MSFT: { price: 310, currency: 'USD', valid: true },
+      AAPL: buildPriceData({ price: Decimal.from(155) }),
+      MSFT: buildPriceData({ price: Decimal.from(310) }),
     })
 
     const repo = createStubTradeRepository({ fetchTrades: async () => trades })
@@ -60,10 +62,10 @@ describe('LiveMetricsStore', () => {
 
   it('metrics$ computed correctly from prices + active trades', async () => {
     const trades = [
-      buildTrade({ id: 1, status: 'open', ticker: 'AAPL', entry_price: 150, stop_loss: 140, take_profit: 170, units: 10 }),
+      buildTrade({ id: 1, status: 'open', ticker: 'AAPL', entryPrice: Decimal.from(150), stopLoss: Decimal.from(140), takeProfit: Decimal.from(170), units: 10 }),
     ]
     const prices = {
-      AAPL: { price: 160, currency: 'USD', valid: true },
+      AAPL: buildPriceData({ price: Decimal.from(160) }),
     }
     const { tradeStore, metricsStore } = setup({ trades, prices })
 
@@ -72,17 +74,17 @@ describe('LiveMetricsStore', () => {
 
     const metrics = metricsStore.metrics$.get()
     expect(metrics[1]).toBeDefined()
-    expect(metrics[1].currentPrice).toBe(160)
+    expect(metrics[1].currentPrice!.toNumber()).toBe(160)
     // distanceToSL = (160 - 140) / 160 = 0.125
-    expect(metrics[1].distanceToSL).toBeCloseTo(0.125)
+    expect(metrics[1].distanceToSL!.toNumber()).toBeCloseTo(0.125)
     // distanceToTP = (170 - 160) / 160 = 0.0625
-    expect(metrics[1].distanceToTP).toBeCloseTo(0.0625)
+    expect(metrics[1].distanceToTP!.toNumber()).toBeCloseTo(0.0625)
     // distanceToPE = (160 - 150) / 150 = 0.0667
-    expect(metrics[1].distanceToPE).toBeCloseTo(0.0667, 3)
+    expect(metrics[1].distanceToPE!.toNumber()).toBeCloseTo(0.0667, 3)
     // unrealizedPnL = (160 - 150) * 10 = 100
-    expect(metrics[1].unrealizedPnL).toBeCloseTo(100)
+    expect(metrics[1].unrealizedPnL!.toNumber()).toBeCloseTo(100)
     // unrealizedPnLPct = (160 - 150) / 150 = 0.0667
-    expect(metrics[1].unrealizedPnLPct).toBeCloseTo(0.0667, 3)
+    expect(metrics[1].unrealizedPnLPct!.toNumber()).toBeCloseTo(0.0667, 3)
   })
 
   it('handles fetch errors', async () => {

@@ -1,7 +1,8 @@
-import { Trade, LiveMetrics, PriceData } from '../../types/trade'
+import { Decimal } from '../shared/Decimal'
+import type { TradeWithMetrics, PriceData, LiveMetrics } from './types'
 
 export function computeMetrics(
-  activeTrades: Trade[],
+  activeTrades: TradeWithMetrics[],
   prices: Record<string, PriceData>,
 ): Record<number, LiveMetrics> {
   const result: Record<number, LiveMetrics> = {}
@@ -22,12 +23,13 @@ export function computeMetrics(
       continue
     }
 
-    const distanceToSL = (currentPrice - trade.stop_loss) / currentPrice
-    const distanceToTP = (trade.take_profit - currentPrice) / currentPrice
-    const distanceToPE = (currentPrice - trade.entry_price) / trade.entry_price
+    const distanceToSL = currentPrice.minus(trade.stopLoss).div(currentPrice)
+    const distanceToTP = trade.takeProfit.minus(currentPrice).div(currentPrice)
+    const distanceToPE = currentPrice.minus(trade.entryPrice).div(trade.entryPrice)
 
-    const unrealizedPnL = (currentPrice - trade.entry_price) * trade.units
-    const unrealizedPnLPct = (currentPrice - trade.entry_price) / trade.entry_price
+    const units = Decimal.from(trade.units)
+    const unrealizedPnL = currentPrice.minus(trade.entryPrice).times(units)
+    const unrealizedPnLPct = currentPrice.minus(trade.entryPrice).div(trade.entryPrice)
 
     result[trade.id] = {
       currentPrice,

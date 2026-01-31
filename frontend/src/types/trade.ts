@@ -256,3 +256,12 @@ export interface TradeDetectionResponse {
   partial_close_count: number
   conflict_count: number
 }
+
+// DTO aliases — existing types ARE the DTOs
+export type TradeDTO = Trade
+export type ExitLevelDTO = ExitLevel
+export type PriceDataDTO = PriceData
+export type EntryAlertDTO = EntryAlert
+export type SLTPAlertDTO = SLTPAlert
+export type LayeredAlertDTO = LayeredAlert
+export type TradeDetectionResponseDTO = TradeDetectionResponse

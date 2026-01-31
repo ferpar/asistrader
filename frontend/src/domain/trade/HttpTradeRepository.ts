@@ -1,5 +1,8 @@
-import { Trade, TradeCreateRequest, TradeUpdateRequest, TradeDetectionResponse, TradeListResponse, TradeResponse, PriceData, BatchPriceResponse } from '../../types/trade'
-import { ITradeRepository, IPriceProvider } from './ITradeRepository'
+import { TradeCreateRequest, TradeUpdateRequest, TradeListResponse, TradeResponse, BatchPriceResponse } from '../../types/trade'
+import { ITradeRepository, IPriceProvider, DetectionResponse } from './ITradeRepository'
+import type { TradeWithMetrics, PriceData } from './types'
+import { mapTrade, mapPriceData, mapDetectionResponse } from './mappers'
+import type { TradeDetectionResponseDTO } from '../../types/trade'
 
 function buildHeaders(getToken: () => string | null, json = false): Record<string, string> {
   const headers: Record<string, string> = {}
@@ -19,7 +22,7 @@ export class HttpTradeRepository implements ITradeRepository {
     private readonly getToken: () => string | null,
   ) {}
 
-  async fetchTrades(): Promise<Trade[]> {
+  async fetchTrades(): Promise<TradeWithMetrics[]> {
     const response = await fetch(`${this.baseUrl}/api/trades`, {
       headers: buildHeaders(this.getToken),
     })
@@ -27,10 +30,10 @@ export class HttpTradeRepository implements ITradeRepository {
       throw new Error(`Failed to fetch trades: ${response.statusText}`)
     }
     const data: TradeListResponse = await response.json()
-    return data.trades
+    return data.trades.map(mapTrade)
   }
 
-  async createTrade(request: TradeCreateRequest): Promise<Trade> {
+  async createTrade(request: TradeCreateRequest): Promise<TradeWithMetrics> {
     const response = await fetch(`${this.baseUrl}/api/trades`, {
       method: 'POST',
       headers: buildHeaders(this.getToken, true),
@@ -41,10 +44,10 @@ export class HttpTradeRepository implements ITradeRepository {
       throw new Error(errorData.detail || `Failed to create trade: ${response.statusText}`)
     }
     const data: TradeResponse = await response.json()
-    return data.trade
+    return mapTrade(data.trade)
   }
 
-  async updateTrade(id: number, request: TradeUpdateRequest): Promise<Trade> {
+  async updateTrade(id: number, request: TradeUpdateRequest): Promise<TradeWithMetrics> {
     const response = await fetch(`${this.baseUrl}/api/trades/${id}`, {
       method: 'PATCH',
       headers: buildHeaders(this.getToken, true),
@@ -55,10 +58,10 @@ export class HttpTradeRepository implements ITradeRepository {
       throw new Error(errorData.detail || `Failed to update trade: ${response.statusText}`)
     }
     const data: TradeResponse = await response.json()
-    return data.trade
+    return mapTrade(data.trade)
   }
 
-  async detectTradeHits(): Promise<TradeDetectionResponse> {
+  async detectTradeHits(): Promise<DetectionResponse> {
     const response = await fetch(`${this.baseUrl}/api/trades/detect-hits`, {
       method: 'POST',
       headers: buildHeaders(this.getToken),
@@ -66,7 +69,8 @@ export class HttpTradeRepository implements ITradeRepository {
     if (!response.ok) {
       throw new Error(`Failed to detect trade hits: ${response.statusText}`)
     }
-    return response.json()
+    const data: TradeDetectionResponseDTO = await response.json()
+    return mapDetectionResponse(data)
   }
 }
 
@@ -86,6 +90,10 @@ export class HttpPriceProvider implements IPriceProvider {
       throw new Error(`Failed to fetch batch prices: ${response.statusText}`)
     }
     const data: BatchPriceResponse = await response.json()
-    return data.prices
+    const result: Record<string, PriceData> = {}
+    for (const [key, value] of Object.entries(data.prices)) {
+      result[key] = mapPriceData(value)
+    }
+    return result
   }
 }

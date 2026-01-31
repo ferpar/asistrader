@@ -1,7 +1,8 @@
-import { Trade } from '../types/trade'
+import { Decimal } from '../domain/shared/Decimal'
+import type { TradeWithMetrics } from '../domain/trade/types'
 
 interface TradeStatisticsProps {
-  trades: Trade[]
+  trades: TradeWithMetrics[]
 }
 
 interface Statistics {
@@ -16,16 +17,18 @@ interface Statistics {
   profitFactor: number
 }
 
-function calculateStatistics(trades: Trade[]): Statistics {
+function calculateStatistics(trades: TradeWithMetrics[]): Statistics {
   const closedTrades = trades.filter(t => t.status === 'close')
-  const winners = closedTrades.filter(t => t.exit_type === 'tp')
-  const losers = closedTrades.filter(t => t.exit_type === 'sl')
+  const winners = closedTrades.filter(t => t.exitType === 'tp')
+  const losers = closedTrades.filter(t => t.exitType === 'sl')
 
-  const calculatePnL = (trade: Trade) =>
-    trade.exit_price ? (trade.exit_price - trade.entry_price) * trade.units : 0
+  const calculatePnL = (trade: TradeWithMetrics): Decimal =>
+    trade.exitPrice
+      ? trade.exitPrice.minus(trade.entryPrice).times(Decimal.from(trade.units))
+      : Decimal.zero()
 
-  const winPnL = winners.reduce((sum, t) => sum + calculatePnL(t), 0)
-  const lossPnL = Math.abs(losers.reduce((sum, t) => sum + calculatePnL(t), 0))
+  const winPnL = winners.reduce((sum, t) => sum.plus(calculatePnL(t)), Decimal.zero())
+  const lossPnL = losers.reduce((sum, t) => sum.plus(calculatePnL(t)), Decimal.zero()).abs()
 
   return {
     totalTrades: trades.length,
@@ -33,10 +36,10 @@ function calculateStatistics(trades: Trade[]): Statistics {
     wins: winners.length,
     losses: losers.length,
     winRate: closedTrades.length > 0 ? (winners.length / closedTrades.length) * 100 : 0,
-    totalPnL: winPnL - lossPnL,
-    avgWin: winners.length > 0 ? winPnL / winners.length : 0,
-    avgLoss: losers.length > 0 ? lossPnL / losers.length : 0,
-    profitFactor: lossPnL > 0 ? winPnL / lossPnL : winPnL > 0 ? Infinity : 0,
+    totalPnL: winPnL.minus(lossPnL).toNumber(),
+    avgWin: winners.length > 0 ? winPnL.div(Decimal.from(winners.length)).toNumber() : 0,
+    avgLoss: losers.length > 0 ? lossPnL.div(Decimal.from(losers.length)).toNumber() : 0,
+    profitFactor: lossPnL.isPositive() ? winPnL.div(lossPnL).toNumber() : winPnL.isPositive() ? Infinity : 0,
   }
 }
 

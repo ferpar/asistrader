@@ -1,39 +1,40 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { Decimal } from '../src/domain/shared/Decimal'
 import { TradeTable } from '../src/components/TradeTable'
-import { Trade } from '../src/types/trade'
+import type { TradeWithMetrics } from '../src/domain/trade/types'
 import { ContainerProvider } from '../src/container/ContainerContext'
 
 function renderWithContainer(ui: React.ReactElement) {
   return render(<ContainerProvider>{ui}</ContainerProvider>)
 }
 
-const mockTrade: Trade = {
+const mockTrade: TradeWithMetrics = {
   id: 1,
   number: 1,
   ticker: 'ASML',
   status: 'open',
-  amount: 1000,
+  amount: Decimal.from(1000),
   units: 10,
-  entry_price: 100,
-  stop_loss: 95,
-  take_profit: 115,
-  date_planned: '2025-01-15',
-  date_actual: '2025-01-16',
-  exit_date: null,
-  exit_type: null,
-  exit_price: null,
-  paper_trade: false,
-  strategy_id: 1,
-  strategy_name: 'Swing_82',
-  risk_abs: -50,
-  profit_abs: 150,
-  risk_pct: -0.05,
-  profit_pct: 0.15,
-  ratio: 3.0,
-  is_layered: false,
-  remaining_units: null,
-  exit_levels: [],
+  entryPrice: Decimal.from(100),
+  stopLoss: Decimal.from(95),
+  takeProfit: Decimal.from(115),
+  datePlanned: new Date('2025-01-15'),
+  dateActual: new Date('2025-01-16'),
+  exitDate: null,
+  exitType: null,
+  exitPrice: null,
+  paperTrade: false,
+  strategyId: 1,
+  strategyName: 'Swing_82',
+  riskAbs: Decimal.from(-50),
+  profitAbs: Decimal.from(150),
+  riskPct: Decimal.from(-0.05),
+  profitPct: Decimal.from(0.15),
+  ratio: Decimal.from(3.0),
+  isLayered: false,
+  remainingUnits: null,
+  exitLevels: [],
 }
 
 describe('TradeTable', () => {
@@ -84,7 +85,7 @@ describe('TradeTable', () => {
   })
 
   it('renders multiple trades', () => {
-    const trades: Trade[] = [
+    const trades: TradeWithMetrics[] = [
       mockTrade,
       {
         ...mockTrade,
@@ -124,11 +125,11 @@ describe('TradeTable', () => {
   })
 
   it('displays dash when no strategy', () => {
-    const tradeWithoutStrategy: Trade = {
+    const tradeWithoutStrategy: TradeWithMetrics = {
       ...mockTrade,
       id: 3,
-      strategy_id: null,
-      strategy_name: null,
+      strategyId: null,
+      strategyName: null,
     }
     renderWithContainer(<TradeTable trades={[tradeWithoutStrategy]} />)
     // Multiple '-' can appear (strategy, live metrics, etc), so we check at least one exists
@@ -139,49 +140,49 @@ describe('TradeTable', () => {
 
 // Layered trade tests
 describe('TradeTable with layered trades', () => {
-  const layeredMockTrade: Trade = {
+  const layeredMockTrade: TradeWithMetrics = {
     ...mockTrade,
     id: 10,
     units: 100,
-    amount: 10000,
-    is_layered: true,
-    remaining_units: 50,
-    exit_levels: [
+    amount: Decimal.from(10000),
+    isLayered: true,
+    remainingUnits: 50,
+    exitLevels: [
       {
         id: 1,
-        trade_id: 10,
-        level_type: 'tp',
-        price: 110,
-        units_pct: 0.5,
-        order_index: 1,
+        tradeId: 10,
+        levelType: 'tp',
+        price: Decimal.from(110),
+        unitsPct: Decimal.from(0.5),
+        orderIndex: 1,
         status: 'hit',
-        hit_date: '2025-01-17',
-        units_closed: 50,
-        move_sl_to_breakeven: true,
+        hitDate: new Date('2025-01-17'),
+        unitsClosed: 50,
+        moveSlToBreakeven: true,
       },
       {
         id: 2,
-        trade_id: 10,
-        level_type: 'tp',
-        price: 120,
-        units_pct: 0.3,
-        order_index: 2,
+        tradeId: 10,
+        levelType: 'tp',
+        price: Decimal.from(120),
+        unitsPct: Decimal.from(0.3),
+        orderIndex: 2,
         status: 'pending',
-        hit_date: null,
-        units_closed: null,
-        move_sl_to_breakeven: false,
+        hitDate: null,
+        unitsClosed: null,
+        moveSlToBreakeven: false,
       },
       {
         id: 3,
-        trade_id: 10,
-        level_type: 'tp',
-        price: 130,
-        units_pct: 0.2,
-        order_index: 3,
+        tradeId: 10,
+        levelType: 'tp',
+        price: Decimal.from(130),
+        unitsPct: Decimal.from(0.2),
+        orderIndex: 3,
         status: 'pending',
-        hit_date: null,
-        units_closed: null,
-        move_sl_to_breakeven: false,
+        hitDate: null,
+        unitsClosed: null,
+        moveSlToBreakeven: false,
       },
     ],
   }
