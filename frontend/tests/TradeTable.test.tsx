@@ -2,6 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { TradeTable } from '../src/components/TradeTable'
 import { Trade } from '../src/types/trade'
+import { ContainerProvider } from '../src/container/ContainerContext'
+
+function renderWithContainer(ui: React.ReactElement) {
+  return render(<ContainerProvider>{ui}</ContainerProvider>)
+}
 
 const mockTrade: Trade = {
   id: 1,
@@ -33,47 +38,47 @@ const mockTrade: Trade = {
 
 describe('TradeTable', () => {
   it('renders loading state', () => {
-    render(<TradeTable trades={[]} loading={true} />)
+    renderWithContainer(<TradeTable trades={[]} loading={true} />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
     expect(screen.getByText('Loading trades...')).toBeInTheDocument()
   })
 
   it('renders error state', () => {
-    render(<TradeTable trades={[]} error="Failed to fetch" />)
+    renderWithContainer(<TradeTable trades={[]} error="Failed to fetch" />)
     expect(screen.getByTestId('error')).toBeInTheDocument()
     expect(screen.getByText('Failed to fetch')).toBeInTheDocument()
   })
 
   it('renders empty state when no trades', () => {
-    render(<TradeTable trades={[]} />)
+    renderWithContainer(<TradeTable trades={[]} />)
     expect(screen.getByTestId('empty')).toBeInTheDocument()
     expect(screen.getByText('No trades found')).toBeInTheDocument()
   })
 
   it('renders trade table with data', () => {
-    render(<TradeTable trades={[mockTrade]} />)
+    renderWithContainer(<TradeTable trades={[mockTrade]} />)
     expect(screen.getByTestId('trade-table')).toBeInTheDocument()
     expect(screen.getByTestId('trade-row-1')).toBeInTheDocument()
   })
 
   it('displays trade ticker', () => {
-    render(<TradeTable trades={[mockTrade]} />)
+    renderWithContainer(<TradeTable trades={[mockTrade]} />)
     expect(screen.getByText('ASML')).toBeInTheDocument()
   })
 
   it('displays trade status', () => {
-    render(<TradeTable trades={[mockTrade]} />)
+    renderWithContainer(<TradeTable trades={[mockTrade]} />)
     expect(screen.getByText('open')).toBeInTheDocument()
   })
 
   it('displays formatted currency values', () => {
-    render(<TradeTable trades={[mockTrade]} />)
+    renderWithContainer(<TradeTable trades={[mockTrade]} />)
     expect(screen.getByText('$1,000.00')).toBeInTheDocument()
     expect(screen.getByText('$100.00')).toBeInTheDocument()
   })
 
   it('displays calculated risk and profit', () => {
-    render(<TradeTable trades={[mockTrade]} />)
+    renderWithContainer(<TradeTable trades={[mockTrade]} />)
     expect(screen.getByText('-$50.00')).toBeInTheDocument()
     expect(screen.getByText('$150.00')).toBeInTheDocument()
   })
@@ -89,14 +94,14 @@ describe('TradeTable', () => {
         status: 'plan',
       },
     ]
-    render(<TradeTable trades={trades} />)
+    renderWithContainer(<TradeTable trades={trades} />)
     expect(screen.getByTestId('trade-row-1')).toBeInTheDocument()
     expect(screen.getByTestId('trade-row-2')).toBeInTheDocument()
     expect(screen.getByText('NVDA')).toBeInTheDocument()
   })
 
   it('renders table headers', () => {
-    render(<TradeTable trades={[mockTrade]} />)
+    renderWithContainer(<TradeTable trades={[mockTrade]} />)
     expect(screen.getByText('Ticker')).toBeInTheDocument()
     expect(screen.getByText('Status')).toBeInTheDocument()
     expect(screen.getByText('Amount')).toBeInTheDocument()
@@ -114,7 +119,7 @@ describe('TradeTable', () => {
   })
 
   it('displays strategy name', () => {
-    render(<TradeTable trades={[mockTrade]} />)
+    renderWithContainer(<TradeTable trades={[mockTrade]} />)
     expect(screen.getByText('Swing_82')).toBeInTheDocument()
   })
 
@@ -125,7 +130,7 @@ describe('TradeTable', () => {
       strategy_id: null,
       strategy_name: null,
     }
-    render(<TradeTable trades={[tradeWithoutStrategy]} />)
+    renderWithContainer(<TradeTable trades={[tradeWithoutStrategy]} />)
     // Multiple '-' can appear (strategy, live metrics, etc), so we check at least one exists
     const dashes = screen.getAllByText('-')
     expect(dashes.length).toBeGreaterThan(0)
@@ -182,18 +187,18 @@ describe('TradeTable with layered trades', () => {
   }
 
   it('displays layered indicator for layered trades', () => {
-    render(<TradeTable trades={[layeredMockTrade]} />)
+    renderWithContainer(<TradeTable trades={[layeredMockTrade]} />)
     expect(screen.getByText('Layered')).toBeInTheDocument()
   })
 
   it('shows remaining units for partially closed trades', () => {
-    render(<TradeTable trades={[layeredMockTrade]} />)
+    renderWithContainer(<TradeTable trades={[layeredMockTrade]} />)
     // remaining_units is 50
     expect(screen.getByText('50/100')).toBeInTheDocument()
   })
 
   it('displays simple indicator for non-layered trades', () => {
-    render(<TradeTable trades={[mockTrade]} />)
+    renderWithContainer(<TradeTable trades={[mockTrade]} />)
     expect(screen.getByText('Simple')).toBeInTheDocument()
   })
 })

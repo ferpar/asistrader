@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { fetchStrategies } from '../api/strategies'
 import { fetchTickers, fetchTickerPrice } from '../api/tickers'
-import { createTrade } from '../api/trades'
 import { Strategy, Ticker, TradeCreateRequest, ExitLevelCreateRequest } from '../types/trade'
 import { TickerSearchInput } from './TickerSearchInput'
 import { useTradeValidation } from '../hooks/useTradeValidation'
+import { useTradeStore } from '../container/ContainerContext'
 
 interface ExitLevelInput {
   price: string
@@ -12,11 +12,8 @@ interface ExitLevelInput {
   move_sl_to_breakeven: boolean
 }
 
-interface TradeCreationFormProps {
-  onTradeCreated: () => void
-}
-
-export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
+export function TradeCreationForm() {
+  const store = useTradeStore()
   const [tickers, setTickers] = useState<Ticker[]>([])
   const [strategies, setStrategies] = useState<Strategy[]>([])
   const [loadingTickers, setLoadingTickers] = useState(true)
@@ -249,7 +246,7 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
         paper_trade: formData.paper_trade,
         exit_levels: exitLevelsToSend,
       }
-      await createTrade(request)
+      await store.createTrade(request)
       // Reset form
       setFormData({
         ticker: tickers.length > 0 ? tickers[0].symbol : '',
@@ -270,7 +267,6 @@ export function TradeCreationForm({ onTradeCreated }: TradeCreationFormProps) {
       setSlLevels([
         { price: '', units_pct: '100', move_sl_to_breakeven: false },
       ])
-      onTradeCreated()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create trade')
     } finally {

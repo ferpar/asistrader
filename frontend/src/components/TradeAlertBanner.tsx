@@ -1,56 +1,17 @@
-import { useState } from 'react'
-import { detectTradeHits } from '../api/trades'
+import { observer } from '@legendapp/state/react'
+import { useTradeStore } from '../container/ContainerContext'
 import { EntryAlert, SLTPAlert } from '../types/trade'
 
-interface TradeAlertBannerProps {
-  onTradesUpdated: () => void
-}
+export const TradeAlertBanner = observer(function TradeAlertBanner() {
+  const store = useTradeStore()
 
-export function TradeAlertBanner({ onTradesUpdated }: TradeAlertBannerProps) {
-  const [entryAlerts, setEntryAlerts] = useState<EntryAlert[]>([])
-  const [sltpAlerts, setSltpAlerts] = useState<SLTPAlert[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [lastResult, setLastResult] = useState<{
-    autoOpenedCount: number
-    autoClosedCount: number
-    conflictCount: number
-  } | null>(null)
+  const entryAlerts = store.entryAlerts$.get()
+  const sltpAlerts = store.sltpAlerts$.get()
+  const loading = store.detecting$.get()
+  const lastResult = store.lastDetectionResult$.get()
 
   const handleDetect = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const result = await detectTradeHits()
-      setEntryAlerts(result.entry_alerts)
-      setSltpAlerts(result.sltp_alerts)
-      setLastResult({
-        autoOpenedCount: result.auto_opened_count,
-        autoClosedCount: result.auto_closed_count,
-        conflictCount: result.conflict_count,
-      })
-      if (result.auto_opened_count > 0 || result.auto_closed_count > 0) {
-        onTradesUpdated()
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to detect trade hits')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleDismissEntry = (tradeId: number) => {
-    setEntryAlerts(prev => prev.filter(a => a.trade_id !== tradeId))
-  }
-
-  const handleDismissSltp = (tradeId: number) => {
-    setSltpAlerts(prev => prev.filter(a => a.trade_id !== tradeId))
-  }
-
-  const handleDismissAll = () => {
-    setEntryAlerts([])
-    setSltpAlerts([])
-    setLastResult(null)
+    await store.detectTradeHits()
   }
 
   const getEntryAlertClass = (alert: EntryAlert): string => {
@@ -109,13 +70,11 @@ export function TradeAlertBanner({ onTradesUpdated }: TradeAlertBannerProps) {
           </span>
         )}
         {hasAlerts && (
-          <button className="btn-dismiss-all" onClick={handleDismissAll}>
+          <button className="btn-dismiss-all" onClick={() => store.dismissAllAlerts()}>
             Dismiss All
           </button>
         )}
       </div>
-
-      {error && <div className="sltp-error">{error}</div>}
 
       {hasAlerts && (
         <div className="sltp-alerts">
@@ -128,7 +87,7 @@ export function TradeAlertBanner({ onTradesUpdated }: TradeAlertBannerProps) {
               <span className="alert-message">{alert.message}</span>
               <button
                 className="btn-dismiss"
-                onClick={() => handleDismissEntry(alert.trade_id)}
+                onClick={() => store.dismissEntryAlert(alert.trade_id)}
               >
                 x
               </button>
@@ -143,7 +102,7 @@ export function TradeAlertBanner({ onTradesUpdated }: TradeAlertBannerProps) {
               <span className="alert-message">{alert.message}</span>
               <button
                 className="btn-dismiss"
-                onClick={() => handleDismissSltp(alert.trade_id)}
+                onClick={() => store.dismissSltpAlert(alert.trade_id)}
               >
                 x
               </button>
@@ -153,4 +112,4 @@ export function TradeAlertBanner({ onTradesUpdated }: TradeAlertBannerProps) {
       )}
     </div>
   )
-}
+})

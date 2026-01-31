@@ -1,21 +1,26 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { observer } from '@legendapp/state/react'
 import { Trade, LiveMetrics } from '../types/trade'
 import { TradeEditModal, EditMode } from './TradeEditModal'
-import { useLiveMetrics } from '../hooks/useLiveMetrics'
+import { useLiveMetricsStore } from '../container/ContainerContext'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen, formatOpenToClose } from '../utils/trade'
 
 interface TradeTableProps {
   trades: Trade[]
-  allTrades?: Trade[]
   loading?: boolean
   error?: string | null
-  onTradeUpdated?: () => void
 }
 
-export function TradeTable({ trades, allTrades, loading, error, onTradeUpdated }: TradeTableProps) {
+export const TradeTable = observer(function TradeTable({ trades, loading, error }: TradeTableProps) {
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null)
   const [editMode, setEditMode] = useState<EditMode>('edit')
-  const { metrics: liveMetrics } = useLiveMetrics(allTrades || trades)
+  const metricsStore = useLiveMetricsStore()
+
+  useEffect(() => {
+    metricsStore.refreshPrices()
+  }, [trades, metricsStore])
+
+  const liveMetrics = metricsStore.metrics$.get()
 
   const handleOpenModal = (trade: Trade, mode: EditMode) => {
     setEditingTrade(trade)
@@ -26,11 +31,6 @@ export function TradeTable({ trades, allTrades, loading, error, onTradeUpdated }
     setEditingTrade(null)
   }
 
-  const handleTradeUpdated = () => {
-    if (onTradeUpdated) {
-      onTradeUpdated()
-    }
-  }
   if (loading) {
     return <div data-testid="loading">Loading trades...</div>
   }
@@ -280,9 +280,8 @@ export function TradeTable({ trades, allTrades, loading, error, onTradeUpdated }
         trade={editingTrade}
         mode={editMode}
         onClose={handleCloseModal}
-        onTradeUpdated={handleTradeUpdated}
       />
     )}
   </>
   )
-}
+})

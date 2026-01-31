@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { fetchStrategies } from '../api/strategies'
-import { updateTrade } from '../api/trades'
 import { Strategy, Trade, TradeUpdateRequest, ExitType, ExitLevelCreateRequest } from '../types/trade'
+import { useTradeStore } from '../container/ContainerContext'
 
 export type EditMode = 'edit' | 'open' | 'close'
 
@@ -15,10 +15,10 @@ interface TradeEditModalProps {
   trade: Trade
   mode: EditMode
   onClose: () => void
-  onTradeUpdated: () => void
 }
 
-export function TradeEditModal({ trade, mode, onClose, onTradeUpdated }: TradeEditModalProps) {
+export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
+  const store = useTradeStore()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [strategies, setStrategies] = useState<Strategy[]>([])
@@ -177,8 +177,7 @@ export function TradeEditModal({ trade, mode, onClose, onTradeUpdated }: TradeEd
         }
       }
 
-      await updateTrade(trade.id, request)
-      onTradeUpdated()
+      await store.updateTrade(trade.id, request)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update trade')

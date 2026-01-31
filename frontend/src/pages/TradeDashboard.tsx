@@ -1,73 +1,42 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect } from 'react'
+import { observer } from '@legendapp/state/react'
 import { TradeTable } from '../components/TradeTable'
-import { TradeFilters, StatusFilter } from '../components/TradeFilters'
+import { TradeFilters } from '../components/TradeFilters'
 import { TradeStatistics } from '../components/TradeStatistics'
 import { TickerPerformance } from '../components/TickerPerformance'
 import { TradeCreationForm } from '../components/TradeCreationForm'
 import { MarketDataSync } from '../components/MarketDataSync'
 import { TradeAlertBanner } from '../components/TradeAlertBanner'
-import { fetchTrades } from '../api/trades'
-import { Trade } from '../types/trade'
+import { useTradeStore } from '../container/ContainerContext'
 
-const getFilteredTrades = (trades: Trade[], filter: StatusFilter): Trade[] => {
-  switch (filter) {
-    case 'all':
-      return trades
-    case 'winners':
-      return trades.filter(t => t.status === 'close' && t.exit_type === 'tp')
-    case 'losers':
-      return trades.filter(t => t.status === 'close' && t.exit_type === 'sl')
-    default:
-      return trades.filter(t => t.status === filter)
-  }
-}
-
-export function TradeDashboard() {
-  const [trades, setTrades] = useState<Trade[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-
-  const loadTrades = useCallback(async () => {
-    try {
-      setLoading(true)
-      const response = await fetchTrades()
-      setTrades(response.trades)
-      setError(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load trades')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+export const TradeDashboard = observer(function TradeDashboard() {
+  const store = useTradeStore()
 
   useEffect(() => {
-    loadTrades()
-  }, [loadTrades])
+    store.loadTrades()
+  }, [store])
 
-  const filteredTrades = useMemo(
-    () => getFilteredTrades(trades, statusFilter),
-    [trades, statusFilter]
-  )
+  const filteredTrades = store.filteredTrades$.get()
+  const loading = store.loading$.get()
+  const error = store.error$.get()
+  const filter = store.filter$.get()
 
   return (
     <>
       <MarketDataSync />
-      <TradeCreationForm onTradeCreated={loadTrades} />
-      <TradeAlertBanner onTradesUpdated={loadTrades} />
+      <TradeCreationForm />
+      <TradeAlertBanner />
       <section className="trades-section">
         <h2>Trades</h2>
         <TradeStatistics trades={filteredTrades} />
-        <TickerPerformance trades={trades} />
-        <TradeFilters value={statusFilter} onChange={setStatusFilter} />
+        <TickerPerformance trades={store.trades$.get()} />
+        <TradeFilters value={filter} onChange={(f) => store.setFilter(f)} />
         <TradeTable
           trades={filteredTrades}
-          allTrades={trades}
           loading={loading}
           error={error}
-          onTradeUpdated={loadTrades}
         />
       </section>
     </>
   )
-}
+})
