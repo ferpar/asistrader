@@ -4,7 +4,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 class TradeStatus(str, Enum):
@@ -185,6 +185,13 @@ class ExitLevelCreateRequest(BaseModel):
     price: float
     units_pct: float  # 0.0-1.0, must sum to 1.0 for each type
     move_sl_to_breakeven: bool = False
+
+
+class MarkLevelHitRequest(BaseModel):
+    """Request schema for manually marking an exit level as hit."""
+
+    hit_date: date = Field(default_factory=date.today)
+    hit_price: float | None = None  # optional override for actual price
 
 
 class TradeSchema(BaseModel):

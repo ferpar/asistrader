@@ -1492,3 +1492,79 @@ body {
   color: var(--color-error-dark);
   text-decoration: line-through;
 }
+
+/* Exit Level Expansion Row */
+.exit-level-expansion-row td {
+  background-color: var(--color-surface);
+  padding: 12px 16px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.exit-level-expansion-row:hover td {
+  background-color: var(--color-surface);
+}
+
+/* Hit button */
+.btn-hit {
+  background-color: var(--color-success);
+  color: white;
+}
+
+.btn-hit:hover:not(:disabled) {
+  background-color: var(--color-success-dark);
+}
+
+/* Undo button */
+.btn-undo {
+  background-color: var(--color-warning);
+  color: white;
+}
+
+.btn-undo:hover:not(:disabled) {
+  background-color: var(--color-warning-dark);
+}
+
+/* Confirm button */
+.btn-confirm {
+  background-color: var(--color-success);
+  color: white;
+}
+
+.btn-confirm:hover:not(:disabled) {
+  background-color: var(--color-success-dark);
+}
+
+/* Level hit confirm inline form */
+.level-hit-confirm {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.level-hit-confirm label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.level-hit-confirm input {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  font-size: 0.75rem;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  width: 120px;
+}
+
+.level-hit-confirm input[type="number"] {
+  width: 90px;
+}
+
+.level-hit-confirm-row td {
+  padding-top: 0 !important;
+  padding-bottom: 4px !important;
+}

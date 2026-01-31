@@ -1,4 +1,4 @@
-import { TradeCreateRequest, TradeUpdateRequest, TradeListResponse, TradeResponse, BatchPriceResponse } from '../../types/trade'
+import { TradeCreateRequest, TradeUpdateRequest, TradeListResponse, TradeResponse, BatchPriceResponse, MarkLevelHitRequest } from '../../types/trade'
 import { ITradeRepository, IPriceProvider, DetectionResponse } from './ITradeRepository'
 import type { TradeWithMetrics, PriceData } from './types'
 import { mapTrade, mapPriceData, mapDetectionResponse } from './mappers'
@@ -71,6 +71,32 @@ export class HttpTradeRepository implements ITradeRepository {
     }
     const data: TradeDetectionResponseDTO = await response.json()
     return mapDetectionResponse(data)
+  }
+
+  async markExitLevelHit(tradeId: number, levelId: number, request: MarkLevelHitRequest): Promise<TradeWithMetrics> {
+    const response = await fetch(
+      `${this.baseUrl}/api/trades/${tradeId}/exit-levels/${levelId}/hit`,
+      { method: 'PATCH', headers: buildHeaders(this.getToken, true), body: JSON.stringify(request) }
+    )
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.detail || `Failed to mark exit level hit: ${response.statusText}`)
+    }
+    const data: TradeResponse = await response.json()
+    return mapTrade(data.trade)
+  }
+
+  async revertExitLevelHit(tradeId: number, levelId: number): Promise<TradeWithMetrics> {
+    const response = await fetch(
+      `${this.baseUrl}/api/trades/${tradeId}/exit-levels/${levelId}/hit`,
+      { method: 'DELETE', headers: buildHeaders(this.getToken) }
+    )
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.detail || `Failed to revert exit level hit: ${response.statusText}`)
+    }
+    const data: TradeResponse = await response.json()
+    return mapTrade(data.trade)
   }
 }
 

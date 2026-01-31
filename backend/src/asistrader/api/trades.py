@@ -7,6 +7,7 @@ from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
 from asistrader.models.db import Trade, User
 from asistrader.models.schemas import (
+    MarkLevelHitRequest,
     TradeCreateRequest,
     TradeDetectionResponse,
     TradeListResponse,
@@ -190,3 +191,84 @@ def detect_trade_hits(
         partial_close_count=result["partial_close_count"],
         conflict_count=result["conflict_count"],
     )
+
+
+@router.patch("/{trade_id}/exit-levels/{level_id}/hit", response_model=TradeResponse)
+def mark_exit_level_hit(
+    trade_id: int,
+    level_id: int,
+    request: MarkLevelHitRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TradeResponse:
+    """Manually mark an exit level as hit."""
+    from asistrader.models.db import ExitLevel
+    from asistrader.services.exit_level_service import ExitLevelValidationError, apply_manual_level_hit
+
+    # Verify trade ownership
+    trade = get_trade_by_id(db, trade_id, user_id=current_user.id)
+    if not trade:
+        raise HTTPException(status_code=404, detail=f"Trade with id {trade_id} not found")
+
+    # Trade must be open
+    if trade.status != "open":
+        raise HTTPException(status_code=400, detail="Trade must be open to mark levels as hit")
+
+    # Find the level
+    level = db.query(ExitLevel).filter(
+        ExitLevel.id == level_id,
+        ExitLevel.trade_id == trade_id,
+    ).first()
+    if not level:
+        raise HTTPException(status_code=404, detail=f"Exit level with id {level_id} not found on trade {trade_id}")
+
+    # Level must be pending
+    if level.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Exit level must be pending, got '{level.status}'")
+
+    try:
+        trade = apply_manual_level_hit(db, trade, level, request.hit_date, request.hit_price)
+    except ExitLevelValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return TradeResponse(trade=_trade_to_schema(trade), message="Exit level marked as hit")
+
+
+@router.delete("/{trade_id}/exit-levels/{level_id}/hit", response_model=TradeResponse)
+def revert_exit_level_hit(
+    trade_id: int,
+    level_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TradeResponse:
+    """Revert a hit exit level back to pending."""
+    from asistrader.models.db import ExitLevel
+    from asistrader.services.exit_level_service import ExitLevelValidationError, revert_level_hit
+
+    # Verify trade ownership
+    trade = get_trade_by_id(db, trade_id, user_id=current_user.id)
+    if not trade:
+        raise HTTPException(status_code=404, detail=f"Trade with id {trade_id} not found")
+
+    # Trade must be open
+    if trade.status != "open":
+        raise HTTPException(status_code=400, detail="Trade must be open to revert level hits")
+
+    # Find the level
+    level = db.query(ExitLevel).filter(
+        ExitLevel.id == level_id,
+        ExitLevel.trade_id == trade_id,
+    ).first()
+    if not level:
+        raise HTTPException(status_code=404, detail=f"Exit level with id {level_id} not found on trade {trade_id}")
+
+    # Level must be hit
+    if level.status != "hit":
+        raise HTTPException(status_code=400, detail=f"Exit level must be hit to revert, got '{level.status}'")
+
+    try:
+        trade = revert_level_hit(db, trade, level)
+    except ExitLevelValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return TradeResponse(trade=_trade_to_schema(trade), message="Exit level hit reverted")

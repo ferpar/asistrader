@@ -1,5 +1,5 @@
 import { observable, computed } from '@legendapp/state'
-import { ExtendedFilter, TradeCreateRequest, TradeUpdateRequest } from '../../types/trade'
+import { ExtendedFilter, TradeCreateRequest, TradeUpdateRequest, MarkLevelHitRequest } from '../../types/trade'
 import { ITradeRepository, DetectionResponse } from './ITradeRepository'
 import type { TradeWithMetrics, EntryAlert, SLTPAlert, DetectionResult } from './types'
 
@@ -90,5 +90,15 @@ export class TradeStore {
     this.entryAlerts$.set([])
     this.sltpAlerts$.set([])
     this.lastDetectionResult$.set(null)
+  }
+
+  async markExitLevelHit(tradeId: number, levelId: number, request: MarkLevelHitRequest): Promise<void> {
+    await this.repo.markExitLevelHit(tradeId, levelId, request)
+    await this.loadTrades()
+  }
+
+  async revertExitLevelHit(tradeId: number, levelId: number): Promise<void> {
+    await this.repo.revertExitLevelHit(tradeId, levelId)
+    await this.loadTrades()
   }
 }

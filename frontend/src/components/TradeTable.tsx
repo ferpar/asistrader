@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { observer } from '@legendapp/state/react'
 import type { TradeWithMetrics, LiveMetrics } from '../domain/trade/types'
 import { TradeEditModal, EditMode } from './TradeEditModal'
-import { useLiveMetricsStore } from '../container/ContainerContext'
+import { ExitLevelSummary } from './ExitLevelSummary'
+import { useLiveMetricsStore, useTradeStore } from '../container/ContainerContext'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen, formatOpenToClose } from '../utils/trade'
 
 interface TradeTableProps {
@@ -14,7 +15,9 @@ interface TradeTableProps {
 export const TradeTable = observer(function TradeTable({ trades, loading, error }: TradeTableProps) {
   const [editingTrade, setEditingTrade] = useState<TradeWithMetrics | null>(null)
   const [editMode, setEditMode] = useState<EditMode>('edit')
+  const [expandedTradeId, setExpandedTradeId] = useState<number | null>(null)
   const metricsStore = useLiveMetricsStore()
+  const tradeStore = useTradeStore()
 
   useEffect(() => {
     metricsStore.refreshPrices()
@@ -178,7 +181,8 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
           const pnlNum = liveMetrics[trade.id]?.unrealizedPnL?.toNumber() ?? null
 
           return (
-          <tr key={trade.id} data-testid={`trade-row-${trade.id}`}>
+          <React.Fragment key={trade.id}>
+          <tr data-testid={`trade-row-${trade.id}`}>
             <td>{trade.number ?? trade.id}</td>
             <td>{trade.ticker}</td>
             <td className={getStatusClass(trade.status)}>{trade.status}</td>
@@ -219,8 +223,14 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
             <td>{formatRatio(trade.ratio.toNumber())}</td>
             <td>{trade.strategyName ?? '-'}</td>
             <td>{trade.paperTrade ? 'Yes' : '-'}</td>
-            <td className={trade.isLayered ? 'mode-layered' : 'mode-simple'}>
-              {trade.isLayered ? 'Layered' : 'Simple'}
+            <td
+              className={`${trade.isLayered ? 'mode-layered' : 'mode-simple'}${trade.isLayered ? ' clickable' : ''}`}
+              onClick={trade.isLayered ? () => setExpandedTradeId(expandedTradeId === trade.id ? null : trade.id) : undefined}
+              style={trade.isLayered ? { cursor: 'pointer' } : undefined}
+            >
+              {trade.isLayered
+                ? <>{expandedTradeId === trade.id ? '\u25BC' : '\u25B6'} Layered</>
+                : 'Simple'}
             </td>
             <td>
               {trade.isLayered && trade.remainingUnits !== null
@@ -276,6 +286,25 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
               )}
             </td>
           </tr>
+          {trade.isLayered && expandedTradeId === trade.id && (
+            <tr className="exit-level-expansion-row">
+              <td colSpan={29}>
+                <ExitLevelSummary
+                  levels={trade.exitLevels}
+                  entryPrice={trade.entryPrice.toNumber()}
+                  units={trade.units}
+                  tradeStatus={trade.status}
+                  onLevelHit={(levelId, hitDate, hitPrice) =>
+                    tradeStore.markExitLevelHit(trade.id, levelId, { hit_date: hitDate, hit_price: hitPrice })
+                  }
+                  onLevelRevert={(levelId) =>
+                    tradeStore.revertExitLevelHit(trade.id, levelId)
+                  }
+                />
+              </td>
+            </tr>
+          )}
+          </React.Fragment>
           )
         })}
       </tbody>

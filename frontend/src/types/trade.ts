@@ -257,6 +257,11 @@ export interface TradeDetectionResponse {
   conflict_count: number
 }
 
+export interface MarkLevelHitRequest {
+  hit_date: string
+  hit_price?: number
+}
+
 // DTO aliases — existing types ARE the DTOs
 export type TradeDTO = Trade
 export type ExitLevelDTO = ExitLevel

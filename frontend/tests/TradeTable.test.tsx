@@ -189,7 +189,7 @@ describe('TradeTable with layered trades', () => {
 
   it('displays layered indicator for layered trades', () => {
     renderWithContainer(<TradeTable trades={[layeredMockTrade]} />)
-    expect(screen.getByText('Layered')).toBeInTheDocument()
+    expect(screen.getByText(/Layered/)).toBeInTheDocument()
   })
 
   it('shows remaining units for partially closed trades', () => {
