@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
-import { fetchStrategies } from '../api/strategies'
-import { Strategy, TradeUpdateRequest, ExitType, ExitLevelCreateRequest } from '../types/trade'
+import { TradeUpdateRequest, ExitType, ExitLevelCreateRequest } from '../types/trade'
+import type { Strategy } from '../domain/strategy/types'
 import type { TradeWithMetrics } from '../domain/trade/types'
-import { useTradeStore } from '../container/ContainerContext'
+import { useTradeStore, useStrategyRepo } from '../container/ContainerContext'
 
 export type EditMode = 'edit' | 'open' | 'close'
 
@@ -20,6 +20,7 @@ interface TradeEditModalProps {
 
 export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
   const store = useTradeStore()
+  const strategyRepo = useStrategyRepo()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [strategies, setStrategies] = useState<Strategy[]>([])
@@ -82,13 +83,13 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
   useEffect(() => {
     // Load strategies when in edit mode
     if (mode === 'edit') {
-      fetchStrategies()
-        .then((response) => setStrategies(response.strategies))
+      strategyRepo.fetchStrategies()
+        .then((strategies) => setStrategies(strategies))
         .catch(() => {
           // Silently fail - strategies dropdown will just be empty
         })
     }
-  }, [mode])
+  }, [mode, strategyRepo])
 
   // Convert level inputs to API format
   const exitLevelsForRequest = useMemo((): ExitLevelCreateRequest[] | null => {

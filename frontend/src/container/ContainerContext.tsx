@@ -31,3 +31,15 @@ export function useTradeStore() {
 export function useLiveMetricsStore() {
   return useContainer().liveMetricsStore
 }
+
+export function useStrategyRepo() {
+  return useContainer().strategyRepo
+}
+
+export function useMarketDataRepo() {
+  return useContainer().marketDataRepo
+}
+
+export function useTickerStore() {
+  return useContainer().tickerStore
+}

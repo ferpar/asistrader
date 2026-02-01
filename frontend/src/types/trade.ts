@@ -1,90 +1,9 @@
 export type TradeStatus = 'plan' | 'open' | 'close'
 export type ExitType = 'sl' | 'tp'
 export type ExtendedFilter = 'all' | 'plan' | 'open' | 'close' | 'winners' | 'losers'
-export type Bias = 'long' | 'short' | 'neutral'
-export type Beta = 'low' | 'medium' | 'high'
 export type ExitLevelType = 'sl' | 'tp'
 export type ExitLevelStatus = 'pending' | 'hit' | 'cancelled'
 
-export interface Strategy {
-  id: number
-  name: string
-  pe_method: string | null
-  sl_method: string | null
-  tp_method: string | null
-  description: string | null
-}
-
-export interface StrategyCreateRequest {
-  name: string
-  pe_method?: string | null
-  sl_method?: string | null
-  tp_method?: string | null
-  description?: string | null
-}
-
-export interface StrategyUpdateRequest {
-  name?: string | null
-  pe_method?: string | null
-  sl_method?: string | null
-  tp_method?: string | null
-  description?: string | null
-}
-
-export interface StrategyListResponse {
-  strategies: Strategy[]
-  count: number
-}
-
-export interface StrategyResponse {
-  strategy: Strategy
-  message: string
-}
-
-export interface Ticker {
-  symbol: string
-  name: string | null
-  probability: number | null
-  trend_mean_growth: number | null
-  trend_std_deviation: number | null
-  bias: Bias | null
-  horizon: string | null
-  beta: Beta | null
-  strategy_id: number | null
-}
-
-export interface TickerListResponse {
-  tickers: Ticker[]
-  count: number
-}
-
-export interface TickerSuggestion {
-  symbol: string
-  name: string | null
-  exchange: string | null
-  type: string | null // "equity", "etf", etc.
-}
-
-export interface TickerSearchResponse {
-  suggestions: TickerSuggestion[]
-  query: string
-}
-
-export interface TickerCreateRequest {
-  symbol: string
-}
-
-export interface TickerCreateResponse {
-  ticker: Ticker
-  message: string
-}
-
-export interface TickerPriceResponse {
-  symbol: string
-  price: number | null
-  currency: string | null
-  valid: boolean
-}
 
 export interface ExitLevel {
   id: number

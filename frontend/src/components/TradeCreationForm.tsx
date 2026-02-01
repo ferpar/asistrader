@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { fetchStrategies } from '../api/strategies'
-import { fetchTickers, fetchTickerPrice } from '../api/tickers'
-import { Strategy, Ticker, TradeCreateRequest, ExitLevelCreateRequest } from '../types/trade'
+import { TradeCreateRequest, ExitLevelCreateRequest } from '../types/trade'
+import type { Strategy } from '../domain/strategy/types'
+import type { Ticker } from '../domain/ticker/types'
 import { TickerSearchInput } from './TickerSearchInput'
 import { useTradeValidation } from '../hooks/useTradeValidation'
-import { useTradeStore } from '../container/ContainerContext'
+import { useTradeStore, useStrategyRepo, useTickerStore } from '../container/ContainerContext'
 
 interface ExitLevelInput {
   price: string
@@ -14,6 +14,8 @@ interface ExitLevelInput {
 
 export function TradeCreationForm() {
   const store = useTradeStore()
+  const strategyRepo = useStrategyRepo()
+  const tickerStore = useTickerStore()
   const [tickers, setTickers] = useState<Ticker[]>([])
   const [strategies, setStrategies] = useState<Strategy[]>([])
   const [loadingTickers, setLoadingTickers] = useState(true)
@@ -47,14 +49,14 @@ export function TradeCreationForm() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [tickersResponse, strategiesResponse] = await Promise.all([
-          fetchTickers(),
-          fetchStrategies(),
+        const [loadedTickers, loadedStrategies] = await Promise.all([
+          tickerStore.loadTickers().then(() => tickerStore.tickers$.get()),
+          strategyRepo.fetchStrategies(),
         ])
-        setTickers(tickersResponse.tickers)
-        setStrategies(strategiesResponse.strategies)
-        if (tickersResponse.tickers.length > 0) {
-          setFormData(prev => ({ ...prev, ticker: tickersResponse.tickers[0].symbol }))
+        setTickers(loadedTickers)
+        setStrategies(loadedStrategies)
+        if (loadedTickers.length > 0) {
+          setFormData(prev => ({ ...prev, ticker: loadedTickers[0].symbol }))
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data')
@@ -72,14 +74,14 @@ export function TradeCreationForm() {
     }
     setLoadingPrice(true)
     try {
-      const response = await fetchTickerPrice(symbol)
+      const response = await tickerStore.fetchTickerPrice(symbol)
       setCurrentPrice(response.valid ? response.price : null)
     } catch {
       setCurrentPrice(null)
     } finally {
       setLoadingPrice(false)
     }
-  }, [])
+  }, [tickerStore])
 
   useEffect(() => {
     loadCurrentPrice(formData.ticker)

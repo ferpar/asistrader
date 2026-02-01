@@ -3,18 +3,7 @@ import { ITradeRepository, IPriceProvider, DetectionResponse } from './ITradeRep
 import type { TradeWithMetrics, PriceData } from './types'
 import { mapTrade, mapPriceData, mapDetectionResponse } from './mappers'
 import type { TradeDetectionResponseDTO } from '../../types/trade'
-
-function buildHeaders(getToken: () => string | null, json = false): Record<string, string> {
-  const headers: Record<string, string> = {}
-  const token = getToken()
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  if (json) {
-    headers['Content-Type'] = 'application/json'
-  }
-  return headers
-}
+import { buildHeaders } from '../shared/httpHelpers'
 
 export class HttpTradeRepository implements ITradeRepository {
   constructor(

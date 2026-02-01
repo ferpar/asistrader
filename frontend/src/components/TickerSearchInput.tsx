@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { searchTickers, createTicker } from '../api/tickers'
-import { Ticker, TickerSuggestion } from '../types/trade'
+import { useTickerStore } from '../container/ContainerContext'
+import type { Ticker } from '../domain/ticker/types'
+import type { TickerSuggestion } from '../types/ticker'
 
 interface TickerSearchInputProps {
   existingTickers: Ticker[]
@@ -15,6 +16,7 @@ export function TickerSearchInput({
   onTickerSelect,
   onTickerCreated,
 }: TickerSearchInputProps) {
+  const tickerStore = useTickerStore()
   const [inputValue, setInputValue] = useState(selectedTicker)
   const [isOpen, setIsOpen] = useState(false)
   const [suggestions, setSuggestions] = useState<TickerSuggestion[]>([])
@@ -46,15 +48,15 @@ export function TickerSearchInput({
     setLoading(true)
     setError(null)
     try {
-      const response = await searchTickers(query)
-      setSuggestions(response.suggestions)
+      const suggestions = await tickerStore.searchTickers(query)
+      setSuggestions(suggestions)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed')
       setSuggestions([])
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [tickerStore])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
@@ -88,10 +90,10 @@ export function TickerSearchInput({
     setCreating(suggestion.symbol)
     setError(null)
     try {
-      const response = await createTicker({ symbol: suggestion.symbol })
-      setInputValue(response.ticker.symbol)
-      onTickerSelect(response.ticker.symbol)
-      onTickerCreated?.(response.ticker)
+      const ticker = await tickerStore.createTicker({ symbol: suggestion.symbol })
+      setInputValue(ticker.symbol)
+      onTickerSelect(ticker.symbol)
+      onTickerCreated?.(ticker)
       setIsOpen(false)
       // Remove from suggestions since it's now in existing tickers
       setSuggestions((prev) => prev.filter((s) => s.symbol !== suggestion.symbol))

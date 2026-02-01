@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { syncMarketData, SyncResponse } from '../api/marketData'
+import { useMarketDataRepo } from '../container/ContainerContext'
+import type { SyncResult } from '../domain/marketData/types'
 
 export function MarketDataSync() {
+  const marketDataRepo = useMarketDataRepo()
   const [startDate, setStartDate] = useState('2024-01-01')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<SyncResponse | null>(null)
+  const [result, setResult] = useState<SyncResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const handleSync = async () => {
@@ -13,7 +15,7 @@ export function MarketDataSync() {
     setResult(null)
 
     try {
-      const response = await syncMarketData({ start_date: startDate })
+      const response = await marketDataRepo.syncMarketData({ start_date: startDate })
       setResult(response)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sync market data')
@@ -38,7 +40,7 @@ export function MarketDataSync() {
       </div>
       {result && (
         <div className="sync-result success">
-          ✓ Synced {result.total_rows} rows ({Object.keys(result.results).length} tickers, {result.skipped.length} skipped)
+          ✓ Synced {result.totalRows} rows ({Object.keys(result.results).length} tickers, {result.skipped.length} skipped)
         </div>
       )}
       {error && (
