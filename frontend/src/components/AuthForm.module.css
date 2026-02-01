@@ -1,0 +1,128 @@
+.authContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.authCard {
+  width: 100%;
+  max-width: 400px;
+  background-color: var(--color-surface);
+  border-radius: 12px;
+  padding: 40px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.authTitle {
+  margin: 0 0 5px;
+  font-size: 2rem;
+  color: var(--color-primary);
+  text-align: center;
+}
+
+.authSubtitle {
+  margin: 0 0 30px;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.authForm h2 {
+  margin: 0 0 20px;
+  font-size: 1.25rem;
+  color: var(--color-text);
+}
+
+.formGroupOverride {
+  margin-bottom: 16px;
+}
+
+.formGroupOverride label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.formGroupOverride input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  box-sizing: border-box;
+}
+
+.formGroupOverride input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.formGroupOverride input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.authError {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background-color: var(--color-error-light);
+  border: 1px solid var(--color-error);
+  border-radius: 6px;
+  color: var(--color-error-dark);
+  font-size: 0.875rem;
+}
+
+.authSubmit {
+  width: 100%;
+  padding: 12px 20px;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.authSubmit:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.authSubmit:disabled {
+  background-color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.authToggle {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.authToggle button {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.authToggle button:hover {
+  color: var(--color-primary-hover);
+}
+
+.authToggle button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

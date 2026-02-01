@@ -1,0 +1,52 @@
+.app {
+  max-width: 2000px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: var(--color-primary);
+}
+
+.header p {
+  margin: 5px 0 0;
+  color: var(--color-text-muted);
+}
+
+.main {
+  width: 100%;
+}
+
+.tradesSection h2 {
+  margin-bottom: 15px;
+  font-size: 1.25rem;
+  color: var(--color-text);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.authLoading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-size: 1.25rem;
+  color: var(--color-text-muted);
+}

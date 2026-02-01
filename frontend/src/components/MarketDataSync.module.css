@@ -1,0 +1,65 @@
+.marketDataSync {
+  margin-bottom: 30px;
+  padding: 20px;
+  background-color: var(--color-surface);
+  border-radius: 8px;
+}
+
+.marketDataSync h2 {
+  margin: 0 0 15px;
+  font-size: 1.25rem;
+  color: var(--color-text);
+}
+
+.syncControls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.syncControls input[type="date"] {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+.syncControls button {
+  padding: 8px 16px;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.syncControls button:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.syncControls button:disabled {
+  background-color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.syncResult {
+  margin-top: 15px;
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.syncResult.success {
+  background-color: var(--color-distance-near-bg);
+  border: 1px solid var(--color-success);
+  color: var(--color-distance-near-text);
+}
+
+.syncResult.error {
+  background-color: var(--color-error-light);
+  border: 1px solid var(--color-error);
+  color: var(--color-error-dark);
+}

@@ -1,6 +1,7 @@
 import { observer } from '@legendapp/state/react'
 import { useTradeStore } from '../container/ContainerContext'
 import type { EntryAlert, SLTPAlert } from '../domain/trade/types'
+import styles from './TradeAlertBanner.module.css'
 
 export const TradeAlertBanner = observer(function TradeAlertBanner() {
   const store = useTradeStore()
@@ -15,15 +16,15 @@ export const TradeAlertBanner = observer(function TradeAlertBanner() {
   }
 
   const getEntryAlertClass = (alert: EntryAlert): string => {
-    if (alert.autoOpened) return 'alert-entry-opened'
-    return 'alert-entry'
+    if (alert.autoOpened) return styles.alertEntryOpened
+    return styles.alertEntry
   }
 
   const getSltpAlertClass = (alert: SLTPAlert): string => {
-    if (alert.autoClosed) return 'alert-auto-closed'
-    if (alert.hitType === 'both') return 'alert-conflict'
-    if (alert.hitType === 'sl') return 'alert-sl'
-    return 'alert-tp'
+    if (alert.autoClosed) return styles.alertAutoClosed
+    if (alert.hitType === 'both') return styles.alertConflict
+    if (alert.hitType === 'sl') return styles.alertSl
+    return styles.alertTp
   }
 
   const getEntryAlertIcon = (alert: EntryAlert): string => {
@@ -41,52 +42,52 @@ export const TradeAlertBanner = observer(function TradeAlertBanner() {
   const hasAlerts = entryAlerts.length > 0 || sltpAlerts.length > 0
 
   return (
-    <div className="sltp-alert-banner">
-      <div className="sltp-header">
+    <div className={styles.sltpAlertBanner}>
+      <div className={styles.sltpHeader}>
         <button
-          className="btn-detect-sltp"
+          className={styles.btnDetectSltp}
           onClick={handleDetect}
           disabled={loading}
         >
           {loading ? 'Checking...' : 'Check Trade Alerts'}
         </button>
         {lastResult && (
-          <span className="sltp-summary">
+          <span className={styles.sltpSummary}>
             {lastResult.autoOpenedCount > 0 && (
-              <span className="summary-auto-opened">
+              <span className={styles.summaryAutoOpened}>
                 {lastResult.autoOpenedCount} auto-opened
               </span>
             )}
             {lastResult.autoClosedCount > 0 && (
-              <span className="summary-auto-closed">
+              <span className={styles.summaryAutoClosed}>
                 {lastResult.autoClosedCount} auto-closed
               </span>
             )}
             {lastResult.conflictCount > 0 && (
-              <span className="summary-conflict">
+              <span className={styles.summaryConflict}>
                 {lastResult.conflictCount} conflict{lastResult.conflictCount > 1 ? 's' : ''}
               </span>
             )}
           </span>
         )}
         {hasAlerts && (
-          <button className="btn-dismiss-all" onClick={() => store.dismissAllAlerts()}>
+          <button className={styles.btnDismissAll} onClick={() => store.dismissAllAlerts()}>
             Dismiss All
           </button>
         )}
       </div>
 
       {hasAlerts && (
-        <div className="sltp-alerts">
+        <div className={styles.sltpAlerts}>
           {entryAlerts.map(alert => (
             <div
               key={`entry-${alert.tradeId}`}
-              className={`sltp-alert ${getEntryAlertClass(alert)}`}
+              className={`${styles.sltpAlert} ${getEntryAlertClass(alert)}`}
             >
-              <span className="alert-icon">{getEntryAlertIcon(alert)}</span>
-              <span className="alert-message">{alert.message}</span>
+              <span className={styles.alertIcon}>{getEntryAlertIcon(alert)}</span>
+              <span className={styles.alertMessage}>{alert.message}</span>
               <button
-                className="btn-dismiss"
+                className={styles.btnDismiss}
                 onClick={() => store.dismissEntryAlert(alert.tradeId)}
               >
                 x
@@ -96,12 +97,12 @@ export const TradeAlertBanner = observer(function TradeAlertBanner() {
           {sltpAlerts.map(alert => (
             <div
               key={`sltp-${alert.tradeId}`}
-              className={`sltp-alert ${getSltpAlertClass(alert)}`}
+              className={`${styles.sltpAlert} ${getSltpAlertClass(alert)}`}
             >
-              <span className="alert-icon">{getSltpAlertIcon(alert)}</span>
-              <span className="alert-message">{alert.message}</span>
+              <span className={styles.alertIcon}>{getSltpAlertIcon(alert)}</span>
+              <span className={styles.alertMessage}>{alert.message}</span>
               <button
-                className="btn-dismiss"
+                className={styles.btnDismiss}
                 onClick={() => store.dismissSltpAlert(alert.tradeId)}
               >
                 x

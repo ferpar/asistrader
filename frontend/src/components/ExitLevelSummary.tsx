@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import type { ExitLevel } from '../domain/trade/types'
 import type { TradeStatus } from '../types/trade'
+import styles from './ExitLevelSummary.module.css'
 
 interface ExitLevelSummaryProps {
   levels: ExitLevel[]
@@ -43,11 +44,11 @@ export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units, trade
   const getStatusClass = (status: string) => {
     switch (status) {
       case 'hit':
-        return 'level-status-hit'
+        return styles.levelStatusHit
       case 'cancelled':
-        return 'level-status-cancelled'
+        return styles.levelStatusCancelled
       default:
-        return 'level-status-pending'
+        return styles.levelStatusPending
     }
   }
 
@@ -86,14 +87,14 @@ export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units, trade
     const isComplete = Math.abs(totalPct - 1.0) < 0.001
 
     return (
-      <div className="exit-level-section">
-        <div className="exit-level-header">
-          <span className="exit-level-title">{title}</span>
-          <span className={`exit-level-total ${isComplete ? 'complete' : 'incomplete'}`}>
+      <div className={styles.exitLevelSection}>
+        <div className={styles.exitLevelHeader}>
+          <span className={styles.exitLevelTitle}>{title}</span>
+          <span className={`${styles.exitLevelTotal} ${isComplete ? styles.complete : styles.incomplete}`}>
             Total: {formatPercent(totalPct)} {isComplete ? '\u2713' : ''}
           </span>
         </div>
-        <table className="exit-level-table">
+        <table className={styles.exitLevelTable}>
           <thead>
             <tr>
               <th>#</th>
@@ -117,7 +118,7 @@ export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units, trade
                     <td>{formatCurrency(level.price.toNumber())}</td>
                     <td>{formatPercent(level.unitsPct.toNumber())}</td>
                     <td>{levelUnits} units</td>
-                    <td className={`level-status ${getStatusClass(level.status)}`}>
+                    <td className={`${styles.levelStatus} ${getStatusClass(level.status)}`}>
                       {level.status.charAt(0).toUpperCase() + level.status.slice(1)}
                     </td>
                     <td>{formatDate(level.hitDate)}</td>
@@ -128,7 +129,7 @@ export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units, trade
                       <td>
                         {level.status === 'pending' && onLevelHit && (
                           <button
-                            className="btn-action btn-hit"
+                            className={`${styles.btnAction} ${styles.btnHit}`}
                             onClick={() => handleStartConfirm(level)}
                             disabled={submitting}
                           >
@@ -137,7 +138,7 @@ export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units, trade
                         )}
                         {level.status === 'hit' && onLevelRevert && (
                           <button
-                            className="btn-action btn-undo"
+                            className={`${styles.btnAction} ${styles.btnUndo}`}
                             onClick={() => handleRevert(level.id)}
                             disabled={submitting}
                           >
@@ -148,9 +149,9 @@ export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units, trade
                     )}
                   </tr>
                   {isConfirming && (
-                    <tr className="level-hit-confirm-row">
+                    <tr className={styles.levelHitConfirmRow}>
                       <td colSpan={showActions ? (title.includes('Take Profit') ? 8 : 7) : (title.includes('Take Profit') ? 7 : 6)}>
-                        <div className="level-hit-confirm">
+                        <div className={styles.levelHitConfirm}>
                           <label>
                             Date:
                             <input
@@ -170,14 +171,14 @@ export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units, trade
                             />
                           </label>
                           <button
-                            className="btn-action btn-confirm"
+                            className={`${styles.btnAction} ${styles.btnConfirm}`}
                             onClick={() => handleConfirmHit(level.id)}
                             disabled={submitting}
                           >
                             {submitting ? 'Saving...' : 'Confirm'}
                           </button>
                           <button
-                            className="btn-action btn-secondary"
+                            className={`${styles.btnAction} ${styles.btnSecondary}`}
                             onClick={() => setConfirmingLevelId(null)}
                             disabled={submitting}
                           >
@@ -201,7 +202,7 @@ export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units, trade
   }
 
   return (
-    <div className="exit-level-summary">
+    <div className={styles.exitLevelSummary}>
       {renderLevelTable(tpLevels, 'Take Profit Levels')}
       {renderLevelTable(slLevels, 'Stop Loss Levels')}
     </div>

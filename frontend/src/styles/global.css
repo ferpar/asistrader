@@ -1,0 +1,92 @@
+:root {
+  /* Base colors */
+  --color-bg: #ffffff;
+  --color-surface: #f5f5f5;
+  --color-surface-hover: #e8e8e8;
+  --color-border: #e0e0e0;
+
+  /* Text colors */
+  --color-text: #333333;
+  --color-text-muted: #666666;
+
+  /* Brand/Primary */
+  --color-primary: #1a1a2e;
+  --color-primary-hover: #2a2a4e;
+
+  /* Semantic colors */
+  --color-success: #4caf50;
+  --color-success-dark: #388e3c;
+  --color-error: #f44336;
+  --color-error-light: #ffebee;
+  --color-error-dark: #c62828;
+  --color-info: #2196f3;
+  --color-info-dark: #1976d2;
+  --color-warning: #ff9800;
+  --color-warning-dark: #f57c00;
+  --color-warning-light: #fff3e0;
+
+  /* Table specific */
+  --color-table-header: #f5f5f5;
+  --color-table-row-hover: #f9f9f9;
+
+  /* Distance indicators */
+  --color-distance-danger-bg: #ffebee;
+  --color-distance-danger-text: #c62828;
+  --color-distance-warning-bg: #fff3e0;
+  --color-distance-warning-text: #e65100;
+  --color-distance-near-bg: #e8f5e9;
+  --color-distance-near-text: #2e7d32;
+}
+
+[data-theme="dark"] {
+  --color-bg: #121212;
+  --color-surface: #1e1e1e;
+  --color-surface-hover: #2a2a2a;
+  --color-border: #333333;
+
+  --color-text: #e0e0e0;
+  --color-text-muted: #a0a0a0;
+
+  --color-primary: #4a4a6e;
+  --color-primary-hover: #5a5a8e;
+
+  --color-success: #66bb6a;
+  --color-success-dark: #4caf50;
+  --color-error: #ef5350;
+  --color-error-light: #2d1f1f;
+  --color-error-dark: #ff6b6b;
+  --color-info: #42a5f5;
+  --color-info-dark: #2196f3;
+  --color-warning: #ffb74d;
+  --color-warning-dark: #ffa726;
+  --color-warning-light: #2d2a1f;
+
+  --color-table-header: #252525;
+  --color-table-row-hover: #252525;
+
+  --color-distance-danger-bg: #2d1f1f;
+  --color-distance-danger-text: #ff6b6b;
+  --color-distance-warning-bg: #2d2a1f;
+  --color-distance-warning-text: #ffb74d;
+  --color-distance-near-bg: #1f2d1f;
+  --color-distance-near-text: #81c784;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.positive {
+  color: var(--color-success);
+}
+
+.negative {
+  color: var(--color-error);
+}
+
+.neutral {
+  color: var(--color-text-muted);
+}

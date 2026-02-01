@@ -1,4 +1,5 @@
 import { ExtendedFilter } from '../types/trade'
+import styles from './TradeFilters.module.css'
 
 export type StatusFilter = ExtendedFilter
 
@@ -22,11 +23,11 @@ export function TradeFilters({ value, onChange }: TradeFiltersProps) {
   return (
     <>
       {/* Desktop: button tabs */}
-      <div className="filter-tabs filter-tabs-desktop">
+      <div className={`${styles.filterTabs} ${styles.filterTabsDesktop}`}>
         {FILTER_OPTIONS.map((filter) => (
           <button
             key={filter}
-            className={`filter-tab ${value === filter ? 'active' : ''}`}
+            className={`${styles.filterTab} ${value === filter ? styles.active : ''}`}
             onClick={() => onChange(filter)}
           >
             {FILTER_LABELS[filter]}
@@ -35,11 +36,11 @@ export function TradeFilters({ value, onChange }: TradeFiltersProps) {
       </div>
 
       {/* Mobile: dropdown select */}
-      <div className="filter-tabs filter-tabs-mobile">
-        <label htmlFor="filter-select" className="filter-label">Filter:</label>
+      <div className={`${styles.filterTabs} ${styles.filterTabsMobile}`}>
+        <label htmlFor="filter-select" className={styles.filterLabel}>Filter:</label>
         <select
           id="filter-select"
-          className="filter-select"
+          className={styles.filterSelect}
           value={value}
           onChange={(e) => onChange(e.target.value as StatusFilter)}
         >

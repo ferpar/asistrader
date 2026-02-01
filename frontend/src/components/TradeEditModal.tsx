@@ -3,6 +3,9 @@ import { TradeUpdateRequest, ExitType, ExitLevelCreateRequest } from '../types/t
 import type { Strategy } from '../domain/strategy/types'
 import type { TradeWithMetrics } from '../domain/trade/types'
 import { useTradeStore, useStrategyRepo } from '../container/ContainerContext'
+import styles from './TradeEditModal.module.css'
+import formStyles from '../styles/forms.module.css'
+import layeredStyles from '../styles/layeredLevels.module.css'
 
 export type EditMode = 'edit' | 'open' | 'close'
 
@@ -204,24 +207,24 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
   const slTotal = slLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0)
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
           <h3>{getTitle()}</h3>
-          <button className="modal-close" onClick={onClose}>&times;</button>
+          <button className={styles.modalClose} onClick={onClose}>&times;</button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          {error && <div className="form-error">{error}</div>}
+          {error && <div className={formStyles.formError}>{error}</div>}
 
-          <div className="modal-info">
-            <span className="modal-ticker">{trade.ticker}</span>
-            <span className="modal-status">{trade.status}</span>
+          <div className={styles.modalInfo}>
+            <span className={styles.modalTicker}>{trade.ticker}</span>
+            <span className={styles.modalStatus}>{trade.status}</span>
           </div>
 
           {mode === 'edit' && (
             <>
-              <div className="form-group">
+              <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
                 <label htmlFor="entry_price">Entry Price</label>
                 <input
                   type="number"
@@ -237,7 +240,7 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
               </div>
 
               {canEditLayeredMode && (
-                <div className="form-group form-group-checkbox">
+                <div className={`${formStyles.formGroup} ${formStyles.formGroupCheckbox}`}>
                   <label htmlFor="layered_mode">
                     <input
                       type="checkbox"
@@ -247,13 +250,13 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                     />
                     Layered Exits
                   </label>
-                  <span className="form-hint">Multiple TP/SL levels</span>
+                  <span className={formStyles.formHint}>Multiple TP/SL levels</span>
                 </div>
               )}
 
               {!layeredMode && (
                 <>
-                  <div className="form-group">
+                  <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
                     <label htmlFor="stop_loss">Stop Loss</label>
                     <input
                       type="number"
@@ -267,7 +270,7 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                     />
                   </div>
 
-                  <div className="form-group">
+                  <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
                     <label htmlFor="take_profit">Take Profit</label>
                     <input
                       type="number"
@@ -284,18 +287,18 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
               )}
 
               {layeredMode && (
-                <div className="layered-levels-section">
-                  <div className="layered-levels-group">
-                    <div className="layered-levels-header">
+                <div className={layeredStyles.layeredLevelsSection}>
+                  <div className={layeredStyles.layeredLevelsGroup}>
+                    <div className={layeredStyles.layeredLevelsHeader}>
                       <span>Take Profit Levels</span>
-                      <span className={`levels-total ${tpTotal === 100 ? 'complete' : 'incomplete'}`}>
+                      <span className={`${layeredStyles.levelsTotal} ${tpTotal === 100 ? 'complete' : 'incomplete'}`}>
                         Total: {tpTotal}%
                         {tpTotal === 100 && ' \u2713'}
                       </span>
                     </div>
                     {tpLevels.map((level, index) => (
-                      <div key={`tp-${index}`} className="level-input-row">
-                        <span className="level-label">TP{index + 1}</span>
+                      <div key={`tp-${index}`} className={layeredStyles.levelInputRow}>
+                        <span className={layeredStyles.levelLabel}>TP{index + 1}</span>
                         <input
                           type="number"
                           placeholder="Price"
@@ -320,10 +323,10 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                           }}
                           min="0"
                           max="100"
-                          className="pct-input"
+                          className={layeredStyles.pctInput}
                           disabled={!canEditLayeredMode}
                         />
-                        <label className="be-checkbox">
+                        <label className={layeredStyles.beCheckbox}>
                           <input
                             type="checkbox"
                             checked={level.move_sl_to_breakeven}
@@ -334,12 +337,12 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                             }}
                             disabled={!canEditLayeredMode}
                           />
-                          <span className="be-label">BE</span>
+                          <span className={layeredStyles.beLabel}>BE</span>
                         </label>
                         {tpLevels.length > 1 && canEditLayeredMode && (
                           <button
                             type="button"
-                            className="btn-remove-level"
+                            className={layeredStyles.btnRemoveLevel}
                             onClick={() => setTpLevels(tpLevels.filter((_, i) => i !== index))}
                           >
                             &times;
@@ -350,7 +353,7 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                     {canEditLayeredMode && (
                       <button
                         type="button"
-                        className="btn-add-level"
+                        className={layeredStyles.btnAddLevel}
                         onClick={() => setTpLevels([...tpLevels, { price: '', units_pct: '', move_sl_to_breakeven: false }])}
                       >
                         + Add TP Level
@@ -358,17 +361,17 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                     )}
                   </div>
 
-                  <div className="layered-levels-group">
-                    <div className="layered-levels-header">
+                  <div className={layeredStyles.layeredLevelsGroup}>
+                    <div className={layeredStyles.layeredLevelsHeader}>
                       <span>Stop Loss Levels</span>
-                      <span className={`levels-total ${slTotal === 100 ? 'complete' : 'incomplete'}`}>
+                      <span className={`${layeredStyles.levelsTotal} ${slTotal === 100 ? 'complete' : 'incomplete'}`}>
                         Total: {slTotal}%
                         {slTotal === 100 && ' \u2713'}
                       </span>
                     </div>
                     {slLevels.map((level, index) => (
-                      <div key={`sl-${index}`} className="level-input-row">
-                        <span className="level-label">SL{index + 1}</span>
+                      <div key={`sl-${index}`} className={layeredStyles.levelInputRow}>
+                        <span className={layeredStyles.levelLabel}>SL{index + 1}</span>
                         <input
                           type="number"
                           placeholder="Price"
@@ -393,13 +396,13 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                           }}
                           min="0"
                           max="100"
-                          className="pct-input"
+                          className={layeredStyles.pctInput}
                           disabled={!canEditLayeredMode}
                         />
                         {slLevels.length > 1 && canEditLayeredMode && (
                           <button
                             type="button"
-                            className="btn-remove-level"
+                            className={layeredStyles.btnRemoveLevel}
                             onClick={() => setSlLevels(slLevels.filter((_, i) => i !== index))}
                           >
                             &times;
@@ -410,7 +413,7 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                     {canEditLayeredMode && (
                       <button
                         type="button"
-                        className="btn-add-level"
+                        className={layeredStyles.btnAddLevel}
                         onClick={() => setSlLevels([...slLevels, { price: '', units_pct: '', move_sl_to_breakeven: false }])}
                       >
                         + Add SL Level
@@ -420,7 +423,7 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                 </div>
               )}
 
-              <div className="form-group">
+              <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
                 <label htmlFor="units">Units</label>
                 <input
                   type="number"
@@ -434,7 +437,7 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                 />
               </div>
 
-              <div className="form-group">
+              <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
                 <label htmlFor="strategy_id">Strategy</label>
                 <select
                   id="strategy_id"
@@ -454,7 +457,7 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
           )}
 
           {mode === 'open' && (
-            <div className="form-group">
+            <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
               <label htmlFor="date_actual">Open Date</label>
               <input
                 type="date"
@@ -469,7 +472,7 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
 
           {mode === 'close' && (
             <>
-              <div className="form-group">
+              <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
                 <label htmlFor="exit_price">Exit Price</label>
                 <input
                   type="number"
@@ -484,7 +487,7 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                 />
               </div>
 
-              <div className="form-group">
+              <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
                 <label htmlFor="exit_type">Exit Type</label>
                 <select
                   id="exit_type"
@@ -498,7 +501,7 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                 </select>
               </div>
 
-              <div className="form-group">
+              <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
                 <label htmlFor="exit_date">Exit Date</label>
                 <input
                   type="date"
@@ -512,8 +515,8 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
             </>
           )}
 
-          <div className="modal-actions">
-            <button type="button" className="btn-secondary" onClick={onClose}>
+          <div className={styles.modalActions}>
+            <button type="button" className={styles.btnSecondary} onClick={onClose}>
               Cancel
             </button>
             <button type="submit" disabled={submitting}>

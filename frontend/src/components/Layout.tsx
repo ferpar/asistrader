@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 import { ThemeToggle } from './ThemeToggle'
 import { UserHeader } from './UserHeader'
+import styles from './Layout.module.css'
 
 interface LayoutProps {
   children: ReactNode
@@ -8,18 +9,18 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   return (
-    <div className="app">
-      <header className="header">
+    <div className={styles.app}>
+      <header className={styles.header}>
         <div>
           <h1>AsisTrader</h1>
           <p>Trading Operations Management</p>
         </div>
-        <div className="header-actions">
+        <div className={styles.headerActions}>
           <UserHeader />
           <ThemeToggle />
         </div>
       </header>
-      <main className="main">
+      <main className={styles.main}>
         {children}
       </main>
     </div>

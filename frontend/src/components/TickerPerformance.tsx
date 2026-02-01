@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Decimal } from '../domain/shared/Decimal'
 import type { TradeWithMetrics } from '../domain/trade/types'
+import styles from './TickerPerformance.module.css'
 
 interface TickerStats {
   symbol: string
@@ -68,9 +69,9 @@ export function TickerPerformance({ trades }: TickerPerformanceProps) {
   }
 
   return (
-    <div className="ticker-performance">
+    <div className={styles.tickerPerformance}>
       <h3>Performance by Ticker</h3>
-      <table className="ticker-performance-table">
+      <table className={styles.tickerPerformanceTable}>
         <thead>
           <tr>
             <th>Ticker</th>
@@ -84,7 +85,7 @@ export function TickerPerformance({ trades }: TickerPerformanceProps) {
         <tbody>
           {tickerStats.map(stat => (
             <tr key={stat.symbol}>
-              <td className="ticker-symbol">{stat.symbol}</td>
+              <td className={styles.tickerSymbol}>{stat.symbol}</td>
               <td>{stat.tradeCount}</td>
               <td>{stat.wins}/{stat.losses}</td>
               <td>{stat.winRate.toFixed(1)}%</td>

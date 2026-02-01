@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import styles from './UserHeader.module.css'
 
 export function UserHeader() {
   const { user, logout } = useAuth()
@@ -17,12 +18,12 @@ export function UserHeader() {
   if (!user) return null
 
   return (
-    <div className="user-header">
-      <span className="user-email">{user.email}</span>
+    <div className={styles.userHeader}>
+      <span className={styles.userEmail}>{user.email}</span>
       <button
         onClick={handleLogout}
         disabled={isLoggingOut}
-        className="logout-button"
+        className={styles.logoutButton}
       >
         {isLoggingOut ? 'Signing out...' : 'Sign Out'}
       </button>

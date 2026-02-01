@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTickerStore } from '../container/ContainerContext'
 import type { Ticker } from '../domain/ticker/types'
 import type { TickerSuggestion } from '../types/ticker'
+import styles from './TickerSearchInput.module.css'
 
 interface TickerSearchInputProps {
   existingTickers: Ticker[]
@@ -133,10 +134,10 @@ export function TickerSearchInput({
   const showDropdown = isOpen && (showExisting || showNew || loading || error)
 
   return (
-    <div className="ticker-search-container" ref={containerRef}>
+    <div className={styles.tickerSearchContainer} ref={containerRef}>
       <input
         type="text"
-        className="ticker-search-input"
+        className={styles.tickerSearchInput}
         value={inputValue}
         onChange={handleInputChange}
         onFocus={handleInputFocus}
@@ -144,21 +145,21 @@ export function TickerSearchInput({
         autoComplete="off"
       />
       {showDropdown && (
-        <div className="ticker-dropdown">
-          {error && <div className="ticker-dropdown-error">{error}</div>}
+        <div className={styles.tickerDropdown}>
+          {error && <div className={styles.tickerDropdownError}>{error}</div>}
 
           {showExisting && (
-            <div className="ticker-dropdown-section">
-              <div className="ticker-dropdown-header">Your Tickers</div>
+            <div className={styles.tickerDropdownSection}>
+              <div className={styles.tickerDropdownHeader}>Your Tickers</div>
               {filteredExisting.map((ticker) => (
                 <div
                   key={ticker.symbol}
-                  className="ticker-dropdown-item"
+                  className={styles.tickerDropdownItem}
                   onClick={() => handleExistingSelect(ticker.symbol)}
                 >
-                  <span className="ticker-symbol">{ticker.symbol}</span>
+                  <span className={styles.tickerSymbol}>{ticker.symbol}</span>
                   {ticker.name && (
-                    <span className="ticker-name">{ticker.name}</span>
+                    <span className={styles.tickerName}>{ticker.name}</span>
                   )}
                 </div>
               ))}
@@ -166,31 +167,31 @@ export function TickerSearchInput({
           )}
 
           {showNew && (
-            <div className="ticker-dropdown-section">
-              <div className="ticker-dropdown-header">Add New</div>
+            <div className={styles.tickerDropdownSection}>
+              <div className={styles.tickerDropdownHeader}>Add New</div>
               {suggestions.map((suggestion) => (
                 <div
                   key={suggestion.symbol}
-                  className={`ticker-dropdown-item ${creating === suggestion.symbol ? 'creating' : ''}`}
+                  className={`${styles.tickerDropdownItem} ${creating === suggestion.symbol ? styles.creating : ''}`}
                   onClick={() =>
                     creating !== suggestion.symbol && handleNewSelect(suggestion)
                   }
                 >
-                  <div className="ticker-dropdown-item-main">
-                    <span className="ticker-symbol">{suggestion.symbol}</span>
-                    <span className="add-badge">
+                  <div className={styles.tickerDropdownItemMain}>
+                    <span className={styles.tickerSymbol}>{suggestion.symbol}</span>
+                    <span className={styles.addBadge}>
                       {creating === suggestion.symbol ? 'Adding...' : '+ Add'}
                     </span>
                   </div>
-                  <div className="ticker-dropdown-item-details">
+                  <div className={styles.tickerDropdownItemDetails}>
                     {suggestion.name && (
-                      <span className="ticker-name">{suggestion.name}</span>
+                      <span className={styles.tickerName}>{suggestion.name}</span>
                     )}
                     {suggestion.exchange && (
-                      <span className="ticker-exchange">{suggestion.exchange}</span>
+                      <span className={styles.tickerExchange}>{suggestion.exchange}</span>
                     )}
                     {suggestion.type && (
-                      <span className="ticker-type">{suggestion.type}</span>
+                      <span className={styles.tickerType}>{suggestion.type}</span>
                     )}
                   </div>
                 </div>
@@ -199,11 +200,11 @@ export function TickerSearchInput({
           )}
 
           {loading && (
-            <div className="ticker-dropdown-loading">Searching...</div>
+            <div className={styles.tickerDropdownLoading}>Searching...</div>
           )}
 
           {!loading && !error && !showExisting && !showNew && inputValue.length >= 1 && (
-            <div className="ticker-dropdown-empty">No tickers found</div>
+            <div className={styles.tickerDropdownEmpty}>No tickers found</div>
           )}
         </div>
       )}

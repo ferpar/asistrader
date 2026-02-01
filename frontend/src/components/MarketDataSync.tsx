@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMarketDataRepo } from '../container/ContainerContext'
 import type { SyncResult } from '../domain/marketData/types'
+import styles from './MarketDataSync.module.css'
 
 export function MarketDataSync() {
   const marketDataRepo = useMarketDataRepo()
@@ -25,9 +26,9 @@ export function MarketDataSync() {
   }
 
   return (
-    <section className="market-data-sync">
+    <section className={styles.marketDataSync}>
       <h2>Market Data Sync</h2>
-      <div className="sync-controls">
+      <div className={styles.syncControls}>
         <input
           type="date"
           value={startDate}
@@ -39,12 +40,12 @@ export function MarketDataSync() {
         </button>
       </div>
       {result && (
-        <div className="sync-result success">
+        <div className={`${styles.syncResult} ${styles.success}`}>
           ✓ Synced {result.totalRows} rows ({Object.keys(result.results).length} tickers, {result.skipped.length} skipped)
         </div>
       )}
       {error && (
-        <div className="sync-result error">{error}</div>
+        <div className={`${styles.syncResult} ${styles.error}`}>{error}</div>
       )}
     </section>
   )

@@ -1,0 +1,43 @@
+.tickerPerformance {
+  margin-bottom: 20px;
+  background-color: var(--color-surface);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  padding: 15px;
+}
+
+.tickerPerformance h3 {
+  margin: 0 0 10px 0;
+  font-size: 1rem;
+  color: var(--color-text);
+}
+
+.tickerPerformanceTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.tickerPerformanceTable th,
+.tickerPerformanceTable td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tickerPerformanceTable th {
+  background-color: var(--color-table-header);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.tickerPerformanceTable tbody tr:hover {
+  background-color: var(--color-table-row-hover);
+}
+
+.tickerSymbol {
+  font-weight: 600;
+  color: var(--color-primary);
+}

@@ -2,6 +2,8 @@ import { useState, FormEvent } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useAuthValidation } from '../hooks/useAuthValidation'
 import { AuthValidationError } from '../types/auth'
+import formStyles from '../styles/forms.module.css'
+import styles from './AuthForm.module.css'
 
 export function AuthForm() {
   const { login, register } = useAuth()
@@ -57,17 +59,17 @@ export function AuthForm() {
   const confirmPasswordError = getFieldError('confirmPassword')
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h1 className="auth-title">AsisTrader</h1>
-        <p className="auth-subtitle">Trading Operations Management</p>
+    <div className={styles.authContainer}>
+      <div className={styles.authCard}>
+        <h1 className={styles.authTitle}>AsisTrader</h1>
+        <p className={styles.authSubtitle}>Trading Operations Management</p>
 
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form onSubmit={handleSubmit} className={styles.authForm}>
           <h2>{isRegister ? 'Create Account' : 'Sign In'}</h2>
 
-          {serverError && <div className="auth-error">{serverError}</div>}
+          {serverError && <div className={styles.authError}>{serverError}</div>}
 
-          <div className="form-group">
+          <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
             <label htmlFor="email">Email</label>
             <input
               id="email"
@@ -75,14 +77,14 @@ export function AuthForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, email: true }))}
-              className={emailError ? 'input-error' : ''}
+              className={emailError ? formStyles.inputError : ''}
               disabled={isSubmitting}
               autoComplete="email"
             />
-            {emailError && <span className="field-error">{emailError}</span>}
+            {emailError && <span className={formStyles.fieldError}>{emailError}</span>}
           </div>
 
-          <div className="form-group">
+          <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
             <label htmlFor="password">Password</label>
             <input
               id="password"
@@ -90,15 +92,15 @@ export function AuthForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, password: true }))}
-              className={passwordError ? 'input-error' : ''}
+              className={passwordError ? formStyles.inputError : ''}
               disabled={isSubmitting}
               autoComplete={isRegister ? 'new-password' : 'current-password'}
             />
-            {passwordError && <span className="field-error">{passwordError}</span>}
+            {passwordError && <span className={formStyles.fieldError}>{passwordError}</span>}
           </div>
 
           {isRegister && (
-            <div className="form-group">
+            <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
               <label htmlFor="confirmPassword">Confirm Password</label>
               <input
                 id="confirmPassword"
@@ -106,19 +108,19 @@ export function AuthForm() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 onBlur={() => setTouched((t) => ({ ...t, confirmPassword: true }))}
-                className={confirmPasswordError ? 'input-error' : ''}
+                className={confirmPasswordError ? formStyles.inputError : ''}
                 disabled={isSubmitting}
                 autoComplete="new-password"
               />
               {confirmPasswordError && (
-                <span className="field-error">{confirmPasswordError}</span>
+                <span className={formStyles.fieldError}>{confirmPasswordError}</span>
               )}
             </div>
           )}
 
           <button
             type="submit"
-            className="auth-submit"
+            className={styles.authSubmit}
             disabled={isSubmitting || (Object.keys(touched).length > 0 && !isValid)}
           >
             {isSubmitting
@@ -129,7 +131,7 @@ export function AuthForm() {
           </button>
         </form>
 
-        <div className="auth-toggle">
+        <div className={styles.authToggle}>
           {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
           <button type="button" onClick={toggleMode} disabled={isSubmitting}>
             {isRegister ? 'Sign In' : 'Create Account'}

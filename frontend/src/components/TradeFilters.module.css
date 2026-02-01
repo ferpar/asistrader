@@ -1,0 +1,64 @@
+.filterTabsDesktop {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.filterTabsMobile {
+  display: none;
+}
+
+.filterTab {
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.filterTab:hover {
+  background-color: var(--color-surface);
+}
+
+.filterTab.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+@media (max-width: 600px) {
+  .filterTabsDesktop {
+    display: none;
+  }
+
+  .filterTabsMobile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 15px;
+  }
+
+  .filterLabel {
+    font-weight: 500;
+    color: var(--color-text);
+  }
+
+  .filterSelect {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-size: 1rem;
+    cursor: pointer;
+  }
+
+  .filterSelect:focus {
+    outline: none;
+    border-color: var(--color-primary);
+  }
+}

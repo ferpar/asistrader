@@ -5,6 +5,9 @@ import type { Ticker } from '../domain/ticker/types'
 import { TickerSearchInput } from './TickerSearchInput'
 import { useTradeValidation } from '../hooks/useTradeValidation'
 import { useTradeStore, useStrategyRepo, useTickerStore } from '../container/ContainerContext'
+import formStyles from '../styles/forms.module.css'
+import layeredStyles from '../styles/layeredLevels.module.css'
+import styles from './TradeCreationForm.module.css'
 
 interface ExitLevelInput {
   price: string
@@ -95,8 +98,6 @@ export function TradeCreationForm() {
     let takeProfit: number
 
     if (layeredMode) {
-      // Derive from exit levels using weighted averages
-      // SL: weighted average of SL levels
       const validSlLevels = slLevels.filter(l => l.price && l.units_pct)
       if (validSlLevels.length > 0) {
         const totalPct = validSlLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0)
@@ -109,7 +110,6 @@ export function TradeCreationForm() {
         stopLoss = 0
       }
 
-      // TP: weighted average of TP levels
       const validTpLevels = tpLevels.filter(l => l.price && l.units_pct)
       if (validTpLevels.length > 0) {
         const totalPct = validTpLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0)
@@ -171,7 +171,6 @@ export function TradeCreationForm() {
     let takeProfit: number
 
     if (layeredMode && exitLevelsForValidation && exitLevelsForValidation.length > 0) {
-      // Derive from exit levels using weighted averages
       const slLevelsArr = exitLevelsForValidation.filter(l => l.level_type === 'sl')
       if (slLevelsArr.length > 0) {
         const totalPct = slLevelsArr.reduce((sum, l) => sum + l.units_pct, 0)
@@ -224,13 +223,11 @@ export function TradeCreationForm() {
     setError(null)
 
     try {
-      // Always create exit_levels - even for simple mode
       let exitLevelsToSend: ExitLevelCreateRequest[]
 
       if (layeredMode && exitLevelsForValidation && exitLevelsForValidation.length > 0) {
         exitLevelsToSend = exitLevelsForValidation
       } else {
-        // Simple mode: create 1 SL + 1 TP exit level
         const stopLoss = parseFloat(formData.stop_loss)
         const takeProfit = parseFloat(formData.take_profit)
         exitLevelsToSend = [
@@ -249,7 +246,6 @@ export function TradeCreationForm() {
         exit_levels: exitLevelsToSend,
       }
       await store.createTrade(request)
-      // Reset form
       setFormData({
         ticker: tickers.length > 0 ? tickers[0].symbol : '',
         entry_price: '',
@@ -292,24 +288,24 @@ export function TradeCreationForm() {
   }
 
   if (loadingTickers) {
-    return <div className="trade-form">Loading tickers...</div>
+    return <div className={styles.tradeForm}>Loading tickers...</div>
   }
 
   return (
-    <div className={`trade-form ${collapsed ? 'collapsed' : ''}`}>
-      <div className="trade-form-header" onClick={() => setCollapsed(!collapsed)}>
+    <div className={`${styles.tradeForm} ${collapsed ? styles.collapsed : ''}`}>
+      <div className={styles.tradeFormHeader} onClick={() => setCollapsed(!collapsed)}>
         <h3>New Trade</h3>
-        <button type="button" className="collapse-toggle">
+        <button type="button" className={styles.collapseToggle}>
           {collapsed ? '+' : '-'}
         </button>
       </div>
 
       {!collapsed && (
         <form onSubmit={handleSubmit}>
-          {error && <div className="form-error">{error}</div>}
+          {error && <div className={formStyles.formError}>{error}</div>}
 
-          <div className="form-row">
-        <div className="form-group">
+          <div className={formStyles.formRow}>
+        <div className={formStyles.formGroup}>
           <label htmlFor="ticker">Ticker</label>
           <TickerSearchInput
             existingTickers={tickers}
@@ -321,7 +317,7 @@ export function TradeCreationForm() {
           />
         </div>
 
-        <div className="form-group">
+        <div className={formStyles.formGroup}>
           <label htmlFor="date_planned">Planned Date</label>
           <input
             type="date"
@@ -333,7 +329,7 @@ export function TradeCreationForm() {
           />
         </div>
 
-        <div className="form-group">
+        <div className={formStyles.formGroup}>
           <label htmlFor="strategy_id">Strategy</label>
           <select
             id="strategy_id"
@@ -350,7 +346,7 @@ export function TradeCreationForm() {
           </select>
         </div>
 
-        <div className="form-group form-group-checkbox">
+        <div className={`${formStyles.formGroup} ${formStyles.formGroupCheckbox}`}>
           <label htmlFor="paper_trade">
             <input
               type="checkbox"
@@ -360,10 +356,10 @@ export function TradeCreationForm() {
             />
             Paper Trade
           </label>
-          <span className="form-hint">Auto-close on SL/TP hit</span>
+          <span className={formStyles.formHint}>Auto-close on SL/TP hit</span>
         </div>
 
-        <div className="form-group form-group-checkbox">
+        <div className={`${formStyles.formGroup} ${formStyles.formGroupCheckbox}`}>
           <label htmlFor="layered_mode">
             <input
               type="checkbox"
@@ -373,17 +369,17 @@ export function TradeCreationForm() {
             />
             Layered Exits
           </label>
-          <span className="form-hint">Multiple TP/SL levels</span>
+          <span className={formStyles.formHint}>Multiple TP/SL levels</span>
         </div>
       </div>
 
-      <div className="form-row">
-        <div className="form-group">
+      <div className={formStyles.formRow}>
+        <div className={formStyles.formGroup}>
           <label htmlFor="entry_price">
             Entry Price
-            {loadingPrice && <span className="current-price-hint loading">Loading...</span>}
+            {loadingPrice && <span className={`${styles.currentPriceHint} ${styles.loading}`}>Loading...</span>}
             {!loadingPrice && currentPrice !== null && (
-              <span className="current-price-hint">
+              <span className={styles.currentPriceHint}>
                 Current: {formatCurrency(currentPrice)}
               </span>
             )}
@@ -392,83 +388,83 @@ export function TradeCreationForm() {
             type="number"
             id="entry_price"
             name="entry_price"
-            className={getFieldError('entry_price') ? 'input-error' : ''}
+            className={getFieldError('entry_price') ? formStyles.inputError : ''}
             value={formData.entry_price}
             onChange={handleChange}
             step="0.01"
             min="0"
             required
           />
-          {getFieldError('entry_price') && <span className="field-error">{getFieldError('entry_price')}</span>}
+          {getFieldError('entry_price') && <span className={formStyles.fieldError}>{getFieldError('entry_price')}</span>}
         </div>
 
         {!layeredMode && (
           <>
-            <div className="form-group">
+            <div className={formStyles.formGroup}>
               <label htmlFor="stop_loss">Stop Loss</label>
               <input
                 type="number"
                 id="stop_loss"
                 name="stop_loss"
-                className={getFieldError('stop_loss') ? 'input-error' : ''}
+                className={getFieldError('stop_loss') ? formStyles.inputError : ''}
                 value={formData.stop_loss}
                 onChange={handleChange}
                 step="0.01"
                 min="0"
                 required
               />
-              {getFieldError('stop_loss') && <span className="field-error">{getFieldError('stop_loss')}</span>}
+              {getFieldError('stop_loss') && <span className={formStyles.fieldError}>{getFieldError('stop_loss')}</span>}
             </div>
 
-            <div className="form-group">
+            <div className={formStyles.formGroup}>
               <label htmlFor="take_profit">Take Profit</label>
               <input
                 type="number"
                 id="take_profit"
                 name="take_profit"
-                className={getFieldError('take_profit') ? 'input-error' : ''}
+                className={getFieldError('take_profit') ? formStyles.inputError : ''}
                 value={formData.take_profit}
                 onChange={handleChange}
                 step="0.01"
                 min="0"
                 required
               />
-              {getFieldError('take_profit') && <span className="field-error">{getFieldError('take_profit')}</span>}
+              {getFieldError('take_profit') && <span className={formStyles.fieldError}>{getFieldError('take_profit')}</span>}
             </div>
           </>
         )}
 
-        <div className="form-group">
+        <div className={formStyles.formGroup}>
           <label htmlFor="units">Units</label>
           <input
             type="number"
             id="units"
             name="units"
-            className={getFieldError('units') ? 'input-error' : ''}
+            className={getFieldError('units') ? formStyles.inputError : ''}
             value={formData.units}
             onChange={handleChange}
             min="1"
             required
           />
-          {getFieldError('units') && <span className="field-error">{getFieldError('units')}</span>}
+          {getFieldError('units') && <span className={formStyles.fieldError}>{getFieldError('units')}</span>}
         </div>
       </div>
 
       {layeredMode && (
-        <div className="layered-levels-section">
-          <div className="layered-levels-group">
-            <div className="layered-levels-header">
+        <div className={layeredStyles.layeredLevelsSection}>
+          <div className={layeredStyles.layeredLevelsGroup}>
+            <div className={layeredStyles.layeredLevelsHeader}>
               <span>Take Profit Levels</span>
-              <span className={`levels-total ${
-                tpLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0) === 100 ? 'complete' : 'incomplete'
+              <span className={`${layeredStyles.levelsTotal} ${
+                tpLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0) === 100 ? layeredStyles.complete : layeredStyles.incomplete
               }`}>
                 Total: {tpLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0)}%
                 {tpLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0) === 100 && ' \u2713'}
               </span>
             </div>
             {tpLevels.map((level, index) => (
-              <div key={`tp-${index}`} className="level-input-row">
-                <span className="level-label">TP{index + 1}</span>
+              <div key={`tp-${index}`} className={layeredStyles.levelInputRow}>
+                <span className={layeredStyles.levelLabel}>TP{index + 1}</span>
                 <input
                   type="number"
                   placeholder="Price"
@@ -492,9 +488,9 @@ export function TradeCreationForm() {
                   }}
                   min="0"
                   max="100"
-                  className="pct-input"
+                  className={layeredStyles.pctInput}
                 />
-                <label className="be-checkbox">
+                <label className={layeredStyles.beCheckbox}>
                   <input
                     type="checkbox"
                     checked={level.move_sl_to_breakeven}
@@ -504,12 +500,12 @@ export function TradeCreationForm() {
                       setTpLevels(newLevels)
                     }}
                   />
-                  <span className="be-label">BE</span>
+                  <span className={layeredStyles.beLabel}>BE</span>
                 </label>
                 {tpLevels.length > 1 && (
                   <button
                     type="button"
-                    className="btn-remove-level"
+                    className={layeredStyles.btnRemoveLevel}
                     onClick={() => setTpLevels(tpLevels.filter((_, i) => i !== index))}
                   >
                     &times;
@@ -519,26 +515,26 @@ export function TradeCreationForm() {
             ))}
             <button
               type="button"
-              className="btn-add-level"
+              className={layeredStyles.btnAddLevel}
               onClick={() => setTpLevels([...tpLevels, { price: '', units_pct: '', move_sl_to_breakeven: false }])}
             >
               + Add TP Level
             </button>
           </div>
 
-          <div className="layered-levels-group">
-            <div className="layered-levels-header">
+          <div className={layeredStyles.layeredLevelsGroup}>
+            <div className={layeredStyles.layeredLevelsHeader}>
               <span>Stop Loss Levels</span>
-              <span className={`levels-total ${
-                slLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0) === 100 ? 'complete' : 'incomplete'
+              <span className={`${layeredStyles.levelsTotal} ${
+                slLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0) === 100 ? layeredStyles.complete : layeredStyles.incomplete
               }`}>
                 Total: {slLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0)}%
                 {slLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0) === 100 && ' \u2713'}
               </span>
             </div>
             {slLevels.map((level, index) => (
-              <div key={`sl-${index}`} className="level-input-row">
-                <span className="level-label">SL{index + 1}</span>
+              <div key={`sl-${index}`} className={layeredStyles.levelInputRow}>
+                <span className={layeredStyles.levelLabel}>SL{index + 1}</span>
                 <input
                   type="number"
                   placeholder="Price"
@@ -562,12 +558,12 @@ export function TradeCreationForm() {
                   }}
                   min="0"
                   max="100"
-                  className="pct-input"
+                  className={layeredStyles.pctInput}
                 />
                 {slLevels.length > 1 && (
                   <button
                     type="button"
-                    className="btn-remove-level"
+                    className={layeredStyles.btnRemoveLevel}
                     onClick={() => setSlLevels(slLevels.filter((_, i) => i !== index))}
                   >
                     &times;
@@ -577,7 +573,7 @@ export function TradeCreationForm() {
             ))}
             <button
               type="button"
-              className="btn-add-level"
+              className={layeredStyles.btnAddLevel}
               onClick={() => setSlLevels([...slLevels, { price: '', units_pct: '', move_sl_to_breakeven: false }])}
             >
               + Add SL Level
@@ -585,33 +581,33 @@ export function TradeCreationForm() {
           </div>
 
           {getFieldError('exit_levels') && (
-            <div className="field-error">{getFieldError('exit_levels')}</div>
+            <div className={formStyles.fieldError}>{getFieldError('exit_levels')}</div>
           )}
         </div>
       )}
 
-      <div className="form-preview">
-        <div className="preview-item">
+      <div className={styles.formPreview}>
+        <div className={styles.previewItem}>
           <span>Amount:</span>
           <span>{formatCurrency(preview.amount)}</span>
         </div>
-        <div className="preview-item">
+        <div className={styles.previewItem}>
           <span>Risk:</span>
           <span className={preview.riskAbs < 0 ? 'negative' : 'positive'}>
             {formatCurrency(preview.riskAbs)} ({formatPercent(preview.riskPct)})
           </span>
         </div>
-        <div className="preview-item">
+        <div className={styles.previewItem}>
           <span>Profit:</span>
           <span className={preview.profitAbs > 0 ? 'positive' : 'negative'}>
             {formatCurrency(preview.profitAbs)} ({formatPercent(preview.profitPct)})
           </span>
         </div>
-        <div className="preview-item">
+        <div className={styles.previewItem}>
           <span>Ratio:</span>
           <span>{preview.ratio.toFixed(2)}</span>
         </div>
-        <div className="preview-item">
+        <div className={styles.previewItem}>
           <span>Direction:</span>
           <span className={validation.direction === 'long' ? 'positive' : validation.direction === 'short' ? 'negative' : ''}>
             {validation.direction?.toUpperCase() ?? '-'}

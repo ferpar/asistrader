@@ -1,5 +1,6 @@
 import { Decimal } from '../domain/shared/Decimal'
 import type { TradeWithMetrics } from '../domain/trade/types'
+import styles from './TradeStatistics.module.css'
 
 interface TradeStatisticsProps {
   trades: TradeWithMetrics[]
@@ -61,51 +62,51 @@ export function TradeStatistics({ trades }: TradeStatisticsProps) {
   const stats = calculateStatistics(trades)
 
   const getPnLClass = (value: number): string => {
-    if (value > 0) return 'stat-value positive'
-    if (value < 0) return 'stat-value negative'
-    return 'stat-value neutral'
+    if (value > 0) return `${styles.statValue} positive`
+    if (value < 0) return `${styles.statValue} negative`
+    return `${styles.statValue} neutral`
   }
 
   return (
-    <div className="trade-statistics">
-      <div className="stat-item">
-        <span className="stat-label">Total</span>
-        <span className="stat-value">{stats.totalTrades}</span>
+    <div className={styles.tradeStatistics}>
+      <div className={styles.statItem}>
+        <span className={styles.statLabel}>Total</span>
+        <span className={styles.statValue}>{stats.totalTrades}</span>
       </div>
-      <div className="stat-item">
-        <span className="stat-label">Closed</span>
-        <span className="stat-value">{stats.closedTrades}</span>
+      <div className={styles.statItem}>
+        <span className={styles.statLabel}>Closed</span>
+        <span className={styles.statValue}>{stats.closedTrades}</span>
       </div>
-      <div className="stat-item">
-        <span className="stat-label">Wins</span>
-        <span className="stat-value positive">{stats.wins}</span>
+      <div className={styles.statItem}>
+        <span className={styles.statLabel}>Wins</span>
+        <span className={`${styles.statValue} positive`}>{stats.wins}</span>
       </div>
-      <div className="stat-item">
-        <span className="stat-label">Losses</span>
-        <span className="stat-value negative">{stats.losses}</span>
+      <div className={styles.statItem}>
+        <span className={styles.statLabel}>Losses</span>
+        <span className={`${styles.statValue} negative`}>{stats.losses}</span>
       </div>
-      <div className="stat-item">
-        <span className="stat-label">Win Rate</span>
+      <div className={styles.statItem}>
+        <span className={styles.statLabel}>Win Rate</span>
         <span className={getPnLClass(stats.winRate - 50)}>
           {stats.winRate.toFixed(1)}%
         </span>
       </div>
-      <div className="stat-item">
-        <span className="stat-label">Total P&L</span>
+      <div className={styles.statItem}>
+        <span className={styles.statLabel}>Total P&L</span>
         <span className={getPnLClass(stats.totalPnL)}>
           {formatCurrency(stats.totalPnL)}
         </span>
       </div>
-      <div className="stat-item">
-        <span className="stat-label">Avg Win</span>
-        <span className="stat-value positive">{formatCurrency(stats.avgWin)}</span>
+      <div className={styles.statItem}>
+        <span className={styles.statLabel}>Avg Win</span>
+        <span className={`${styles.statValue} positive`}>{formatCurrency(stats.avgWin)}</span>
       </div>
-      <div className="stat-item">
-        <span className="stat-label">Avg Loss</span>
-        <span className="stat-value negative">{formatCurrency(stats.avgLoss)}</span>
+      <div className={styles.statItem}>
+        <span className={styles.statLabel}>Avg Loss</span>
+        <span className={`${styles.statValue} negative`}>{formatCurrency(stats.avgLoss)}</span>
       </div>
-      <div className="stat-item">
-        <span className="stat-label">Profit Factor</span>
+      <div className={styles.statItem}>
+        <span className={styles.statLabel}>Profit Factor</span>
         <span className={getPnLClass(stats.profitFactor - 1)}>
           {formatProfitFactor(stats.profitFactor)}
         </span>

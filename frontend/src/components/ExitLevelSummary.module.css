@@ -1,0 +1,167 @@
+.exitLevelSummary {
+  padding: 10px;
+  background-color: var(--color-surface);
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.exitLevelSection {
+  margin-bottom: 15px;
+}
+
+.exitLevelSection:last-child {
+  margin-bottom: 0;
+}
+
+.exitLevelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.exitLevelTitle {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.exitLevelTotal {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.exitLevelTotal.complete {
+  background-color: var(--color-distance-near-bg);
+  color: var(--color-distance-near-text);
+}
+
+.exitLevelTotal.incomplete {
+  background-color: var(--color-warning-light);
+  color: var(--color-warning-dark);
+}
+
+.exitLevelTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.exitLevelTable th,
+.exitLevelTable td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.exitLevelTable th {
+  background-color: var(--color-table-header);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  font-size: 0.7rem;
+}
+
+.levelStatus {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.levelStatusHit {
+  background-color: var(--color-distance-near-bg);
+  color: var(--color-distance-near-text);
+}
+
+.levelStatusPending {
+  background-color: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.levelStatusCancelled {
+  background-color: var(--color-error-light);
+  color: var(--color-error-dark);
+  text-decoration: line-through;
+}
+
+.btnAction {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnHit {
+  background-color: var(--color-success);
+  color: white;
+}
+
+.btnHit:hover:not(:disabled) {
+  background-color: var(--color-success-dark);
+}
+
+.btnUndo {
+  background-color: var(--color-warning);
+  color: white;
+}
+
+.btnUndo:hover:not(:disabled) {
+  background-color: var(--color-warning-dark);
+}
+
+.btnConfirm {
+  background-color: var(--color-success);
+  color: white;
+}
+
+.btnConfirm:hover:not(:disabled) {
+  background-color: var(--color-success-dark);
+}
+
+.btnSecondary {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btnSecondary:hover {
+  background-color: var(--color-surface);
+}
+
+.levelHitConfirm {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.levelHitConfirm label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.levelHitConfirm input {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  font-size: 0.75rem;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  width: 120px;
+}
+
+.levelHitConfirm input[type="number"] {
+  width: 90px;
+}
+
+.levelHitConfirmRow td {
+  padding-top: 0 !important;
+  padding-bottom: 4px !important;
+}

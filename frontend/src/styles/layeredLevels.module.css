@@ -1,0 +1,117 @@
+.layeredLevelsSection {
+  margin-bottom: 15px;
+  padding: 15px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.layeredLevelsGroup {
+  margin-bottom: 15px;
+}
+
+.layeredLevelsGroup:last-child {
+  margin-bottom: 0;
+}
+
+.layeredLevelsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.levelsTotal {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.levelsTotal.complete {
+  background-color: var(--color-distance-near-bg);
+  color: var(--color-distance-near-text);
+}
+
+.levelsTotal.incomplete {
+  background-color: var(--color-warning-light);
+  color: var(--color-warning-dark);
+}
+
+.levelInputRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.levelLabel {
+  font-weight: 500;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  width: 30px;
+}
+
+.levelInputRow input[type="number"] {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+.pctInput {
+  width: 60px;
+  flex: none;
+}
+
+.beCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.beCheckbox input {
+  width: 14px;
+  height: 14px;
+}
+
+.beLabel {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.btnRemoveLevel {
+  background: none;
+  border: none;
+  color: var(--color-error);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.btnRemoveLevel:hover {
+  color: var(--color-error-dark);
+}
+
+.btnAddLevel {
+  background: none;
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-muted);
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border-radius: 4px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.btnAddLevel:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}

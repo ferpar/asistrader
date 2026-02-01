@@ -1,0 +1,126 @@
+.tradeTableContainer {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.tradeTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.tradeTable th,
+.tradeTable td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tradeTable th {
+  background-color: var(--color-table-header);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.tradeTable tbody tr:hover {
+  background-color: var(--color-table-row-hover);
+}
+
+.statusPlan {
+  color: var(--color-text-muted);
+}
+
+.statusOpen {
+  color: var(--color-info);
+  font-weight: 500;
+}
+
+.statusClose {
+  color: var(--color-success);
+  font-weight: 500;
+}
+
+.distanceDanger {
+  background-color: var(--color-distance-danger-bg);
+  color: var(--color-distance-danger-text);
+  font-weight: 600;
+}
+
+.distanceWarning {
+  background-color: var(--color-distance-warning-bg);
+  color: var(--color-distance-warning-text);
+}
+
+.distanceNear {
+  background-color: var(--color-distance-near-bg);
+  color: var(--color-distance-near-text);
+  font-weight: 600;
+}
+
+.error {
+  padding: 15px;
+  background-color: var(--color-error-light);
+  border: 1px solid var(--color-error);
+  border-radius: 4px;
+  color: var(--color-error-dark);
+}
+
+.tradeActions {
+  display: flex;
+  gap: 8px;
+}
+
+.btnAction {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnOpen {
+  background-color: var(--color-info);
+  color: white;
+}
+
+.btnOpen:hover {
+  background-color: var(--color-info-dark);
+}
+
+.btnClose {
+  background-color: var(--color-success);
+  color: white;
+}
+
+.btnClose:hover {
+  background-color: var(--color-success-dark);
+}
+
+.btnEdit {
+  background-color: var(--color-warning);
+  color: white;
+}
+
+.btnEdit:hover {
+  background-color: var(--color-warning-dark);
+}
+
+.modeLayered {
+  color: var(--color-info);
+  font-weight: 500;
+}
+
+.modeSimple {
+  color: var(--color-text-muted);
+}
+
+.exitLevelExpansionRow td {
+  background-color: var(--color-surface);
+  padding: 12px 16px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.exitLevelExpansionRow:hover td {
+  background-color: var(--color-surface);
+}

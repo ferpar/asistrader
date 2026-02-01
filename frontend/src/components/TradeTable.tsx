@@ -5,6 +5,7 @@ import { TradeEditModal, EditMode } from './TradeEditModal'
 import { ExitLevelSummary } from './ExitLevelSummary'
 import { useLiveMetricsStore, useTradeStore } from '../container/ContainerContext'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen, formatOpenToClose } from '../utils/trade'
+import styles from './TradeTable.module.css'
 
 interface TradeTableProps {
   trades: TradeWithMetrics[]
@@ -39,7 +40,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
   }
 
   if (error) {
-    return <div data-testid="error" className="error">{error}</div>
+    return <div data-testid="error" className={styles.error}>{error}</div>
   }
 
   if (trades.length === 0) {
@@ -73,11 +74,11 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
   const getStatusClass = (status: string) => {
     switch (status) {
       case 'open':
-        return 'status-open'
+        return styles.statusOpen
       case 'close':
-        return 'status-close'
+        return styles.statusClose
       default:
-        return 'status-plan'
+        return styles.statusPlan
     }
   }
 
@@ -85,18 +86,18 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
     if (distance === null) return ''
     const absDistance = Math.abs(distance)
     if (absDistance < 0.03) {
-      return isTP ? 'distance-near' : 'distance-danger'
+      return isTP ? styles.distanceNear : styles.distanceDanger
     }
     if (absDistance < 0.10) {
-      return 'distance-warning'
+      return styles.distanceWarning
     }
     return ''
   }
 
   const getPEDistanceClass = (distance: number | null): string => {
     if (distance === null) return ''
-    if (distance >= 0.05) return 'distance-near'      // +5% or more = good
-    if (distance <= -0.05) return 'distance-danger'   // -5% or more = bad
+    if (distance >= 0.05) return styles.distanceNear      // +5% or more = good
+    if (distance <= -0.05) return styles.distanceDanger   // -5% or more = bad
     return ''
   }
 
@@ -138,8 +139,8 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
 
   return (
     <>
-    <div className="trade-table-container">
-    <table data-testid="trade-table" className="trade-table">
+    <div className={styles.tradeTableContainer}>
+    <table data-testid="trade-table" className={styles.tradeTable}>
       <thead>
         <tr>
           <th>#</th>
@@ -224,7 +225,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
             <td>{trade.strategyName ?? '-'}</td>
             <td>{trade.paperTrade ? 'Yes' : '-'}</td>
             <td
-              className={`${trade.isLayered ? 'mode-layered' : 'mode-simple'}${trade.isLayered ? ' clickable' : ''}`}
+              className={`${trade.isLayered ? styles.modeLayered : styles.modeSimple}${trade.isLayered ? ' clickable' : ''}`}
               onClick={trade.isLayered ? () => setExpandedTradeId(expandedTradeId === trade.id ? null : trade.id) : undefined}
               style={trade.isLayered ? { cursor: 'pointer' } : undefined}
             >
@@ -243,17 +244,17 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
             <td>{formatOpenAge(trade)}</td>
             <td>{formatPlanToOpen(trade)}</td>
             <td>{formatOpenToClose(trade)}</td>
-            <td className="trade-actions">
+            <td className={styles.tradeActions}>
               {trade.status === 'plan' && (
                 <>
                   <button
-                    className="btn-action btn-open"
+                    className={`${styles.btnAction} ${styles.btnOpen}`}
                     onClick={() => handleOpenModal(trade, 'open')}
                   >
                     Open
                   </button>
                   <button
-                    className="btn-action btn-edit"
+                    className={`${styles.btnAction} ${styles.btnEdit}`}
                     onClick={() => handleOpenModal(trade, 'edit')}
                   >
                     Edit
@@ -263,13 +264,13 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
               {trade.status === 'open' && (
                 <>
                   <button
-                    className="btn-action btn-close"
+                    className={`${styles.btnAction} ${styles.btnClose}`}
                     onClick={() => handleOpenModal(trade, 'close')}
                   >
                     Close
                   </button>
                   <button
-                    className="btn-action btn-edit"
+                    className={`${styles.btnAction} ${styles.btnEdit}`}
                     onClick={() => handleOpenModal(trade, 'edit')}
                   >
                     Edit
@@ -278,7 +279,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
               )}
               {trade.status === 'close' && (
                 <button
-                  className="btn-action btn-edit"
+                  className={`${styles.btnAction} ${styles.btnEdit}`}
                   onClick={() => handleOpenModal(trade, 'edit')}
                 >
                   Edit
@@ -287,7 +288,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
             </td>
           </tr>
           {trade.isLayered && expandedTradeId === trade.id && (
-            <tr className="exit-level-expansion-row">
+            <tr className={styles.exitLevelExpansionRow}>
               <td colSpan={29}>
                 <ExitLevelSummary
                   levels={trade.exitLevels}
