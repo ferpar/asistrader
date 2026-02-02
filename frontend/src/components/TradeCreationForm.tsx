@@ -45,9 +45,6 @@ export function TradeCreationForm() {
     { price: '', units_pct: '30', move_sl_to_breakeven: false },
     { price: '', units_pct: '20', move_sl_to_breakeven: false },
   ])
-  const [slLevels, setSlLevels] = useState<ExitLevelInput[]>([
-    { price: '', units_pct: '100', move_sl_to_breakeven: false },
-  ])
 
   useEffect(() => {
     const loadData = async () => {
@@ -93,23 +90,11 @@ export function TradeCreationForm() {
   const preview = useMemo(() => {
     const entryPrice = parseFloat(formData.entry_price) || 0
     const units = parseInt(formData.units) || 0
+    const stopLoss = parseFloat(formData.stop_loss) || 0
 
-    let stopLoss: number
     let takeProfit: number
 
     if (layeredMode) {
-      const validSlLevels = slLevels.filter(l => l.price && l.units_pct)
-      if (validSlLevels.length > 0) {
-        const totalPct = validSlLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0)
-        stopLoss = validSlLevels.reduce((sum, l) => {
-          const price = parseFloat(l.price) || 0
-          const pct = parseFloat(l.units_pct) || 0
-          return sum + (price * pct)
-        }, 0) / (totalPct || 1)
-      } else {
-        stopLoss = 0
-      }
-
       const validTpLevels = tpLevels.filter(l => l.price && l.units_pct)
       if (validTpLevels.length > 0) {
         const totalPct = validTpLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0)
@@ -122,7 +107,6 @@ export function TradeCreationForm() {
         takeProfit = 0
       }
     } else {
-      stopLoss = parseFloat(formData.stop_loss) || 0
       takeProfit = parseFloat(formData.take_profit) || 0
     }
 
@@ -134,7 +118,7 @@ export function TradeCreationForm() {
     const ratio = riskAbs !== 0 ? -profitAbs / riskAbs : 0
 
     return { amount, riskAbs, profitAbs, riskPct, profitPct, ratio }
-  }, [formData.entry_price, formData.stop_loss, formData.take_profit, formData.units, layeredMode, tpLevels, slLevels])
+  }, [formData.entry_price, formData.stop_loss, formData.take_profit, formData.units, layeredMode, tpLevels])
 
   const exitLevelsForValidation = useMemo((): ExitLevelCreateRequest[] | undefined => {
     if (!layeredMode) return undefined
@@ -152,33 +136,24 @@ export function TradeCreationForm() {
       }
     }
 
-    for (const level of slLevels) {
-      if (level.price) {
-        levels.push({
-          level_type: 'sl',
-          price: parseFloat(level.price) || 0,
-          units_pct: (parseFloat(level.units_pct) || 0) / 100,
-          move_sl_to_breakeven: false,
-        })
-      }
+    const slPrice = parseFloat(formData.stop_loss)
+    if (slPrice) {
+      levels.push({
+        level_type: 'sl',
+        price: slPrice,
+        units_pct: 1.0,
+        move_sl_to_breakeven: false,
+      })
     }
 
     return levels.length > 0 ? levels : undefined
-  }, [layeredMode, tpLevels, slLevels])
+  }, [layeredMode, tpLevels, formData.stop_loss])
 
   const validationValues = useMemo(() => {
-    let stopLoss: number
+    const stopLoss = parseFloat(formData.stop_loss) || 0
+
     let takeProfit: number
-
     if (layeredMode && exitLevelsForValidation && exitLevelsForValidation.length > 0) {
-      const slLevelsArr = exitLevelsForValidation.filter(l => l.level_type === 'sl')
-      if (slLevelsArr.length > 0) {
-        const totalPct = slLevelsArr.reduce((sum, l) => sum + l.units_pct, 0)
-        stopLoss = slLevelsArr.reduce((sum, l) => sum + (l.price * l.units_pct), 0) / (totalPct || 1)
-      } else {
-        stopLoss = 0
-      }
-
       const tpLevelsArr = exitLevelsForValidation.filter(l => l.level_type === 'tp')
       if (tpLevelsArr.length > 0) {
         const totalPct = tpLevelsArr.reduce((sum, l) => sum + l.units_pct, 0)
@@ -187,7 +162,6 @@ export function TradeCreationForm() {
         takeProfit = 0
       }
     } else {
-      stopLoss = parseFloat(formData.stop_loss) || 0
       takeProfit = parseFloat(formData.take_profit) || 0
     }
 
@@ -261,9 +235,6 @@ export function TradeCreationForm() {
         { price: '', units_pct: '50', move_sl_to_breakeven: true },
         { price: '', units_pct: '30', move_sl_to_breakeven: false },
         { price: '', units_pct: '20', move_sl_to_breakeven: false },
-      ])
-      setSlLevels([
-        { price: '', units_pct: '100', move_sl_to_breakeven: false },
       ])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create trade')
@@ -369,7 +340,7 @@ export function TradeCreationForm() {
             />
             Layered Exits
           </label>
-          <span className={formStyles.formHint}>Multiple TP/SL levels</span>
+          <span className={formStyles.formHint}>Multiple TP levels</span>
         </div>
       </div>
 
@@ -398,40 +369,38 @@ export function TradeCreationForm() {
           {getFieldError('entry_price') && <span className={formStyles.fieldError}>{getFieldError('entry_price')}</span>}
         </div>
 
-        {!layeredMode && (
-          <>
-            <div className={formStyles.formGroup}>
-              <label htmlFor="stop_loss">Stop Loss</label>
-              <input
-                type="number"
-                id="stop_loss"
-                name="stop_loss"
-                className={getFieldError('stop_loss') ? formStyles.inputError : ''}
-                value={formData.stop_loss}
-                onChange={handleChange}
-                step="0.01"
-                min="0"
-                required
-              />
-              {getFieldError('stop_loss') && <span className={formStyles.fieldError}>{getFieldError('stop_loss')}</span>}
-            </div>
+        <div className={formStyles.formGroup}>
+          <label htmlFor="stop_loss">Stop Loss</label>
+          <input
+            type="number"
+            id="stop_loss"
+            name="stop_loss"
+            className={getFieldError('stop_loss') ? formStyles.inputError : ''}
+            value={formData.stop_loss}
+            onChange={handleChange}
+            step="0.01"
+            min="0"
+            required
+          />
+          {getFieldError('stop_loss') && <span className={formStyles.fieldError}>{getFieldError('stop_loss')}</span>}
+        </div>
 
-            <div className={formStyles.formGroup}>
-              <label htmlFor="take_profit">Take Profit</label>
-              <input
-                type="number"
-                id="take_profit"
-                name="take_profit"
-                className={getFieldError('take_profit') ? formStyles.inputError : ''}
-                value={formData.take_profit}
-                onChange={handleChange}
-                step="0.01"
-                min="0"
-                required
-              />
-              {getFieldError('take_profit') && <span className={formStyles.fieldError}>{getFieldError('take_profit')}</span>}
-            </div>
-          </>
+        {!layeredMode && (
+          <div className={formStyles.formGroup}>
+            <label htmlFor="take_profit">Take Profit</label>
+            <input
+              type="number"
+              id="take_profit"
+              name="take_profit"
+              className={getFieldError('take_profit') ? formStyles.inputError : ''}
+              value={formData.take_profit}
+              onChange={handleChange}
+              step="0.01"
+              min="0"
+              required
+            />
+            {getFieldError('take_profit') && <span className={formStyles.fieldError}>{getFieldError('take_profit')}</span>}
+          </div>
         )}
 
         <div className={formStyles.formGroup}>
@@ -519,64 +488,6 @@ export function TradeCreationForm() {
               onClick={() => setTpLevels([...tpLevels, { price: '', units_pct: '', move_sl_to_breakeven: false }])}
             >
               + Add TP Level
-            </button>
-          </div>
-
-          <div className={layeredStyles.layeredLevelsGroup}>
-            <div className={layeredStyles.layeredLevelsHeader}>
-              <span>Stop Loss Levels</span>
-              <span className={`${layeredStyles.levelsTotal} ${
-                slLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0) === 100 ? layeredStyles.complete : layeredStyles.incomplete
-              }`}>
-                Total: {slLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0)}%
-                {slLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0) === 100 && ' \u2713'}
-              </span>
-            </div>
-            {slLevels.map((level, index) => (
-              <div key={`sl-${index}`} className={layeredStyles.levelInputRow}>
-                <span className={layeredStyles.levelLabel}>SL{index + 1}</span>
-                <input
-                  type="number"
-                  placeholder="Price"
-                  value={level.price}
-                  onChange={(e) => {
-                    const newLevels = [...slLevels]
-                    newLevels[index] = { ...newLevels[index], price: e.target.value }
-                    setSlLevels(newLevels)
-                  }}
-                  step="0.01"
-                  min="0"
-                />
-                <input
-                  type="number"
-                  placeholder="%"
-                  value={level.units_pct}
-                  onChange={(e) => {
-                    const newLevels = [...slLevels]
-                    newLevels[index] = { ...newLevels[index], units_pct: e.target.value }
-                    setSlLevels(newLevels)
-                  }}
-                  min="0"
-                  max="100"
-                  className={layeredStyles.pctInput}
-                />
-                {slLevels.length > 1 && (
-                  <button
-                    type="button"
-                    className={layeredStyles.btnRemoveLevel}
-                    onClick={() => setSlLevels(slLevels.filter((_, i) => i !== index))}
-                  >
-                    &times;
-                  </button>
-                )}
-              </div>
-            ))}
-            <button
-              type="button"
-              className={layeredStyles.btnAddLevel}
-              onClick={() => setSlLevels([...slLevels, { price: '', units_pct: '', move_sl_to_breakeven: false }])}
-            >
-              + Add SL Level
             </button>
           </div>
 

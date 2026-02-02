@@ -85,17 +85,6 @@ class TestLayeredSLDetection:
         sl_hits = [h for h in hits if h.level.level_type == ExitLevelType.SL]
         assert len(sl_hits) >= 1
 
-    def test_detect_multiple_sl_levels_same_day(
-        self, db_session: Session, sample_layered_long_trade_multi_sl: Trade, market_data_crash: list[MarketData]
-    ):
-        """When price crashes, multiple SL levels hit on same day."""
-        from asistrader.services.sltp_detection_service import detect_layered_hits
-
-        hits = detect_layered_hits(db_session, sample_layered_long_trade_multi_sl)
-
-        sl_hits = [h for h in hits if h.level.level_type == ExitLevelType.SL]
-        assert len(sl_hits) >= 2
-
 
 class TestPartialClose:
     """Tests for partial close functionality."""

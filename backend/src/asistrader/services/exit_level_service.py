@@ -44,10 +44,13 @@ def create_exit_levels(
             )
 
     if sl_levels:
-        sl_sum = sum(l["units_pct"] for l in sl_levels)
-        if abs(sl_sum - 1.0) > 0.001:
+        if len(sl_levels) != 1:
             raise ExitLevelValidationError(
-                f"Stop Loss levels must sum to 100%, got {sl_sum * 100:.1f}%"
+                f"Exactly 1 Stop Loss level is required, got {len(sl_levels)}"
+            )
+        if abs(sl_levels[0]["units_pct"] - 1.0) > 0.001:
+            raise ExitLevelValidationError(
+                f"Stop Loss level must be 100%, got {sl_levels[0]['units_pct'] * 100:.1f}%"
             )
 
     # Create levels with proper order_index

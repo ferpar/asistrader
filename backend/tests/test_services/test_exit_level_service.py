@@ -43,19 +43,17 @@ class TestCreateExitLevels:
         assert levels[2].order_index == 3
         assert sum(l.units_pct for l in levels) == 1.0
 
-    def test_create_multiple_sl_levels(self, db_session: Session, sample_layered_trade: Trade):
-        """Create 2 SL levels (60%, 40%)."""
-        from asistrader.services.exit_level_service import create_exit_levels
+    def test_reject_multiple_sl_levels(self, db_session: Session, sample_layered_trade: Trade):
+        """Reject multiple SL levels — only 1 allowed."""
+        from asistrader.services.exit_level_service import create_exit_levels, ExitLevelValidationError
 
         levels_data = [
             {"level_type": "sl", "price": 95.0, "units_pct": 0.6, "move_sl_to_breakeven": False},
             {"level_type": "sl", "price": 90.0, "units_pct": 0.4, "move_sl_to_breakeven": False},
         ]
-        levels = create_exit_levels(db_session, sample_layered_trade.id, levels_data)
-
-        assert len(levels) == 2
-        assert all(l.level_type == ExitLevelType.SL for l in levels)
-        assert sum(l.units_pct for l in levels) == 1.0
+        with pytest.raises(ExitLevelValidationError) as exc_info:
+            create_exit_levels(db_session, sample_layered_trade.id, levels_data)
+        assert "Exactly 1" in str(exc_info.value)
 
     def test_reject_tp_levels_not_summing_to_100(self, db_session: Session, sample_layered_trade: Trade):
         """Reject TP levels that sum to 80%."""
@@ -70,17 +68,30 @@ class TestCreateExitLevels:
             create_exit_levels(db_session, sample_layered_trade.id, levels_data)
         assert "must sum to 100%" in str(exc_info.value)
 
-    def test_reject_sl_levels_not_summing_to_100(self, db_session: Session, sample_layered_trade: Trade):
-        """Reject SL levels that sum to 120%."""
+    def test_reject_sl_level_not_100_pct(self, db_session: Session, sample_layered_trade: Trade):
+        """Reject 1 SL level at 50% — must be 100%."""
         from asistrader.services.exit_level_service import create_exit_levels, ExitLevelValidationError
 
         levels_data = [
-            {"level_type": "sl", "price": 95.0, "units_pct": 0.6, "move_sl_to_breakeven": False},
-            {"level_type": "sl", "price": 90.0, "units_pct": 0.6, "move_sl_to_breakeven": False},
+            {"level_type": "sl", "price": 95.0, "units_pct": 0.5, "move_sl_to_breakeven": False},
         ]
         with pytest.raises(ExitLevelValidationError) as exc_info:
             create_exit_levels(db_session, sample_layered_trade.id, levels_data)
-        assert "must sum to 100%" in str(exc_info.value)
+        assert "must be 100%" in str(exc_info.value)
+
+    def test_create_single_sl_level(self, db_session: Session, sample_layered_trade: Trade):
+        """Create 1 SL level at 100% — passes validation."""
+        from asistrader.services.exit_level_service import create_exit_levels
+
+        levels_data = [
+            {"level_type": "sl", "price": 95.0, "units_pct": 1.0, "move_sl_to_breakeven": False},
+        ]
+        levels = create_exit_levels(db_session, sample_layered_trade.id, levels_data)
+
+        assert len(levels) == 1
+        assert levels[0].level_type == ExitLevelType.SL
+        assert levels[0].units_pct == 1.0
+        assert levels[0].price == 95.0
 
     def test_order_index_assigned_correctly(self, db_session: Session, sample_layered_trade: Trade):
         """Verify levels get sequential order_index."""

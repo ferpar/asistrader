@@ -173,14 +173,11 @@ class Trade(Base):
 
     @property
     def stop_loss(self) -> float:
-        """Compute stop_loss from exit_levels (weighted average of SL levels)."""
+        """Compute stop_loss from exit_levels (single SL level)."""
         sl_levels = [l for l in self.exit_levels if l.level_type == ExitLevelType.SL]
         if not sl_levels:
             return 0.0
-        total_pct = sum(l.units_pct for l in sl_levels)
-        if total_pct == 0:
-            return 0.0
-        return sum(l.price * l.units_pct for l in sl_levels) / total_pct
+        return sl_levels[0].price
 
     @property
     def take_profit(self) -> float:

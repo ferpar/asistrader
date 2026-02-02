@@ -56,20 +56,6 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
     }
     return [{ price: '', units_pct: '100', move_sl_to_breakeven: false }]
   })
-  const [slLevels, setSlLevels] = useState<ExitLevelInput[]>(() => {
-    if (trade.isLayered && trade.exitLevels.length > 0) {
-      const levels = trade.exitLevels
-        .filter(l => l.levelType === 'sl' && l.status === 'pending')
-        .sort((a, b) => a.orderIndex - b.orderIndex)
-        .map(l => ({
-          price: l.price.toNumber().toString(),
-          units_pct: (l.unitsPct.toNumber() * 100).toString(),
-          move_sl_to_breakeven: false,
-        }))
-      return levels.length > 0 ? levels : [{ price: '', units_pct: '100', move_sl_to_breakeven: false }]
-    }
-    return [{ price: '', units_pct: '100', move_sl_to_breakeven: false }]
-  })
 
   // Can only edit layered mode for plan trades
   const canEditLayeredMode = trade.status === 'plan'
@@ -111,19 +97,18 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
       }
     }
 
-    for (const level of slLevels) {
-      if (level.price) {
-        levels.push({
-          level_type: 'sl',
-          price: parseFloat(level.price) || 0,
-          units_pct: (parseFloat(level.units_pct) || 0) / 100,
-          move_sl_to_breakeven: false,
-        })
-      }
+    const slPrice = parseFloat(formData.stop_loss)
+    if (slPrice) {
+      levels.push({
+        level_type: 'sl',
+        price: slPrice,
+        units_pct: 1.0,
+        move_sl_to_breakeven: false,
+      })
     }
 
     return levels.length > 0 ? levels : []
-  }, [layeredMode, tpLevels, slLevels])
+  }, [layeredMode, tpLevels, formData.stop_loss])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -204,7 +189,6 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
 
   // Calculate totals for level validation display
   const tpTotal = tpLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0)
-  const slTotal = slLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0)
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
@@ -250,40 +234,38 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                     />
                     Layered Exits
                   </label>
-                  <span className={formStyles.formHint}>Multiple TP/SL levels</span>
+                  <span className={formStyles.formHint}>Multiple TP levels</span>
                 </div>
               )}
 
-              {!layeredMode && (
-                <>
-                  <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
-                    <label htmlFor="stop_loss">Stop Loss</label>
-                    <input
-                      type="number"
-                      id="stop_loss"
-                      name="stop_loss"
-                      value={formData.stop_loss}
-                      onChange={handleChange}
-                      step="0.01"
-                      min="0"
-                      required
-                    />
-                  </div>
+              <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
+                <label htmlFor="stop_loss">Stop Loss</label>
+                <input
+                  type="number"
+                  id="stop_loss"
+                  name="stop_loss"
+                  value={formData.stop_loss}
+                  onChange={handleChange}
+                  step="0.01"
+                  min="0"
+                  required
+                />
+              </div>
 
-                  <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
-                    <label htmlFor="take_profit">Take Profit</label>
-                    <input
-                      type="number"
-                      id="take_profit"
-                      name="take_profit"
-                      value={formData.take_profit}
-                      onChange={handleChange}
-                      step="0.01"
-                      min="0"
-                      required
-                    />
-                  </div>
-                </>
+              {!layeredMode && (
+                <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
+                  <label htmlFor="take_profit">Take Profit</label>
+                  <input
+                    type="number"
+                    id="take_profit"
+                    name="take_profit"
+                    value={formData.take_profit}
+                    onChange={handleChange}
+                    step="0.01"
+                    min="0"
+                    required
+                  />
+                </div>
               )}
 
               {layeredMode && (
@@ -361,65 +343,6 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                     )}
                   </div>
 
-                  <div className={layeredStyles.layeredLevelsGroup}>
-                    <div className={layeredStyles.layeredLevelsHeader}>
-                      <span>Stop Loss Levels</span>
-                      <span className={`${layeredStyles.levelsTotal} ${slTotal === 100 ? 'complete' : 'incomplete'}`}>
-                        Total: {slTotal}%
-                        {slTotal === 100 && ' \u2713'}
-                      </span>
-                    </div>
-                    {slLevels.map((level, index) => (
-                      <div key={`sl-${index}`} className={layeredStyles.levelInputRow}>
-                        <span className={layeredStyles.levelLabel}>SL{index + 1}</span>
-                        <input
-                          type="number"
-                          placeholder="Price"
-                          value={level.price}
-                          onChange={(e) => {
-                            const newLevels = [...slLevels]
-                            newLevels[index] = { ...newLevels[index], price: e.target.value }
-                            setSlLevels(newLevels)
-                          }}
-                          step="0.01"
-                          min="0"
-                          disabled={!canEditLayeredMode}
-                        />
-                        <input
-                          type="number"
-                          placeholder="%"
-                          value={level.units_pct}
-                          onChange={(e) => {
-                            const newLevels = [...slLevels]
-                            newLevels[index] = { ...newLevels[index], units_pct: e.target.value }
-                            setSlLevels(newLevels)
-                          }}
-                          min="0"
-                          max="100"
-                          className={layeredStyles.pctInput}
-                          disabled={!canEditLayeredMode}
-                        />
-                        {slLevels.length > 1 && canEditLayeredMode && (
-                          <button
-                            type="button"
-                            className={layeredStyles.btnRemoveLevel}
-                            onClick={() => setSlLevels(slLevels.filter((_, i) => i !== index))}
-                          >
-                            &times;
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    {canEditLayeredMode && (
-                      <button
-                        type="button"
-                        className={layeredStyles.btnAddLevel}
-                        onClick={() => setSlLevels([...slLevels, { price: '', units_pct: '', move_sl_to_breakeven: false }])}
-                      >
-                        + Add SL Level
-                      </button>
-                    )}
-                  </div>
                 </div>
               )}
 

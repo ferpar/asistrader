@@ -462,64 +462,6 @@ def sample_layered_short_trade(
     return trade
 
 
-@pytest.fixture
-def sample_layered_long_trade_multi_sl(
-    db_session: Session, sample_ticker: Ticker, sample_strategy: Strategy, sample_user: User
-) -> Trade:
-    """Create a long layered trade with multiple SL levels."""
-    trade = Trade(
-        ticker=sample_ticker.symbol,
-        status=TradeStatus.OPEN,
-        amount=10000.0,
-        units=100,
-        entry_price=100.0,
-        date_planned=date(2025, 1, 15),
-        date_actual=date(2025, 1, 16),
-        strategy_id=sample_strategy.id,
-        user_id=sample_user.id,
-        is_layered=True,
-        remaining_units=100,
-    )
-    db_session.add(trade)
-    db_session.commit()
-
-    # Add TP level
-    tp_level = ExitLevel(
-        trade_id=trade.id,
-        level_type=ExitLevelType.TP,
-        price=110.0,
-        units_pct=1.0,
-        order_index=1,
-        status=ExitLevelStatus.PENDING,
-        move_sl_to_breakeven=False,
-    )
-    # Add multiple SL levels
-    sl_levels = [
-        ExitLevel(
-            trade_id=trade.id,
-            level_type=ExitLevelType.SL,
-            price=95.0,
-            units_pct=0.6,
-            order_index=1,
-            status=ExitLevelStatus.PENDING,
-            move_sl_to_breakeven=False,
-        ),
-        ExitLevel(
-            trade_id=trade.id,
-            level_type=ExitLevelType.SL,
-            price=90.0,
-            units_pct=0.4,
-            order_index=2,
-            status=ExitLevelStatus.PENDING,
-            move_sl_to_breakeven=False,
-        ),
-    ]
-    db_session.add(tp_level)
-    db_session.add_all(sl_levels)
-    db_session.commit()
-    db_session.refresh(trade)
-    return trade
-
 
 @pytest.fixture
 def sample_layered_trade_with_be(
@@ -773,24 +715,6 @@ def market_data_sl_hit_short(db_session: Session, sample_ticker: Ticker) -> list
     db_session.commit()
     return data
 
-
-@pytest.fixture
-def market_data_crash(db_session: Session, sample_ticker: Ticker) -> list[MarketData]:
-    """Market data with a big crash hitting multiple SL levels."""
-    data = [
-        MarketData(
-            ticker=sample_ticker.symbol,
-            date=date(2025, 1, 17),
-            open=100.0,
-            high=101.0,
-            low=85.0,  # Below both SL1 (95) and SL2 (90)
-            close=86.0,
-            volume=2000000.0,
-        ),
-    ]
-    db_session.add_all(data)
-    db_session.commit()
-    return data
 
 
 @pytest.fixture
