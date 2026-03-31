@@ -73,6 +73,8 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
 
   const getStatusClass = (status: string) => {
     switch (status) {
+      case 'ordered':
+        return styles.statusOrdered
       case 'open':
         return styles.statusOpen
       case 'close':
@@ -106,12 +108,12 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
     metric: LiveMetrics | undefined,
     type: 'price' | 'slDist' | 'tpDist' | 'peDist' | 'pnl'
   ): string => {
-    // PE distance only shown for plan trades
+    // PE distance only shown for plan and ordered trades
     if (type === 'peDist') {
-      if (trade.status !== 'plan') return '-'
+      if (trade.status !== 'plan' && trade.status !== 'ordered') return '-'
     } else if (type === 'price') {
-      // Current price shown for open and plan trades
-      if (trade.status !== 'open' && trade.status !== 'plan') return '-'
+      // Current price shown for open, plan, and ordered trades
+      if (trade.status !== 'open' && trade.status !== 'plan' && trade.status !== 'ordered') return '-'
     } else {
       // SL/TP distance, PnL only shown for open trades
       if (trade.status !== 'open') return '-'
@@ -247,11 +249,41 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
             <td className={styles.tradeActions}>
               {trade.status === 'plan' && (
                 <>
+                  {!trade.paperTrade && (
+                    <button
+                      className={`${styles.btnAction} ${styles.btnOrder}`}
+                      onClick={() => tradeStore.updateTrade(trade.id, { status: 'ordered' })}
+                    >
+                      Order
+                    </button>
+                  )}
                   <button
                     className={`${styles.btnAction} ${styles.btnOpen}`}
                     onClick={() => handleOpenModal(trade, 'open')}
                   >
                     Open
+                  </button>
+                  <button
+                    className={`${styles.btnAction} ${styles.btnEdit}`}
+                    onClick={() => handleOpenModal(trade, 'edit')}
+                  >
+                    Edit
+                  </button>
+                </>
+              )}
+              {trade.status === 'ordered' && (
+                <>
+                  <button
+                    className={`${styles.btnAction} ${styles.btnOpen}`}
+                    onClick={() => handleOpenModal(trade, 'open')}
+                  >
+                    Open
+                  </button>
+                  <button
+                    className={`${styles.btnAction} ${styles.btnCancel}`}
+                    onClick={() => tradeStore.updateTrade(trade.id, { status: 'plan' })}
+                  >
+                    Cancel
                   </button>
                   <button
                     className={`${styles.btnAction} ${styles.btnEdit}`}

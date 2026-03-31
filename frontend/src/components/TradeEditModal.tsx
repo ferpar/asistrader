@@ -57,8 +57,8 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
     return [{ price: '', units_pct: '100', move_sl_to_breakeven: false }]
   })
 
-  // Can only edit layered mode for plan trades
-  const canEditLayeredMode = trade.status === 'plan'
+  // Can edit layered mode for plan and ordered trades
+  const canEditLayeredMode = trade.status === 'plan' || trade.status === 'ordered'
 
   useEffect(() => {
     // Close modal on escape key
@@ -356,7 +356,7 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                   onChange={handleChange}
                   min="1"
                   required
-                  disabled={trade.status !== 'plan'}
+                  disabled={trade.status !== 'plan' && trade.status !== 'ordered'}
                 />
               </div>
 

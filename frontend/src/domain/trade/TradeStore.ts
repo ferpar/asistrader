@@ -30,7 +30,7 @@ export class TradeStore {
   })
 
   readonly activeTrades$ = computed(() => {
-    return this.trades$.get().filter(t => t.status === 'open' || t.status === 'plan')
+    return this.trades$.get().filter(t => t.status === 'open' || t.status === 'plan' || t.status === 'ordered')
   })
 
   constructor(private readonly repo: ITradeRepository) {}

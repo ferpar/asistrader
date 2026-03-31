@@ -3,7 +3,7 @@ import type { TradeWithMetrics } from '../domain/trade/types'
 type TradeDateFields = Pick<TradeWithMetrics, 'status' | 'datePlanned' | 'dateActual' | 'exitDate'>
 
 export function calculateDaysInTrade(trade: TradeDateFields): number | null {
-  if (trade.status === 'plan' || !trade.dateActual) return null
+  if (trade.status === 'plan' || trade.status === 'ordered' || !trade.dateActual) return null
 
   const startDate = trade.dateActual
   const endDate = trade.status === 'close' && trade.exitDate

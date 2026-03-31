@@ -3,11 +3,12 @@ import styles from './TradeFilters.module.css'
 
 export type StatusFilter = ExtendedFilter
 
-const FILTER_OPTIONS: StatusFilter[] = ['all', 'plan', 'open', 'close', 'winners', 'losers']
+const FILTER_OPTIONS: StatusFilter[] = ['all', 'plan', 'ordered', 'open', 'close', 'winners', 'losers']
 
 const FILTER_LABELS: Record<StatusFilter, string> = {
   all: 'All',
   plan: 'Plan',
+  ordered: 'Ordered',
   open: 'Open',
   close: 'Closed',
   winners: 'Winners',

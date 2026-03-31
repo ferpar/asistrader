@@ -11,6 +11,7 @@ class TradeStatus(str, Enum):
     """Trade status enum."""
 
     PLAN = "plan"
+    ORDERED = "ordered"
     OPEN = "open"
     CLOSE = "close"
 

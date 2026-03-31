@@ -111,7 +111,10 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
     Update a trade with the given updates.
 
     Handles status transitions:
+    - plan → ordered: only for non-paper trades
     - plan → open: sets date_actual if not provided
+    - ordered → open: sets date_actual if not provided
+    - ordered → plan: cancel the order
     - open → close: requires exit_price, exit_type, exit_date
 
     Also handles exit_levels update for layered trades.
@@ -125,11 +128,27 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
     if new_status:
         current_status = trade.status
 
-        # Validate status transitions
-        if current_status == TradeStatus.PLAN and new_status == TradeStatus.OPEN:
+        if current_status == TradeStatus.CLOSE:
+            raise TradeUpdateError("Cannot change status of a closed trade")
+
+        elif current_status == TradeStatus.PLAN and new_status == TradeStatus.ORDERED:
+            # plan → ordered: only for non-paper trades
+            if trade.paper_trade:
+                raise TradeUpdateError("Paper trades cannot be ordered. Open them directly.")
+
+        elif current_status == TradeStatus.PLAN and new_status == TradeStatus.OPEN:
             # plan → open: auto-set date_actual if not provided
             if "date_actual" not in updates or updates["date_actual"] is None:
                 updates["date_actual"] = date.today()
+
+        elif current_status == TradeStatus.ORDERED and new_status == TradeStatus.OPEN:
+            # ordered → open: auto-set date_actual if not provided
+            if "date_actual" not in updates or updates["date_actual"] is None:
+                updates["date_actual"] = date.today()
+
+        elif current_status == TradeStatus.ORDERED and new_status == TradeStatus.PLAN:
+            # ordered → plan: cancel the order
+            pass
 
         elif current_status == TradeStatus.OPEN and new_status == TradeStatus.CLOSE:
             # open → close: require exit fields
@@ -144,11 +163,13 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
             if not exit_date:
                 updates["exit_date"] = date.today()
 
-        elif current_status == TradeStatus.PLAN and new_status == TradeStatus.CLOSE:
+        elif new_status == TradeStatus.CLOSE:
             raise TradeUpdateError("Cannot close a trade that is not open. Open it first.")
 
-        elif current_status == TradeStatus.CLOSE:
-            raise TradeUpdateError("Cannot change status of a closed trade")
+        else:
+            raise TradeUpdateError(
+                f"Invalid status transition: {current_status.value} → {new_status.value}"
+            )
 
     # Handle exit_levels update
     exit_levels = updates.pop("exit_levels", None)

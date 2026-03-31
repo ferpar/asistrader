@@ -17,6 +17,7 @@ class TradeStatus(str, PyEnum):
     """Trade status enum."""
 
     PLAN = "plan"
+    ORDERED = "ordered"
     OPEN = "open"
     CLOSE = "close"
 

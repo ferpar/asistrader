@@ -1,6 +1,6 @@
-export type TradeStatus = 'plan' | 'open' | 'close'
+export type TradeStatus = 'plan' | 'ordered' | 'open' | 'close'
 export type ExitType = 'sl' | 'tp'
-export type ExtendedFilter = 'all' | 'plan' | 'open' | 'close' | 'winners' | 'losers'
+export type ExtendedFilter = 'all' | 'plan' | 'ordered' | 'open' | 'close' | 'winners' | 'losers'
 export type ExitLevelType = 'sl' | 'tp'
 export type ExitLevelStatus = 'pending' | 'hit' | 'cancelled'
 
