@@ -113,8 +113,10 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
     Handles status transitions:
     - plan → ordered: only for non-paper trades
     - plan → open: sets date_actual if not provided
+    - plan → canceled: requires cancel_reason
     - ordered → open: sets date_actual if not provided
-    - ordered → plan: cancel the order
+    - ordered → plan: retract the order
+    - ordered → canceled: requires cancel_reason
     - open → close: requires exit_price, exit_type, exit_date
 
     Also handles exit_levels update for layered trades.
@@ -130,6 +132,16 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
 
         if current_status == TradeStatus.CLOSE:
             raise TradeUpdateError("Cannot change status of a closed trade")
+
+        elif current_status == TradeStatus.CANCELED:
+            raise TradeUpdateError("Cannot change status of a canceled trade")
+
+        elif new_status == TradeStatus.CANCELED:
+            # plan/ordered → canceled: require cancel_reason
+            if current_status not in (TradeStatus.PLAN, TradeStatus.ORDERED):
+                raise TradeUpdateError("Only plan or ordered trades can be canceled")
+            if not updates.get("cancel_reason"):
+                raise TradeUpdateError("cancel_reason is required when canceling a trade")
 
         elif current_status == TradeStatus.PLAN and new_status == TradeStatus.ORDERED:
             # plan → ordered: only for non-paper trades
@@ -147,7 +159,7 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
                 updates["date_actual"] = date.today()
 
         elif current_status == TradeStatus.ORDERED and new_status == TradeStatus.PLAN:
-            # ordered → plan: cancel the order
+            # ordered → plan: retract the order
             pass
 
         elif current_status == TradeStatus.OPEN and new_status == TradeStatus.CLOSE:

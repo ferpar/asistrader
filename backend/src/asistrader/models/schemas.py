@@ -14,6 +14,16 @@ class TradeStatus(str, Enum):
     ORDERED = "ordered"
     OPEN = "open"
     CLOSE = "close"
+    CANCELED = "canceled"
+
+
+class CancelReason(str, Enum):
+    """Cancel reason enum."""
+
+    INPUT_ERROR = "input_error"
+    MARKET_CONDITIONS = "market_conditions"
+    TICKER_FUNDAMENTALS = "ticker_fundamentals"
+    OTHER = "other"
 
 
 class ExitType(str, Enum):
@@ -229,6 +239,9 @@ class TradeSchema(BaseModel):
     strategy_id: int | None = None
     strategy_name: str | None = None
 
+    # Cancellation
+    cancel_reason: CancelReason | None = None
+
     # Calculated fields
     risk_abs: float
     profit_abs: float
@@ -280,6 +293,7 @@ class TradeUpdateRequest(BaseModel):
     strategy_id: int | None = None
     paper_trade: bool | None = None
     exit_levels: list[ExitLevelCreateRequest] | None = None
+    cancel_reason: CancelReason | None = None
 
 
 class TradeResponse(BaseModel):

@@ -1,5 +1,5 @@
 import { Decimal } from '../shared/Decimal'
-import { TradeStatus, ExitType, ExitLevelType, ExitLevelStatus, SLTPHitType, EntryHitType } from '../../types/trade'
+import { TradeStatus, ExitType, ExitLevelType, ExitLevelStatus, SLTPHitType, EntryHitType, CancelReason } from '../../types/trade'
 
 export interface ExitLevel {
   id: number
@@ -35,6 +35,7 @@ export interface Trade {
   exitLevels: ExitLevel[]
   strategyId: number | null
   strategyName: string | null
+  cancelReason: CancelReason | null
 }
 
 export interface TradeMetrics {

@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 from sqlalchemy.orm import Session
 
-from asistrader.models.db import Ticker, Trade, TradeStatus, User
+from asistrader.models.db import CancelReason, Ticker, Trade, TradeStatus, User
 from asistrader.services.trade_service import get_all_trades, get_trade_by_id, update_trade, TradeUpdateError
 
 
@@ -133,3 +133,69 @@ def test_transition_plan_to_open_still_works(
     updated = update_trade(db_session, trade.id, status=TradeStatus.OPEN)
     assert updated.status == TradeStatus.OPEN
     assert updated.date_actual == date.today()
+
+
+def test_transition_plan_to_canceled(
+    db_session: Session, sample_ticker: Ticker, sample_user: User
+) -> None:
+    """Test plan → canceled with reason."""
+    trade = _create_plan_trade(db_session, sample_ticker, sample_user)
+    updated = update_trade(
+        db_session, trade.id,
+        status=TradeStatus.CANCELED,
+        cancel_reason=CancelReason.MARKET_CONDITIONS,
+    )
+    assert updated.status == TradeStatus.CANCELED
+    assert updated.cancel_reason == CancelReason.MARKET_CONDITIONS
+
+
+def test_transition_ordered_to_canceled(
+    db_session: Session, sample_ticker: Ticker, sample_user: User
+) -> None:
+    """Test ordered → canceled with reason."""
+    trade = _create_plan_trade(db_session, sample_ticker, sample_user)
+    update_trade(db_session, trade.id, status=TradeStatus.ORDERED)
+    updated = update_trade(
+        db_session, trade.id,
+        status=TradeStatus.CANCELED,
+        cancel_reason=CancelReason.INPUT_ERROR,
+    )
+    assert updated.status == TradeStatus.CANCELED
+    assert updated.cancel_reason == CancelReason.INPUT_ERROR
+
+
+def test_transition_canceled_requires_reason(
+    db_session: Session, sample_ticker: Ticker, sample_user: User
+) -> None:
+    """Test canceling without a reason is blocked."""
+    trade = _create_plan_trade(db_session, sample_ticker, sample_user)
+    with pytest.raises(TradeUpdateError, match="cancel_reason is required"):
+        update_trade(db_session, trade.id, status=TradeStatus.CANCELED)
+
+
+def test_transition_open_to_canceled_blocked(
+    db_session: Session, sample_ticker: Ticker, sample_user: User
+) -> None:
+    """Test open → canceled is blocked."""
+    trade = _create_plan_trade(db_session, sample_ticker, sample_user)
+    update_trade(db_session, trade.id, status=TradeStatus.OPEN)
+    with pytest.raises(TradeUpdateError, match="Only plan or ordered trades can be canceled"):
+        update_trade(
+            db_session, trade.id,
+            status=TradeStatus.CANCELED,
+            cancel_reason=CancelReason.OTHER,
+        )
+
+
+def test_transition_canceled_is_terminal(
+    db_session: Session, sample_ticker: Ticker, sample_user: User
+) -> None:
+    """Test that canceled trades cannot change status."""
+    trade = _create_plan_trade(db_session, sample_ticker, sample_user)
+    update_trade(
+        db_session, trade.id,
+        status=TradeStatus.CANCELED,
+        cancel_reason=CancelReason.OTHER,
+    )
+    with pytest.raises(TradeUpdateError, match="Cannot change status of a canceled trade"):
+        update_trade(db_session, trade.id, status=TradeStatus.PLAN)

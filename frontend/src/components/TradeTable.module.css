@@ -45,6 +45,11 @@
   font-weight: 500;
 }
 
+.statusCanceled {
+  color: var(--color-error, #dc3545);
+  font-weight: 500;
+}
+
 .distanceDanger {
   background-color: var(--color-distance-danger-bg);
   color: var(--color-distance-danger-text);
@@ -111,8 +116,17 @@
   background-color: var(--color-warning-dark);
 }
 
-.btnCancel {
+.btnRetract {
   background-color: var(--color-text-muted);
+  color: white;
+}
+
+.btnRetract:hover {
+  opacity: 0.8;
+}
+
+.btnCancel {
+  background-color: var(--color-error, #dc3545);
   color: white;
 }
 

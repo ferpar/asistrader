@@ -79,6 +79,8 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
         return styles.statusOpen
       case 'close':
         return styles.statusClose
+      case 'canceled':
+        return styles.statusCanceled
       default:
         return styles.statusPlan
     }
@@ -264,6 +266,12 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
                     Open
                   </button>
                   <button
+                    className={`${styles.btnAction} ${styles.btnCancel}`}
+                    onClick={() => handleOpenModal(trade, 'cancel')}
+                  >
+                    Cancel
+                  </button>
+                  <button
                     className={`${styles.btnAction} ${styles.btnEdit}`}
                     onClick={() => handleOpenModal(trade, 'edit')}
                   >
@@ -280,8 +288,14 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
                     Open
                   </button>
                   <button
-                    className={`${styles.btnAction} ${styles.btnCancel}`}
+                    className={`${styles.btnAction} ${styles.btnRetract}`}
                     onClick={() => tradeStore.updateTrade(trade.id, { status: 'plan' })}
+                  >
+                    Retract
+                  </button>
+                  <button
+                    className={`${styles.btnAction} ${styles.btnCancel}`}
+                    onClick={() => handleOpenModal(trade, 'cancel')}
                   >
                     Cancel
                   </button>

@@ -20,6 +20,16 @@ class TradeStatus(str, PyEnum):
     ORDERED = "ordered"
     OPEN = "open"
     CLOSE = "close"
+    CANCELED = "canceled"
+
+
+class CancelReason(str, PyEnum):
+    """Cancel reason enum."""
+
+    INPUT_ERROR = "input_error"
+    MARKET_CONDITIONS = "market_conditions"
+    TICKER_FUNDAMENTALS = "ticker_fundamentals"
+    OTHER = "other"
 
 
 class ExitType(str, PyEnum):
@@ -159,6 +169,11 @@ class Trade(Base):
     # Layered SL/TP support (is_layered is a UI hint: true = multiple levels, false = simple view)
     is_layered = Column(Boolean, default=False)
     remaining_units = Column(Integer, nullable=True)
+
+    # Cancellation
+    cancel_reason = Column(
+        Enum(CancelReason, values_callable=lambda x: [e.value for e in x]), nullable=True
+    )
 
     # Strategy
     strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True)

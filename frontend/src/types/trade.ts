@@ -1,6 +1,7 @@
-export type TradeStatus = 'plan' | 'ordered' | 'open' | 'close'
+export type TradeStatus = 'plan' | 'ordered' | 'open' | 'close' | 'canceled'
 export type ExitType = 'sl' | 'tp'
-export type ExtendedFilter = 'all' | 'plan' | 'ordered' | 'open' | 'close' | 'winners' | 'losers'
+export type CancelReason = 'input_error' | 'market_conditions' | 'ticker_fundamentals' | 'other'
+export type ExtendedFilter = 'all' | 'plan' | 'ordered' | 'open' | 'close' | 'canceled' | 'winners' | 'losers'
 export type ExitLevelType = 'sl' | 'tp'
 export type ExitLevelStatus = 'pending' | 'hit' | 'cancelled'
 
@@ -48,6 +49,8 @@ export interface Trade {
   // Strategy
   strategy_id: number | null
   strategy_name: string | null
+  // Cancellation
+  cancel_reason: CancelReason | null
   // Calculated fields
   risk_abs: number
   profit_abs: number
@@ -83,6 +86,7 @@ export interface TradeUpdateRequest {
   exit_type?: ExitType
   strategy_id?: number | null
   exit_levels?: ExitLevelCreateRequest[] | null
+  cancel_reason?: CancelReason
 }
 
 export interface TradeResponse {

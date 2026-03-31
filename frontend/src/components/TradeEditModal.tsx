@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { TradeUpdateRequest, ExitType, ExitLevelCreateRequest } from '../types/trade'
+import { TradeUpdateRequest, ExitType, ExitLevelCreateRequest, CancelReason } from '../types/trade'
 import type { Strategy } from '../domain/strategy/types'
 import type { TradeWithMetrics } from '../domain/trade/types'
 import { useTradeStore, useStrategyRepo } from '../container/ContainerContext'
@@ -7,7 +7,7 @@ import styles from './TradeEditModal.module.css'
 import formStyles from '../styles/forms.module.css'
 import layeredStyles from '../styles/layeredLevels.module.css'
 
-export type EditMode = 'edit' | 'open' | 'close'
+export type EditMode = 'edit' | 'open' | 'close' | 'cancel'
 
 interface ExitLevelInput {
   price: string
@@ -38,6 +38,7 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
     exit_type: 'sl' as ExitType,
     exit_date: new Date().toISOString().split('T')[0],
     strategy_id: trade.strategyId?.toString() || '',
+    cancel_reason: '' as CancelReason | '',
   })
 
   // Layered mode state
@@ -153,6 +154,16 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
           status: 'open',
           date_actual: formData.date_actual,
         }
+      } else if (mode === 'cancel') {
+        if (!formData.cancel_reason) {
+          setError('Please select a reason for canceling')
+          setSubmitting(false)
+          return
+        }
+        request = {
+          status: 'canceled',
+          cancel_reason: formData.cancel_reason as CancelReason,
+        }
       } else if (mode === 'close') {
         if (!formData.exit_price) {
           setError('Exit price is required')
@@ -182,6 +193,8 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
         return 'Open Trade'
       case 'close':
         return 'Close Trade'
+      case 'cancel':
+        return 'Cancel Trade'
       default:
         return 'Edit Trade'
     }
@@ -390,6 +403,25 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                 onChange={handleChange}
                 required
               />
+            </div>
+          )}
+
+          {mode === 'cancel' && (
+            <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
+              <label htmlFor="cancel_reason">Reason for Canceling</label>
+              <select
+                id="cancel_reason"
+                name="cancel_reason"
+                value={formData.cancel_reason}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Select a reason...</option>
+                <option value="input_error">Input Error</option>
+                <option value="market_conditions">Market Conditions</option>
+                <option value="ticker_fundamentals">Ticker Fundamentals</option>
+                <option value="other">Other</option>
+              </select>
             </div>
           )}
 
