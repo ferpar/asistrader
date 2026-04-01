@@ -1,5 +1,5 @@
 import { Decimal } from '../shared/Decimal'
-import { TradeStatus, ExitType, ExitLevelType, ExitLevelStatus, SLTPHitType, EntryHitType, CancelReason } from '../../types/trade'
+import { TradeStatus, ExitType, ExitLevelType, ExitLevelStatus, SLTPHitType, EntryHitType, CancelReason, OrderType, TimeInEffect } from '../../types/trade'
 
 export interface ExitLevel {
   id: number
@@ -30,6 +30,9 @@ export interface Trade {
   exitDate: Date | null
   exitType: ExitType | null
   exitPrice: Decimal | null
+  orderType: OrderType | null
+  timeInEffect: TimeInEffect | null
+  gtdDate: Date | null
   paperTrade: boolean
   isLayered: boolean
   exitLevels: ExitLevel[]

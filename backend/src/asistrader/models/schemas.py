@@ -26,6 +26,22 @@ class CancelReason(str, Enum):
     OTHER = "other"
 
 
+class OrderType(str, Enum):
+    """Order type enum."""
+
+    LIMIT = "limit"
+    STOP = "stop"
+    MARKET = "market"
+
+
+class TimeInEffect(str, Enum):
+    """Time in effect enum for orders."""
+
+    DAY = "day"
+    GTC = "gtc"
+    GTD = "gtd"
+
+
 class ExitType(str, Enum):
     """Exit type enum."""
 
@@ -227,6 +243,11 @@ class TradeSchema(BaseModel):
     exit_type: ExitType | None = None
     exit_price: float | None = None
 
+    # Order details
+    order_type: OrderType | None = None
+    time_in_effect: TimeInEffect | None = None
+    gtd_date: date | None = None
+
     # Paper trading
     paper_trade: bool
 
@@ -275,6 +296,9 @@ class TradeCreateRequest(BaseModel):
     strategy_id: int | None = None
     paper_trade: bool = False
     exit_levels: list[ExitLevelCreateRequest] | None = None
+    order_type: OrderType | None = None
+    time_in_effect: TimeInEffect | None = None
+    gtd_date: date | None = None
 
 
 class TradeUpdateRequest(BaseModel):
@@ -294,6 +318,9 @@ class TradeUpdateRequest(BaseModel):
     paper_trade: bool | None = None
     exit_levels: list[ExitLevelCreateRequest] | None = None
     cancel_reason: CancelReason | None = None
+    order_type: OrderType | None = None
+    time_in_effect: TimeInEffect | None = None
+    gtd_date: date | None = None
 
 
 class TradeResponse(BaseModel):

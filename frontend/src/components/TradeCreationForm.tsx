@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { TradeCreateRequest, ExitLevelCreateRequest } from '../types/trade'
+import { TradeCreateRequest, ExitLevelCreateRequest, OrderType, TimeInEffect } from '../types/trade'
 import type { Strategy } from '../domain/strategy/types'
 import type { Ticker } from '../domain/ticker/types'
 import { TickerSearchInput } from './TickerSearchInput'
@@ -37,6 +37,9 @@ export function TradeCreationForm() {
     date_planned: new Date().toISOString().split('T')[0],
     strategy_id: '',
     paper_trade: false,
+    order_type: '' as OrderType | '',
+    time_in_effect: '' as TimeInEffect | '',
+    gtd_date: '',
   })
 
   const [layeredMode, setLayeredMode] = useState(false)
@@ -218,6 +221,9 @@ export function TradeCreationForm() {
         strategy_id: formData.strategy_id ? parseInt(formData.strategy_id) : null,
         paper_trade: formData.paper_trade,
         exit_levels: exitLevelsToSend,
+        order_type: !formData.paper_trade && formData.order_type ? formData.order_type as OrderType : null,
+        time_in_effect: !formData.paper_trade && formData.time_in_effect ? formData.time_in_effect as TimeInEffect : null,
+        gtd_date: !formData.paper_trade && formData.time_in_effect === 'gtd' && formData.gtd_date ? formData.gtd_date : null,
       }
       await store.createTrade(request)
       setFormData({
@@ -229,6 +235,9 @@ export function TradeCreationForm() {
         date_planned: new Date().toISOString().split('T')[0],
         strategy_id: '',
         paper_trade: false,
+        order_type: '',
+        time_in_effect: '',
+        gtd_date: '',
       })
       setLayeredMode(false)
       setTpLevels([
@@ -343,6 +352,54 @@ export function TradeCreationForm() {
           <span className={formStyles.formHint}>Multiple TP levels</span>
         </div>
       </div>
+
+      {!formData.paper_trade && (
+        <div className={formStyles.formRow}>
+          <div className={formStyles.formGroup}>
+            <label htmlFor="order_type">Order Type</label>
+            <select
+              id="order_type"
+              name="order_type"
+              value={formData.order_type}
+              onChange={handleChange}
+            >
+              <option value="">None</option>
+              <option value="limit">Limit</option>
+              <option value="stop">Stop</option>
+              <option value="market">Market</option>
+            </select>
+          </div>
+
+          <div className={formStyles.formGroup}>
+            <label htmlFor="time_in_effect">Time in Effect</label>
+            <select
+              id="time_in_effect"
+              name="time_in_effect"
+              value={formData.time_in_effect}
+              onChange={handleChange}
+            >
+              <option value="">None</option>
+              <option value="day">Day</option>
+              <option value="gtc">GTC</option>
+              <option value="gtd">GTD</option>
+            </select>
+          </div>
+
+          {formData.time_in_effect === 'gtd' && (
+            <div className={formStyles.formGroup}>
+              <label htmlFor="gtd_date">GTD Expiry Date</label>
+              <input
+                type="date"
+                id="gtd_date"
+                name="gtd_date"
+                value={formData.gtd_date}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={formStyles.formRow}>
         <div className={formStyles.formGroup}>

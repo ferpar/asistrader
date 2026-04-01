@@ -1,6 +1,8 @@
 export type TradeStatus = 'plan' | 'ordered' | 'open' | 'close' | 'canceled'
 export type ExitType = 'sl' | 'tp'
 export type CancelReason = 'input_error' | 'market_conditions' | 'ticker_fundamentals' | 'other'
+export type OrderType = 'limit' | 'stop' | 'market'
+export type TimeInEffect = 'day' | 'gtc' | 'gtd'
 export type ExtendedFilter = 'all' | 'plan' | 'ordered' | 'open' | 'close' | 'canceled' | 'winners' | 'losers'
 export type ExitLevelType = 'sl' | 'tp'
 export type ExitLevelStatus = 'pending' | 'hit' | 'cancelled'
@@ -41,6 +43,10 @@ export interface Trade {
   exit_date: string | null
   exit_type: ExitType | null
   exit_price: number | null
+  // Order details
+  order_type: OrderType | null
+  time_in_effect: TimeInEffect | null
+  gtd_date: string | null
   paper_trade: boolean
   // Layered SL/TP
   is_layered: boolean
@@ -74,6 +80,9 @@ export interface TradeCreateRequest {
   strategy_id?: number | null
   paper_trade?: boolean
   exit_levels?: ExitLevelCreateRequest[] | null
+  order_type?: OrderType | null
+  time_in_effect?: TimeInEffect | null
+  gtd_date?: string | null
 }
 
 export interface TradeUpdateRequest {
@@ -87,6 +96,9 @@ export interface TradeUpdateRequest {
   strategy_id?: number | null
   exit_levels?: ExitLevelCreateRequest[] | null
   cancel_reason?: CancelReason
+  order_type?: OrderType | null
+  time_in_effect?: TimeInEffect | null
+  gtd_date?: string | null
 }
 
 export interface TradeResponse {

@@ -32,6 +32,22 @@ class CancelReason(str, PyEnum):
     OTHER = "other"
 
 
+class OrderType(str, PyEnum):
+    """Order type enum."""
+
+    LIMIT = "limit"
+    STOP = "stop"
+    MARKET = "market"
+
+
+class TimeInEffect(str, PyEnum):
+    """Time in effect enum for orders."""
+
+    DAY = "day"
+    GTC = "gtc"
+    GTD = "gtd"
+
+
 class ExitType(str, PyEnum):
     """Exit type enum."""
 
@@ -162,6 +178,15 @@ class Trade(Base):
     exit_date = Column(Date, nullable=True)
     exit_type = Column(Enum(ExitType), nullable=True)
     exit_price = Column(Float, nullable=True)
+
+    # Order details (non-paper trades only)
+    order_type = Column(
+        Enum(OrderType, values_callable=lambda x: [e.value for e in x]), nullable=True
+    )
+    time_in_effect = Column(
+        Enum(TimeInEffect, values_callable=lambda x: [e.value for e in x]), nullable=True
+    )
+    gtd_date = Column(Date, nullable=True)
 
     # Paper trading
     paper_trade = Column(Boolean, default=False)

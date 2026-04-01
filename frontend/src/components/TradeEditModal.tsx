@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { TradeUpdateRequest, ExitType, ExitLevelCreateRequest, CancelReason } from '../types/trade'
+import { TradeUpdateRequest, ExitType, ExitLevelCreateRequest, CancelReason, OrderType, TimeInEffect } from '../types/trade'
 import type { Strategy } from '../domain/strategy/types'
 import type { TradeWithMetrics } from '../domain/trade/types'
 import { useTradeStore, useStrategyRepo } from '../container/ContainerContext'
@@ -39,6 +39,9 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
     exit_date: new Date().toISOString().split('T')[0],
     strategy_id: trade.strategyId?.toString() || '',
     cancel_reason: '' as CancelReason | '',
+    order_type: (trade.orderType || '') as OrderType | '',
+    time_in_effect: (trade.timeInEffect || '') as TimeInEffect | '',
+    gtd_date: trade.gtdDate ? trade.gtdDate.toISOString().split('T')[0] : '',
   })
 
   // Layered mode state
@@ -148,6 +151,11 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
           units: parseInt(formData.units),
           strategy_id: formData.strategy_id ? parseInt(formData.strategy_id) : null,
           exit_levels: exitLevelsToSend,
+          ...(!trade.paperTrade && canEditLayeredMode ? {
+            order_type: formData.order_type ? formData.order_type as OrderType : null,
+            time_in_effect: formData.time_in_effect ? formData.time_in_effect as TimeInEffect : null,
+            gtd_date: formData.time_in_effect === 'gtd' && formData.gtd_date ? formData.gtd_date : null,
+          } : {}),
         }
       } else if (mode === 'open') {
         request = {
@@ -389,6 +397,54 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                   ))}
                 </select>
               </div>
+
+              {!trade.paperTrade && canEditLayeredMode && (
+                <>
+                  <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
+                    <label htmlFor="order_type">Order Type</label>
+                    <select
+                      id="order_type"
+                      name="order_type"
+                      value={formData.order_type}
+                      onChange={handleChange}
+                    >
+                      <option value="">None</option>
+                      <option value="limit">Limit</option>
+                      <option value="stop">Stop</option>
+                      <option value="market">Market</option>
+                    </select>
+                  </div>
+
+                  <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
+                    <label htmlFor="time_in_effect">Time in Effect</label>
+                    <select
+                      id="time_in_effect"
+                      name="time_in_effect"
+                      value={formData.time_in_effect}
+                      onChange={handleChange}
+                    >
+                      <option value="">None</option>
+                      <option value="day">Day</option>
+                      <option value="gtc">GTC</option>
+                      <option value="gtd">GTD</option>
+                    </select>
+                  </div>
+
+                  {formData.time_in_effect === 'gtd' && (
+                    <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
+                      <label htmlFor="gtd_date">GTD Expiry Date</label>
+                      <input
+                        type="date"
+                        id="gtd_date"
+                        name="gtd_date"
+                        value={formData.gtd_date}
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
+                  )}
+                </>
+              )}
             </>
           )}
 
