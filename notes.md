@@ -22,6 +22,14 @@ get schedules for most markets
 	check if we can get the market out of yfinance info for a ticker
 	allow to see the market a given ticker is on and its schedule
 
+consolidate SL dist and TP dist in a single column Current Position (CP)
+
+overbooking for funds management, detect when there are no funds available to make an order
+
+radar screen with 
+ - indicators for each ticker
+ - macro indicators
+
 strategies / techniques
 	ability for selecting multiple strategies
 	harmonics - paul at datadash

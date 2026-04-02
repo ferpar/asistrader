@@ -86,18 +86,6 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
     }
   }
 
-  const getDistanceClass = (distance: number | null, isTP: boolean): string => {
-    if (distance === null) return ''
-    const absDistance = Math.abs(distance)
-    if (absDistance < 0.03) {
-      return isTP ? styles.distanceNear : styles.distanceDanger
-    }
-    if (absDistance < 0.10) {
-      return styles.distanceWarning
-    }
-    return ''
-  }
-
   const getPEDistanceClass = (distance: number | null): string => {
     if (distance === null) return ''
     if (distance >= 0.05) return styles.distanceNear      // +5% or more = good
@@ -108,7 +96,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
   const formatLiveMetric = (
     trade: TradeWithMetrics,
     metric: LiveMetrics | undefined,
-    type: 'price' | 'slDist' | 'tpDist' | 'peDist' | 'pnl'
+    type: 'price' | 'peDist' | 'pnl'
   ): string => {
     // PE distance only shown for plan and ordered trades
     if (type === 'peDist') {
@@ -117,7 +105,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
       // Current price shown for open, plan, and ordered trades
       if (trade.status !== 'open' && trade.status !== 'plan' && trade.status !== 'ordered') return '-'
     } else {
-      // SL/TP distance, PnL only shown for open trades
+      // PnL only shown for open trades
       if (trade.status !== 'open') return '-'
     }
     if (!metric) return '-'
@@ -125,10 +113,6 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
     switch (type) {
       case 'price':
         return metric.currentPrice !== null ? formatCurrency(metric.currentPrice.toNumber()) : '-'
-      case 'slDist':
-        return metric.distanceToSL !== null ? formatPercent(metric.distanceToSL.toNumber()) : '-'
-      case 'tpDist':
-        return metric.distanceToTP !== null ? formatPercent(metric.distanceToTP.toNumber()) : '-'
       case 'peDist':
         return metric.distanceToPE !== null ? formatPercent(metric.distanceToPE.toNumber()) : '-'
       case 'pnl':
@@ -156,8 +140,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
           <th>Stop Loss</th>
           <th>Take Profit</th>
           <th>Current</th>
-          <th>SL Dist</th>
-          <th>TP Dist</th>
+          <th>Position</th>
           <th>PE Dist</th>
           <th>Unr. PnL</th>
           <th>Risk</th>
@@ -180,8 +163,12 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
       </thead>
       <tbody>
         {trades.map((trade) => {
-          const slDistNum = liveMetrics[trade.id]?.distanceToSL?.toNumber() ?? null
           const tpDistNum = liveMetrics[trade.id]?.distanceToTP?.toNumber() ?? null
+          const slDistNum = liveMetrics[trade.id]?.distanceToSL?.toNumber() ?? null
+          // Consolidated position: positive = toward TP, negative = toward SL
+          const positionNum = tpDistNum !== null && slDistNum !== null
+            ? (tpDistNum >= 0 ? tpDistNum : -slDistNum)
+            : null
           const peDistNum = liveMetrics[trade.id]?.distanceToPE?.toNumber() ?? null
           const pnlNum = liveMetrics[trade.id]?.unrealizedPnL?.toNumber() ?? null
 
@@ -197,11 +184,12 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
             <td>{formatCurrency(trade.stopLoss.toNumber())}</td>
             <td>{formatCurrency(trade.takeProfit.toNumber())}</td>
             <td>{formatLiveMetric(trade, liveMetrics[trade.id], 'price')}</td>
-            <td className={getDistanceClass(slDistNum, false)}>
-              {formatLiveMetric(trade, liveMetrics[trade.id], 'slDist')}
-            </td>
-            <td className={getDistanceClass(tpDistNum, true)}>
-              {formatLiveMetric(trade, liveMetrics[trade.id], 'tpDist')}
+            <td className={
+              positionNum !== null
+                ? (positionNum >= 0 ? styles.distanceNear : styles.distanceDanger)
+                : ''
+            }>
+              {trade.status !== 'open' ? '-' : (positionNum !== null ? formatPercent(positionNum) : '-')}
             </td>
             <td className={getPEDistanceClass(peDistNum)}>
               {formatLiveMetric(trade, liveMetrics[trade.id], 'peDist')}
@@ -335,7 +323,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
           </tr>
           {trade.isLayered && expandedTradeId === trade.id && (
             <tr className={styles.exitLevelExpansionRow}>
-              <td colSpan={29}>
+              <td colSpan={28}>
                 <ExitLevelSummary
                   levels={trade.exitLevels}
                   entryPrice={trade.entryPrice.toNumber()}
