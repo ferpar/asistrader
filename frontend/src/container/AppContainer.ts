@@ -6,6 +6,8 @@ import { HttpStrategyRepository } from '../domain/strategy/HttpStrategyRepositor
 import { HttpMarketDataRepository } from '../domain/marketData/HttpMarketDataRepository'
 import { HttpTickerRepository } from '../domain/ticker/HttpTickerRepository'
 import { TickerStore } from '../domain/ticker/TickerStore'
+import { HttpFundRepository } from '../domain/fund/HttpFundRepository'
+import { FundStore } from '../domain/fund/FundStore'
 import { AppContainer } from './types'
 
 export function createAppContainer(): AppContainer {
@@ -18,5 +20,7 @@ export function createAppContainer(): AppContainer {
   const marketDataRepo = new HttpMarketDataRepository(baseUrl, getAccessToken)
   const tickerRepo = new HttpTickerRepository(baseUrl, getAccessToken)
   const tickerStore = new TickerStore(tickerRepo)
-  return { tradeStore, liveMetricsStore, strategyRepo, marketDataRepo, tickerStore }
+  const fundRepo = new HttpFundRepository(baseUrl, getAccessToken)
+  const fundStore = new FundStore(fundRepo)
+  return { tradeStore, liveMetricsStore, strategyRepo, marketDataRepo, tickerStore, fundStore }
 }

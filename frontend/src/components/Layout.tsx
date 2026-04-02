@@ -1,13 +1,16 @@
 import { ReactNode } from 'react'
+import type { AppPage } from '../App'
 import { ThemeToggle } from './ThemeToggle'
 import { UserHeader } from './UserHeader'
 import styles from './Layout.module.css'
 
 interface LayoutProps {
   children: ReactNode
+  currentPage: AppPage
+  onNavigate: (page: AppPage) => void
 }
 
-export function Layout({ children }: LayoutProps) {
+export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   return (
     <div className={styles.app}>
       <header className={styles.header}>
@@ -20,6 +23,20 @@ export function Layout({ children }: LayoutProps) {
           <ThemeToggle />
         </div>
       </header>
+      <nav className={styles.nav}>
+        <button
+          className={`${styles.navTab} ${currentPage === 'trades' ? styles.navTabActive : ''}`}
+          onClick={() => onNavigate('trades')}
+        >
+          Trades
+        </button>
+        <button
+          className={`${styles.navTab} ${currentPage === 'fund' ? styles.navTabActive : ''}`}
+          onClick={() => onNavigate('fund')}
+        >
+          Fund
+        </button>
+      </nav>
       <main className={styles.main}>
         {children}
       </main>

@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from asistrader.api.auth import router as auth_router
+from asistrader.api.fund import router as fund_router
 from asistrader.api.market_data import router as market_data_router
 from asistrader.api.strategies import router as strategies_router
 from asistrader.api.tickers import router as tickers_router
@@ -25,6 +26,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(fund_router)
 app.include_router(trades_router)
 app.include_router(tickers_router)
 app.include_router(strategies_router)

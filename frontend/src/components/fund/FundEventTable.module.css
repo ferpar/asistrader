@@ -1,0 +1,105 @@
+.tableContainer {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table th,
+.table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table th {
+  background-color: var(--color-table-header);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.table tbody tr:hover {
+  background-color: var(--color-table-row-hover);
+}
+
+.voided {
+  opacity: 0.5;
+}
+
+.amount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.positive {
+  color: var(--color-success);
+}
+
+.negative {
+  color: var(--color-error, #dc3545);
+}
+
+.description {
+  color: var(--color-text-muted);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.typeBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background-color: var(--color-table-header);
+  color: var(--color-text);
+}
+
+.paperBadge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  background-color: var(--color-warning);
+  color: white;
+}
+
+.voidedBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  background-color: var(--color-error, #dc3545);
+  color: white;
+}
+
+.btnVoid {
+  padding: 3px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: none;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+
+.btnVoid:hover {
+  background-color: var(--color-error, #dc3545);
+  color: white;
+  border-color: transparent;
+}
+
+.loading,
+.empty {
+  padding: 30px;
+  text-align: center;
+  color: var(--color-text-muted);
+}

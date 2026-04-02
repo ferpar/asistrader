@@ -1,10 +1,10 @@
 DONE - New status for trades: canceled alongside a cancel_reason that can be any of "INPUT_ERROR", "MARKET_CONDITIONS", "TICKER_FUNDAMENTALS" or "OTHER"
 
-when creating a trade:
+DONE - when creating a trade:
 	allow to input whether it is a limit, stop or market order.
 	allow to input the time in effect of the order
 
-when opening a trade, 
+DONE - when opening a trade, 
 	ability to edit the open price from the open trade menu.
 	prevent selecting an open trade date into the future (validation)
 		

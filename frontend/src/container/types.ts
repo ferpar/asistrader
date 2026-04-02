@@ -3,6 +3,7 @@ import { LiveMetricsStore } from '../domain/trade/LiveMetricsStore'
 import type { IStrategyRepository } from '../domain/strategy/IStrategyRepository'
 import type { IMarketDataRepository } from '../domain/marketData/IMarketDataRepository'
 import { TickerStore } from '../domain/ticker/TickerStore'
+import { FundStore } from '../domain/fund/FundStore'
 
 export interface AppContainer {
   tradeStore: TradeStore
@@ -10,4 +11,5 @@ export interface AppContainer {
   strategyRepo: IStrategyRepository
   marketDataRepo: IMarketDataRepository
   tickerStore: TickerStore
+  fundStore: FundStore
 }

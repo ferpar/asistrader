@@ -573,3 +573,85 @@ class TradeDetectionResponse(BaseModel):
     auto_closed_count: int
     partial_close_count: int = 0
     conflict_count: int
+
+
+# --- Fund Management Schemas ---
+
+
+class FundEventType(str, Enum):
+    """Fund event type enum."""
+
+    DEPOSIT = "deposit"
+    WITHDRAWAL = "withdrawal"
+    RESERVE = "reserve"
+    BENEFIT = "benefit"
+    LOSS = "loss"
+
+
+class FundEventSchema(BaseModel):
+    """Fund event response schema."""
+
+    id: int
+    user_id: int
+    event_type: FundEventType
+    amount: float
+    description: str | None = None
+    trade_id: int | None = None
+    paper_trade: bool
+    voided: bool
+    event_date: date
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class FundEventListResponse(BaseModel):
+    """Response schema for fund event list endpoint."""
+
+    events: list[FundEventSchema]
+    count: int
+
+
+class DepositRequest(BaseModel):
+    """Request schema for depositing funds."""
+
+    amount: float = Field(gt=0)
+    description: str | None = None
+    event_date: date | None = None
+
+
+class WithdrawalRequest(BaseModel):
+    """Request schema for withdrawing funds."""
+
+    amount: float = Field(gt=0)
+    description: str | None = None
+    event_date: date | None = None
+
+
+class ManualBenefitLossRequest(BaseModel):
+    """Request schema for manual benefit/loss events."""
+
+    event_type: Literal["benefit", "loss"]
+    amount: float = Field(gt=0)
+    description: str | None = None
+    trade_id: int | None = None
+    event_date: date | None = None
+
+
+class FundEventResponse(BaseModel):
+    """Response schema for single fund event operations."""
+
+    event: FundEventSchema
+    message: str
+
+
+class RiskSettingsRequest(BaseModel):
+    """Request schema for updating risk settings."""
+
+    risk_pct: float = Field(gt=0, le=1.0)
+
+
+class RiskSettingsResponse(BaseModel):
+    """Response schema for risk settings."""
+
+    risk_pct: float

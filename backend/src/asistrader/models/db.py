@@ -70,6 +70,16 @@ class ExitLevelStatus(str, PyEnum):
     CANCELLED = "cancelled"
 
 
+class FundEventType(str, PyEnum):
+    """Fund event type enum."""
+
+    DEPOSIT = "deposit"
+    WITHDRAWAL = "withdrawal"
+    RESERVE = "reserve"
+    BENEFIT = "benefit"
+    LOSS = "loss"
+
+
 class Bias(str, PyEnum):
     """Ticker bias enum."""
 
@@ -99,6 +109,8 @@ class User(Base):
 
     trades = relationship("Trade", back_populates="user_rel")
     refresh_tokens = relationship("RefreshToken", back_populates="user_rel")
+    fund_events = relationship("FundEvent", back_populates="user_rel")
+    fund_settings = relationship("UserFundSettings", back_populates="user_rel", uselist=False)
 
 
 class RefreshToken(Base):
@@ -211,6 +223,7 @@ class Trade(Base):
     strategy_rel = relationship("Strategy", back_populates="trades")
     user_rel = relationship("User", back_populates="trades")
     exit_levels = relationship("ExitLevel", back_populates="trade_rel", cascade="all, delete-orphan")
+    fund_events = relationship("FundEvent", back_populates="trade_rel")
 
     @property
     def stop_loss(self) -> float:
@@ -316,3 +329,44 @@ class ExitLevel(Base):
     )
 
     trade_rel = relationship("Trade", back_populates="exit_levels")
+
+
+class FundEvent(Base):
+    """Fund event model for event-sourced balance tracking."""
+
+    __tablename__ = "fund_events"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    event_type = Column(
+        Enum(FundEventType, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+    )
+    amount = Column(Float, nullable=False)  # Always positive; sign derived from event_type
+    description = Column(String, nullable=True)
+    trade_id = Column(Integer, ForeignKey("trades.id"), nullable=True)
+    paper_trade = Column(Boolean, default=False)
+    voided = Column(Boolean, default=False)
+    voided_at = Column(DateTime(timezone=True), nullable=True)
+    event_date = Column(Date, nullable=False, default=date.today)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        Index("ix_fund_events_user_id", "user_id"),
+        Index("ix_fund_events_trade_id", "trade_id"),
+    )
+
+    user_rel = relationship("User", back_populates="fund_events")
+    trade_rel = relationship("Trade", back_populates="fund_events")
+
+
+class UserFundSettings(Base):
+    """Per-user fund settings (risk percentage, etc.)."""
+
+    __tablename__ = "user_fund_settings"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    risk_pct = Column(Float, default=0.02)
+
+    user_rel = relationship("User", back_populates="fund_settings")

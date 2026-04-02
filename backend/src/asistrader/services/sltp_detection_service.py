@@ -153,6 +153,11 @@ def auto_close_paper_trade(
     trade.status = TradeStatus.CLOSE
     db.commit()
 
+    # Fund integration
+    from asistrader.services.fund_service import handle_trade_close
+
+    handle_trade_close(db, trade)
+
 
 def check_entry_hit_for_day(trade: Trade, market_day: MarketData) -> bool:
     """
@@ -435,6 +440,13 @@ def process_layered_hits(db: Session, trade: Trade) -> list[LayeredLevelHit]:
             trade.exit_type = ExitType.TP if tp_units >= sl_units else ExitType.SL
 
     db.commit()
+
+    # Fund integration: handle trade close if fully closed
+    if trade.status == TradeStatus.CLOSE:
+        from asistrader.services.fund_service import handle_trade_close
+
+        handle_trade_close(db, trade)
+
     return hits
 
 

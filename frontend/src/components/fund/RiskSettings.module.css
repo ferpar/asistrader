@@ -1,0 +1,45 @@
+.settings {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.label {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.valueBtn {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 0.875rem;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.valueBtn:hover {
+  background-color: var(--color-table-row-hover);
+}
+
+.editRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.input {
+  width: 60px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.unit {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}

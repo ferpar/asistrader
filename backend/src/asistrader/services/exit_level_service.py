@@ -301,6 +301,13 @@ def apply_manual_level_hit(
 
     db.commit()
     db.refresh(trade)
+
+    # Fund integration: handle trade close if fully closed
+    if trade.status == TradeStatus.CLOSE:
+        from asistrader.services.fund_service import handle_trade_close
+
+        handle_trade_close(db, trade)
+
     return trade
 
 

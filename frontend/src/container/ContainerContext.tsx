@@ -43,3 +43,7 @@ export function useMarketDataRepo() {
 export function useTickerStore() {
   return useContainer().tickerStore
 }
+
+export function useFundStore() {
+  return useContainer().fundStore
+}
