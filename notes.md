@@ -10,7 +10,7 @@ DONE - when opening a trade,
 		
 allow to specify whether an order is executed within market hours both on open and close (is it after market?)
 
-Funds management Feature
+DONE - Funds management Feature
 	- based on event sourcing
 	EVENTS:
 		- add funds

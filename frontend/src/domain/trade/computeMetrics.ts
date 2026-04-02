@@ -23,8 +23,11 @@ export function computeMetrics(
       continue
     }
 
-    const distanceToSL = currentPrice.minus(trade.stopLoss).div(currentPrice)
-    const distanceToTP = trade.takeProfit.minus(currentPrice).div(currentPrice)
+    const priceMove = currentPrice.minus(trade.entryPrice)
+    const slRange = trade.stopLoss.minus(trade.entryPrice)
+    const tpRange = trade.takeProfit.minus(trade.entryPrice)
+    const distanceToSL = slRange.isZero() ? Decimal.zero() : priceMove.div(slRange)
+    const distanceToTP = tpRange.isZero() ? Decimal.zero() : priceMove.div(tpRange)
     const distanceToPE = currentPrice.minus(trade.entryPrice).div(trade.entryPrice)
 
     const units = Decimal.from(trade.units)

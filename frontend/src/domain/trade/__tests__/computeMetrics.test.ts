@@ -15,10 +15,10 @@ describe('computeMetrics', () => {
     const result = computeMetrics(trades, prices)
 
     expect(result[1].currentPrice!.toNumber()).toBe(110)
-    // distanceToSL = (110 - 90) / 110 ≈ 0.1818
-    expect(result[1].distanceToSL!.toNumber()).toBeCloseTo(0.1818, 3)
-    // distanceToTP = (120 - 110) / 110 ≈ 0.0909
-    expect(result[1].distanceToTP!.toNumber()).toBeCloseTo(0.0909, 3)
+    // distanceToSL = (110 - 100) / (90 - 100) = 10 / -10 = -1.0 (-100%)
+    expect(result[1].distanceToSL!.toNumber()).toBe(-1)
+    // distanceToTP = (110 - 100) / (120 - 100) = 10 / 20 = 0.5 (50%)
+    expect(result[1].distanceToTP!.toNumber()).toBe(0.5)
     // distanceToPE = (110 - 100) / 100 = 0.10
     expect(result[1].distanceToPE!.toNumber()).toBeCloseTo(0.10)
     // unrealizedPnL = (110 - 100) * 10 = 100

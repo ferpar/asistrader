@@ -75,10 +75,10 @@ describe('LiveMetricsStore', () => {
     const metrics = metricsStore.metrics$.get()
     expect(metrics[1]).toBeDefined()
     expect(metrics[1].currentPrice!.toNumber()).toBe(160)
-    // distanceToSL = (160 - 140) / 160 = 0.125
-    expect(metrics[1].distanceToSL!.toNumber()).toBeCloseTo(0.125)
-    // distanceToTP = (170 - 160) / 160 = 0.0625
-    expect(metrics[1].distanceToTP!.toNumber()).toBeCloseTo(0.0625)
+    // distanceToSL = (160 - 150) / (140 - 150) = 10 / -10 = -1.0 (-100%)
+    expect(metrics[1].distanceToSL!.toNumber()).toBe(-1)
+    // distanceToTP = (160 - 150) / (170 - 150) = 10 / 20 = 0.5 (50%)
+    expect(metrics[1].distanceToTP!.toNumber()).toBe(0.5)
     // distanceToPE = (160 - 150) / 150 = 0.0667
     expect(metrics[1].distanceToPE!.toNumber()).toBeCloseTo(0.0667, 3)
     // unrealizedPnL = (160 - 150) * 10 = 100
