@@ -17,6 +17,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
   const [editingTrade, setEditingTrade] = useState<TradeWithMetrics | null>(null)
   const [editMode, setEditMode] = useState<EditMode>('edit')
   const [expandedTradeId, setExpandedTradeId] = useState<number | null>(null)
+  const [docked, setDocked] = useState(true)
   const metricsStore = useLiveMetricsStore()
   const tradeStore = useTradeStore()
   const fundStore = useFundStore()
@@ -158,14 +159,20 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
 
   return (
     <>
+    <div className={styles.tableControls}>
+      <label className={styles.dockToggle}>
+        <input type="checkbox" checked={docked} onChange={(e) => setDocked(e.target.checked)} />
+        Dock columns
+      </label>
+    </div>
     <div className={styles.tradeTableContainer}>
     <table data-testid="trade-table" className={styles.tradeTable}>
       <thead>
         <tr>
-          <th>#</th>
-          <th>Ticker</th>
-          <th>Name</th>
-          <th>Status</th>
+          <th className={docked ? `${styles.stickyCol} ${styles.stickyCol1}` : ''}>#</th>
+          <th className={docked ? `${styles.stickyCol} ${styles.stickyCol2}` : ''}>Ticker</th>
+          <th className={`${docked ? `${styles.stickyCol} ${styles.stickyCol3}` : ''} ${styles.tickerName}`}>Name</th>
+          <th className={docked ? `${styles.stickyCol} ${styles.stickyCol4}` : ''}>Status</th>
           <th className={styles.separator}>Units</th>
           <th>Entry</th>
           <th>Amount</th>
@@ -207,10 +214,10 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
           return (
           <React.Fragment key={trade.id}>
           <tr data-testid={`trade-row-${trade.id}`}>
-            <td>{trade.number ?? trade.id}</td>
-            <td>{trade.ticker}</td>
-            <td className={styles.tickerName} title={trade.tickerName || ''}>{trade.tickerName || '-'}</td>
-            <td className={getStatusClass(trade.status)}>{trade.status}</td>
+            <td className={docked ? `${styles.stickyCol} ${styles.stickyCol1}` : ''}>{trade.number ?? trade.id}</td>
+            <td className={docked ? `${styles.stickyCol} ${styles.stickyCol2}` : ''}>{trade.ticker}</td>
+            <td className={`${docked ? `${styles.stickyCol} ${styles.stickyCol3}` : ''} ${styles.tickerName}`} title={trade.tickerName || ''}>{trade.tickerName || '-'}</td>
+            <td className={`${docked ? `${styles.stickyCol} ${styles.stickyCol4}` : ''} ${getStatusClass(trade.status)}`}>{trade.status}</td>
             <td className={styles.separator}>{trade.units}</td>
             <td>{formatCurrency(trade.entryPrice.toNumber())}</td>
             <td>{formatCurrency(trade.amount.toNumber())}</td>

@@ -1,13 +1,52 @@
+.tableControls {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.dockToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .tableControls {
+    display: none;
+  }
+}
+
 .tradeTableContainer {
   width: 100%;
   overflow-x: auto;
+  isolation: isolate;
 }
 
 .tradeTable {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.875rem;
 }
+
+.stickyCol {
+  position: sticky;
+  z-index: 1;
+  background-color: var(--color-bg);
+}
+
+.tradeTable th.stickyCol {
+  z-index: 2;
+  background-color: var(--color-table-header);
+}
+
+.stickyCol1 { left: 0; }
+.stickyCol2 { left: 41px; }
+.stickyCol3 { left: 112px; }
+.stickyCol4 { left: 286px; border-right: 2px solid var(--color-border); }
 
 .tradeTable th,
 .tradeTable td {
@@ -172,4 +211,14 @@
 
 .exitLevelExpansionRow:hover td {
   background-color: var(--color-surface);
+}
+
+@media (max-width: 600px) {
+  .stickyCol {
+    position: static;
+  }
+
+  .stickyCol4 {
+    border-right: none;
+  }
 }
