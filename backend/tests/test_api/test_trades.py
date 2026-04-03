@@ -5,6 +5,8 @@ from datetime import date
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from datetime import date
+
 from asistrader.models.db import ExitLevel, ExitLevelStatus, ExitLevelType, Ticker, Trade, TradeStatus, User
 
 
@@ -131,3 +133,41 @@ def test_health_check(client: TestClient) -> None:
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "healthy"}
+
+
+def test_order_trade_insufficient_funds_returns_400(
+    client: TestClient,
+    db_session: Session,
+    sample_ticker: Ticker,
+    sample_user: User,
+    auth_headers: dict[str, str],
+) -> None:
+    """Ordering a trade without funds returns 400, not 500."""
+    # Create a plan trade directly (no fund check on creation)
+    trade = Trade(
+        ticker=sample_ticker.symbol,
+        status=TradeStatus.PLAN,
+        amount=1000.0,
+        units=10,
+        entry_price=100.0,
+        date_planned=date(2025, 1, 15),
+        user_id=sample_user.id,
+        remaining_units=10,
+    )
+    db_session.add(trade)
+    db_session.commit()
+    # Add exit levels
+    db_session.add_all([
+        ExitLevel(trade_id=trade.id, level_type=ExitLevelType.SL, price=95.0, units_pct=1.0, order_index=1, status=ExitLevelStatus.PENDING, move_sl_to_breakeven=False),
+        ExitLevel(trade_id=trade.id, level_type=ExitLevelType.TP, price=115.0, units_pct=1.0, order_index=1, status=ExitLevelStatus.PENDING, move_sl_to_breakeven=False),
+    ])
+    db_session.commit()
+
+    # Try to order without any funds deposited
+    response = client.patch(
+        f"/api/trades/{trade.id}",
+        json={"status": "ordered"},
+        headers=auth_headers,
+    )
+    assert response.status_code == 400
+    assert "funds" in response.json()["detail"].lower()

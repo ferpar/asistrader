@@ -249,7 +249,7 @@ class TradeSchema(BaseModel):
     gtd_date: date | None = None
 
     # Paper trading
-    paper_trade: bool
+    auto_detect: bool
 
     # Layered SL/TP
     is_layered: bool = False
@@ -294,7 +294,7 @@ class TradeCreateRequest(BaseModel):
     units: int
     date_planned: date
     strategy_id: int | None = None
-    paper_trade: bool = False
+    auto_detect: bool = False
     exit_levels: list[ExitLevelCreateRequest] | None = None
     order_type: OrderType | None = None
     time_in_effect: TimeInEffect | None = None
@@ -315,7 +315,7 @@ class TradeUpdateRequest(BaseModel):
     exit_price: float | None = None
     exit_type: ExitType | None = None
     strategy_id: int | None = None
-    paper_trade: bool | None = None
+    auto_detect: bool | None = None
     exit_levels: list[ExitLevelCreateRequest] | None = None
     cancel_reason: CancelReason | None = None
     order_type: OrderType | None = None
@@ -529,7 +529,7 @@ class SLTPAlert(BaseModel):
     hit_type: SLTPHitType
     hit_date: date
     hit_price: float
-    paper_trade: bool
+    auto_detect: bool
     auto_closed: bool
     message: str
 
@@ -542,7 +542,7 @@ class EntryAlert(BaseModel):
     hit_type: EntryHitType
     hit_date: date
     entry_price: float
-    paper_trade: bool
+    auto_detect: bool
     auto_opened: bool
     message: str
 
@@ -558,7 +558,7 @@ class LayeredAlert(BaseModel):
     hit_price: float
     units_closed: int
     remaining_units: int
-    paper_trade: bool
+    auto_detect: bool
     auto_processed: bool
     message: str
 
@@ -597,7 +597,7 @@ class FundEventSchema(BaseModel):
     amount: float
     description: str | None = None
     trade_id: int | None = None
-    paper_trade: bool
+    auto_detect: bool
     voided: bool
     event_date: date
     created_at: datetime

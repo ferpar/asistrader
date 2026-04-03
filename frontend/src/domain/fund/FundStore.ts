@@ -9,15 +9,13 @@ export class FundStore {
   readonly events$ = observable<FundEvent[]>([])
   readonly loading$ = observable(false)
   readonly error$ = observable<string | null>(null)
-  readonly includePaper$ = observable(false)
   readonly includeVoided$ = observable(false)
   readonly riskPct$ = observable<Decimal>(Decimal.from(0.02))
 
   readonly balance$ = computed<BalanceSummary>(() => {
     const events = this.events$.get()
-    const includePaper = this.includePaper$.get()
     const riskPct = this.riskPct$.get()
-    return computeBalance(events, includePaper, riskPct)
+    return computeBalance(events, riskPct)
   })
 
   constructor(private readonly repo: IFundRepository) {}
@@ -68,10 +66,6 @@ export class FundStore {
   async updateRiskPct(riskPct: number): Promise<void> {
     const pct = await this.repo.updateRiskPct(riskPct)
     this.riskPct$.set(Decimal.from(pct))
-  }
-
-  setIncludePaper(value: boolean): void {
-    this.includePaper$.set(value)
   }
 
   setIncludeVoided(value: boolean): void {

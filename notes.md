@@ -3,6 +3,12 @@ overbooking for funds management, detect when there are no funds available to ma
 
 find a way to automatically update the tickers data
 
+update paper-trades to "automatic trades"
+
+update desktop layout to stop wasting vertical space on it
+	- update "new trade" button to have a text and then the plus sign
+	- put the three first rows in a single column
+
 radar screen with 
  - indicators for each ticker
 	- mean band positions

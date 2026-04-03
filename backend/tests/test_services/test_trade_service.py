@@ -6,7 +6,14 @@ import pytest
 from sqlalchemy.orm import Session
 
 from asistrader.models.db import CancelReason, Ticker, Trade, TradeStatus, User
+from asistrader.services.fund_service import create_deposit, update_risk_pct
 from asistrader.services.trade_service import get_all_trades, get_trade_by_id, update_trade, TradeUpdateError
+
+
+def _setup_funds(db_session: Session, user: User) -> None:
+    """Deposit funds and set risk limit high enough for test trades."""
+    create_deposit(db_session, user.id, 100000.0)
+    update_risk_pct(db_session, user.id, 0.5)
 
 
 def test_get_all_trades_empty(db_session: Session) -> None:
@@ -57,7 +64,7 @@ def test_trade_calculated_properties(
 
 
 def _create_plan_trade(
-    db_session: Session, ticker: Ticker, user: User, paper_trade: bool = False
+    db_session: Session, ticker: Ticker, user: User, auto_detect: bool = False
 ) -> Trade:
     """Helper to create a plan-status trade for transition tests."""
     trade = Trade(
@@ -68,7 +75,7 @@ def _create_plan_trade(
         entry_price=100.0,
         date_planned=date(2025, 1, 15),
         user_id=user.id,
-        paper_trade=paper_trade,
+        auto_detect=auto_detect,
         remaining_units=10,
     )
     db_session.add(trade)
@@ -80,24 +87,27 @@ def test_transition_plan_to_ordered(
     db_session: Session, sample_ticker: Ticker, sample_user: User
 ) -> None:
     """Test plan → ordered transition for non-paper trade."""
+    _setup_funds(db_session, sample_user)
     trade = _create_plan_trade(db_session, sample_ticker, sample_user)
     updated = update_trade(db_session, trade.id, status=TradeStatus.ORDERED)
     assert updated.status == TradeStatus.ORDERED
 
 
-def test_transition_plan_to_ordered_blocked_for_paper(
+def test_transition_plan_to_ordered_works_for_auto_detect(
     db_session: Session, sample_ticker: Ticker, sample_user: User
 ) -> None:
-    """Test plan → ordered is blocked for paper trades."""
-    trade = _create_plan_trade(db_session, sample_ticker, sample_user, paper_trade=True)
-    with pytest.raises(TradeUpdateError, match="Paper trades cannot be ordered"):
-        update_trade(db_session, trade.id, status=TradeStatus.ORDERED)
+    """Test plan → ordered works for auto_detect trades."""
+    _setup_funds(db_session, sample_user)
+    trade = _create_plan_trade(db_session, sample_ticker, sample_user, auto_detect=True)
+    updated = update_trade(db_session, trade.id, status=TradeStatus.ORDERED)
+    assert updated.status == TradeStatus.ORDERED
 
 
 def test_transition_ordered_to_open(
     db_session: Session, sample_ticker: Ticker, sample_user: User
 ) -> None:
     """Test ordered → open transition auto-sets date_actual."""
+    _setup_funds(db_session, sample_user)
     trade = _create_plan_trade(db_session, sample_ticker, sample_user)
     update_trade(db_session, trade.id, status=TradeStatus.ORDERED)
     updated = update_trade(db_session, trade.id, status=TradeStatus.OPEN)
@@ -109,6 +119,7 @@ def test_transition_ordered_to_plan(
     db_session: Session, sample_ticker: Ticker, sample_user: User
 ) -> None:
     """Test ordered → plan (cancel order)."""
+    _setup_funds(db_session, sample_user)
     trade = _create_plan_trade(db_session, sample_ticker, sample_user)
     update_trade(db_session, trade.id, status=TradeStatus.ORDERED)
     updated = update_trade(db_session, trade.id, status=TradeStatus.PLAN)
@@ -119,6 +130,7 @@ def test_transition_ordered_to_close_blocked(
     db_session: Session, sample_ticker: Ticker, sample_user: User
 ) -> None:
     """Test ordered → close is blocked."""
+    _setup_funds(db_session, sample_user)
     trade = _create_plan_trade(db_session, sample_ticker, sample_user)
     update_trade(db_session, trade.id, status=TradeStatus.ORDERED)
     with pytest.raises(TradeUpdateError, match="Cannot close a trade that is not open"):
@@ -129,6 +141,7 @@ def test_transition_plan_to_open_still_works(
     db_session: Session, sample_ticker: Ticker, sample_user: User
 ) -> None:
     """Test plan → open shortcut still works."""
+    _setup_funds(db_session, sample_user)
     trade = _create_plan_trade(db_session, sample_ticker, sample_user)
     updated = update_trade(db_session, trade.id, status=TradeStatus.OPEN)
     assert updated.status == TradeStatus.OPEN
@@ -153,6 +166,7 @@ def test_transition_ordered_to_canceled(
     db_session: Session, sample_ticker: Ticker, sample_user: User
 ) -> None:
     """Test ordered → canceled with reason."""
+    _setup_funds(db_session, sample_user)
     trade = _create_plan_trade(db_session, sample_ticker, sample_user)
     update_trade(db_session, trade.id, status=TradeStatus.ORDERED)
     updated = update_trade(
@@ -177,6 +191,7 @@ def test_transition_open_to_canceled_blocked(
     db_session: Session, sample_ticker: Ticker, sample_user: User
 ) -> None:
     """Test open → canceled is blocked."""
+    _setup_funds(db_session, sample_user)
     trade = _create_plan_trade(db_session, sample_ticker, sample_user)
     update_trade(db_session, trade.id, status=TradeStatus.OPEN)
     with pytest.raises(TradeUpdateError, match="Only plan or ordered trades can be canceled"):

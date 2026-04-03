@@ -191,7 +191,7 @@ class Trade(Base):
     exit_type = Column(Enum(ExitType), nullable=True)
     exit_price = Column(Float, nullable=True)
 
-    # Order details (non-paper trades only)
+    # Order details
     order_type = Column(
         Enum(OrderType, values_callable=lambda x: [e.value for e in x]), nullable=True
     )
@@ -201,7 +201,7 @@ class Trade(Base):
     gtd_date = Column(Date, nullable=True)
 
     # Paper trading
-    paper_trade = Column(Boolean, default=False)
+    auto_detect = Column(Boolean, default=False)
 
     # Layered SL/TP support (is_layered is a UI hint: true = multiple levels, false = simple view)
     is_layered = Column(Boolean, default=False)
@@ -345,7 +345,7 @@ class FundEvent(Base):
     amount = Column(Float, nullable=False)  # Always positive; sign derived from event_type
     description = Column(String, nullable=True)
     trade_id = Column(Integer, ForeignKey("trades.id"), nullable=True)
-    paper_trade = Column(Boolean, default=False)
+    auto_detect = Column(Boolean, default=False)
     voided = Column(Boolean, default=False)
     voided_at = Column(DateTime(timezone=True), nullable=True)
     event_date = Column(Date, nullable=False, default=date.today)

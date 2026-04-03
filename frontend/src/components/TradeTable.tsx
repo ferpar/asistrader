@@ -53,17 +53,15 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
   }
 
   const checkFundsAndOpen = async (trade: TradeWithMetrics) => {
-    if (!trade.paperTrade) {
-      const balance = fundStore.balance$.get()
-      const amount = trade.amount.toNumber()
-      if (amount > balance.maxPerTrade.toNumber()) {
-        alert(`Trade amount $${amount.toFixed(2)} exceeds max per trade $${balance.maxPerTrade.toFixed(2)}`)
-        return
-      }
-      if (amount > balance.available.toNumber()) {
-        alert(`Trade amount $${amount.toFixed(2)} exceeds available funds $${balance.available.toFixed(2)}`)
-        return
-      }
+    const balance = fundStore.balance$.get()
+    const amount = trade.amount.toNumber()
+    if (amount > balance.maxPerTrade.toNumber()) {
+      alert(`Trade amount $${amount.toFixed(2)} exceeds max per trade $${balance.maxPerTrade.toFixed(2)}`)
+      return
+    }
+    if (amount > balance.available.toNumber()) {
+      alert(`Trade amount $${amount.toFixed(2)} exceeds available funds $${balance.available.toFixed(2)}`)
+      return
     }
     handleOpenModal(trade, 'open')
   }
@@ -182,7 +180,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
           <th>Profit %</th>
           <th>Ratio</th>
           <th>Strategy</th>
-          <th>Paper</th>
+          <th>Auto</th>
           <th>Mode</th>
           <th>Remaining</th>
           <th>Planned</th>
@@ -248,7 +246,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
             </td>
             <td>{formatRatio(trade.ratio.toNumber())}</td>
             <td>{trade.strategyName ?? '-'}</td>
-            <td>{trade.paperTrade ? 'Yes' : '-'}</td>
+            <td>{trade.autoDetect ? 'Yes' : '-'}</td>
             <td
               className={`${trade.isLayered ? styles.modeLayered : styles.modeSimple}${trade.isLayered ? ' clickable' : ''}`}
               onClick={trade.isLayered ? () => setExpandedTradeId(expandedTradeId === trade.id ? null : trade.id) : undefined}
@@ -272,14 +270,12 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
             <td className={styles.tradeActions}>
               {trade.status === 'plan' && (
                 <>
-                  {!trade.paperTrade && (
-                    <button
+                  <button
                       className={`${styles.btnAction} ${styles.btnOrder}`}
                       onClick={() => checkFundsAndOrder(trade)}
                     >
                       Order
                     </button>
-                  )}
                   <button
                     className={`${styles.btnAction} ${styles.btnOpen}`}
                     onClick={() => checkFundsAndOpen(trade)}

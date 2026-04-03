@@ -48,15 +48,12 @@ export const FundEventTable = observer(function FundEventTable() {
   const store = useFundStore()
   const events = store.events$.get()
   const loading = store.loading$.get()
-  const includePaper = store.includePaper$.get()
-
-  const filteredEvents = includePaper ? events : events.filter(e => !e.paperTrade)
 
   if (loading) {
     return <div className={styles.loading}>Loading events...</div>
   }
 
-  if (filteredEvents.length === 0) {
+  if (events.length === 0) {
     return <div className={styles.empty}>No fund events yet. Start by making a deposit.</div>
   }
 
@@ -75,14 +72,14 @@ export const FundEventTable = observer(function FundEventTable() {
           </tr>
         </thead>
         <tbody>
-          {filteredEvents.map((event) => (
+          {events.map((event) => (
             <tr key={event.id} className={event.voided ? styles.voided : ''}>
               <td>{formatDate(event.eventDate)}</td>
               <td>
                 <span className={styles.typeBadge}>
                   {EVENT_TYPE_LABELS[event.eventType]}
                 </span>
-                {event.paperTrade && <span className={styles.paperBadge}>Paper</span>}
+                {event.autoDetect && <span className={styles.paperBadge}>Auto</span>}
               </td>
               <td className={`${styles.amount} ${getAmountClass(event)}`}>
                 {getSignedAmount(event)}

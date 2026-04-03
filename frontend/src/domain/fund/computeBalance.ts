@@ -3,10 +3,9 @@ import type { FundEvent, BalanceSummary } from './types'
 
 export function computeBalance(
   events: FundEvent[],
-  includePaper: boolean,
   riskPct: Decimal,
 ): BalanceSummary {
-  const active = events.filter(e => !e.voided && (includePaper || !e.paperTrade))
+  const active = events.filter(e => !e.voided)
 
   let equity = Decimal.zero()
   let committed = Decimal.zero()

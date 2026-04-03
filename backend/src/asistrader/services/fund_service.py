@@ -46,7 +46,6 @@ def get_risk_pct(db: Session, user_id: int) -> float:
 def compute_balance(
     db: Session,
     user_id: int,
-    include_paper: bool = False,
 ) -> dict:
     """
     Compute balance summary from events.
@@ -60,8 +59,6 @@ def compute_balance(
         FundEvent.user_id == user_id,
         FundEvent.voided == False,  # noqa: E712
     )
-    if not include_paper:
-        query = query.filter(FundEvent.paper_trade == False)  # noqa: E712
 
     query = query.group_by(FundEvent.event_type)
     results = {row.event_type: row.total or 0.0 for row in query.all()}
@@ -142,7 +139,7 @@ def create_reserve(
     user_id: int,
     trade_id: int,
     amount: float,
-    paper_trade: bool = False,
+    auto_detect: bool = False,
 ) -> FundEvent:
     """Create a reserve event linked to a trade."""
     event = FundEvent(
@@ -150,7 +147,7 @@ def create_reserve(
         event_type=FundEventType.RESERVE,
         amount=amount,
         trade_id=trade_id,
-        paper_trade=paper_trade,
+        auto_detect=auto_detect,
         description=f"Reserve for trade #{trade_id}",
         event_date=date.today(),
     )
@@ -186,7 +183,7 @@ def create_benefit(
     user_id: int,
     amount: float,
     trade_id: int | None = None,
-    paper_trade: bool = False,
+    auto_detect: bool = False,
     description: str | None = None,
     event_date: date | None = None,
 ) -> FundEvent:
@@ -196,7 +193,7 @@ def create_benefit(
         event_type=FundEventType.BENEFIT,
         amount=amount,
         trade_id=trade_id,
-        paper_trade=paper_trade,
+        auto_detect=auto_detect,
         description=description or (f"Profit from trade #{trade_id}" if trade_id else None),
         event_date=event_date or date.today(),
     )
@@ -211,7 +208,7 @@ def create_loss(
     user_id: int,
     amount: float,
     trade_id: int | None = None,
-    paper_trade: bool = False,
+    auto_detect: bool = False,
     description: str | None = None,
     event_date: date | None = None,
 ) -> FundEvent:
@@ -221,7 +218,7 @@ def create_loss(
         event_type=FundEventType.LOSS,
         amount=amount,
         trade_id=trade_id,
-        paper_trade=paper_trade,
+        auto_detect=auto_detect,
         description=description or (f"Loss from trade #{trade_id}" if trade_id else None),
         event_date=event_date or date.today(),
     )
@@ -270,7 +267,6 @@ def check_trade_allowed(
     db: Session,
     user_id: int,
     trade_amount: float,
-    include_paper: bool = False,
 ) -> None:
     """
     Check if a trade is allowed given risk limits and available funds.
@@ -279,7 +275,7 @@ def check_trade_allowed(
     - trade_amount > max_per_trade (equity * risk_pct)
     - trade_amount > available (equity - committed)
     """
-    balance = compute_balance(db, user_id, include_paper=include_paper)
+    balance = compute_balance(db, user_id)
 
     if balance["equity"] <= 0:
         raise FundError("No funds available. Please deposit funds first.")
@@ -347,7 +343,7 @@ def rebuild_events_from_trades(db: Session, user_id: int) -> dict:
             event_type=FundEventType.RESERVE,
             amount=trade.amount,
             trade_id=trade.id,
-            paper_trade=trade.paper_trade,
+            auto_detect=trade.auto_detect,
             description=f"Reserve for trade #{trade.id} (rebuilt)",
             event_date=trade.date_actual or trade.date_planned,
         )
@@ -367,7 +363,7 @@ def rebuild_events_from_trades(db: Session, user_id: int) -> dict:
                     event_type=FundEventType.BENEFIT if pnl >= 0 else FundEventType.LOSS,
                     amount=abs(pnl),
                     trade_id=trade.id,
-                    paper_trade=trade.paper_trade,
+                    auto_detect=trade.auto_detect,
                     description=f"{'Profit' if pnl >= 0 else 'Loss'} from trade #{trade.id} (rebuilt)",
                     event_date=trade.exit_date or trade.date_planned,
                 )
@@ -397,10 +393,10 @@ def handle_trade_close(db: Session, trade) -> None:
     if pnl >= 0:
         create_benefit(
             db, trade.user_id, abs(pnl),
-            trade_id=trade.id, paper_trade=trade.paper_trade,
+            trade_id=trade.id, auto_detect=trade.auto_detect,
         )
     else:
         create_loss(
             db, trade.user_id, abs(pnl),
-            trade_id=trade.id, paper_trade=trade.paper_trade,
+            trade_id=trade.id, auto_detect=trade.auto_detect,
         )

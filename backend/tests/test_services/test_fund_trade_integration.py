@@ -15,7 +15,7 @@ from asistrader.services.fund_service import (
 from asistrader.services.trade_service import TradeUpdateError, create_trade, update_trade
 
 
-def _create_plan_trade(db_session, ticker, user, paper_trade=False):
+def _create_plan_trade(db_session, ticker, user, auto_detect=False):
     """Helper: create a plan-phase trade (no fund events)."""
     return create_trade(
         db_session,
@@ -26,7 +26,7 @@ def _create_plan_trade(db_session, ticker, user, paper_trade=False):
         stop_loss=95.0,
         take_profit=115.0,
         user_id=user.id,
-        paper_trade=paper_trade,
+        auto_detect=auto_detect,
     )
 
 
@@ -115,12 +115,13 @@ def test_direct_open_non_paper_creates_reserve(
     assert reserves[0].voided is False
 
 
-def test_direct_open_paper_trade_no_reserve(
+def test_direct_open_auto_detect_creates_reserve(
     db_session: Session, sample_ticker: Ticker, sample_user: User
 ) -> None:
-    """Directly opening a paper trade should NOT create a reserve."""
+    """Directly opening an auto_detect trade DOES create a reserve (same as non-auto_detect)."""
     create_deposit(db_session, sample_user.id, 10000.0)
-    trade = _create_plan_trade(db_session, sample_ticker, sample_user, paper_trade=True)
+    update_risk_pct(db_session, sample_user.id, 0.5)
+    trade = _create_plan_trade(db_session, sample_ticker, sample_user, auto_detect=True)
 
     update_trade(db_session, trade.id, status=TradeStatus.OPEN)
 
@@ -129,7 +130,7 @@ def test_direct_open_paper_trade_no_reserve(
         .filter(FundEvent.trade_id == trade.id, FundEvent.event_type == FundEventType.RESERVE)
         .all()
     )
-    assert len(reserves) == 0
+    assert len(reserves) == 1
 
 
 def test_cancel_ordered_trade_voids_reserve(
@@ -222,3 +223,48 @@ def test_close_trade_with_loss(
 
     balance = compute_balance(db_session, sample_user.id)
     assert balance["equity"] == 9950.0
+
+
+# --- Backend fund enforcement tests ---
+
+
+def test_ordering_without_funds_blocked_by_backend(
+    db_session: Session, sample_ticker: Ticker, sample_user: User
+) -> None:
+    """Ordering a trade with no funds should be blocked by backend."""
+    trade = _create_plan_trade(db_session, sample_ticker, sample_user)
+
+    with pytest.raises(FundError, match="No funds available"):
+        update_trade(db_session, trade.id, status=TradeStatus.ORDERED)
+
+    # Trade should still be in plan status (check wasn't committed)
+    db_session.refresh(trade)
+    assert trade.status == TradeStatus.PLAN
+
+
+def test_ordering_exceeds_risk_blocked_by_backend(
+    db_session: Session, sample_ticker: Ticker, sample_user: User
+) -> None:
+    """Ordering a trade exceeding risk limit should be blocked by backend."""
+    create_deposit(db_session, sample_user.id, 10000.0)
+    # Default risk_pct=0.02, max_per_trade=200, trade amount=1000
+    trade = _create_plan_trade(db_session, sample_ticker, sample_user)
+
+    with pytest.raises(FundError, match="exceeds max per trade"):
+        update_trade(db_session, trade.id, status=TradeStatus.ORDERED)
+
+    db_session.refresh(trade)
+    assert trade.status == TradeStatus.PLAN
+
+
+def test_direct_open_without_funds_blocked_by_backend(
+    db_session: Session, sample_ticker: Ticker, sample_user: User
+) -> None:
+    """Directly opening a non-paper trade with no funds should be blocked."""
+    trade = _create_plan_trade(db_session, sample_ticker, sample_user)
+
+    with pytest.raises(FundError, match="No funds available"):
+        update_trade(db_session, trade.id, status=TradeStatus.OPEN)
+
+    db_session.refresh(trade)
+    assert trade.status == TradeStatus.PLAN

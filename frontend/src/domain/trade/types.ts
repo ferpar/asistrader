@@ -33,7 +33,7 @@ export interface Trade {
   orderType: OrderType | null
   timeInEffect: TimeInEffect | null
   gtdDate: Date | null
-  paperTrade: boolean
+  autoDetect: boolean
   isLayered: boolean
   exitLevels: ExitLevel[]
   strategyId: number | null
@@ -72,7 +72,7 @@ export interface EntryAlert {
   hitType: EntryHitType
   hitDate: string
   entryPrice: Decimal
-  paperTrade: boolean
+  autoDetect: boolean
   autoOpened: boolean
   message: string
 }
@@ -83,7 +83,7 @@ export interface SLTPAlert {
   hitType: SLTPHitType
   hitDate: string
   hitPrice: Decimal
-  paperTrade: boolean
+  autoDetect: boolean
   autoClosed: boolean
   message: string
 }
@@ -97,7 +97,7 @@ export interface LayeredAlert {
   hitPrice: Decimal
   unitsClosed: number
   remainingUnits: number
-  paperTrade: boolean
+  autoDetect: boolean
   autoProcessed: boolean
   message: string
 }

@@ -10,7 +10,7 @@ export interface FundEvent {
   amount: Decimal
   description: string | null
   tradeId: number | null
-  paperTrade: boolean
+  autoDetect: boolean
   voided: boolean
   eventDate: Date
   createdAt: Date

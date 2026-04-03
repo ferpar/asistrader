@@ -165,8 +165,8 @@ describe('TradeStore', () => {
   describe('detectTradeHits', () => {
     it('sets alerts and reloads on auto-actions', async () => {
       const detectionResult: DetectionResponse = {
-        entryAlerts: [{ tradeId: 1, ticker: 'AAPL', hitType: 'entry' as const, hitDate: '2025-01-15', entryPrice: Decimal.from(150), paperTrade: true, autoOpened: true, message: 'auto opened' }],
-        sltpAlerts: [{ tradeId: 2, ticker: 'MSFT', hitType: 'sl' as const, hitDate: '2025-01-15', hitPrice: Decimal.from(140), paperTrade: true, autoClosed: true, message: 'auto closed' }],
+        entryAlerts: [{ tradeId: 1, ticker: 'AAPL', hitType: 'entry' as const, hitDate: '2025-01-15', entryPrice: Decimal.from(150), autoDetect: true, autoOpened: true, message: 'auto opened' }],
+        sltpAlerts: [{ tradeId: 2, ticker: 'MSFT', hitType: 'sl' as const, hitDate: '2025-01-15', hitPrice: Decimal.from(140), autoDetect: true, autoClosed: true, message: 'auto closed' }],
         layeredAlerts: [],
         result: {
           autoOpenedCount: 1,
@@ -223,8 +223,8 @@ describe('TradeStore', () => {
     it('dismisses entry alert by trade id', async () => {
       const store = createStore()
       store.entryAlerts$.set([
-        { tradeId: 1, ticker: 'AAPL', hitType: 'entry', hitDate: '2025-01-15', entryPrice: Decimal.from(150), paperTrade: false, autoOpened: false, message: 'hit' },
-        { tradeId: 2, ticker: 'MSFT', hitType: 'entry', hitDate: '2025-01-15', entryPrice: Decimal.from(300), paperTrade: false, autoOpened: false, message: 'hit' },
+        { tradeId: 1, ticker: 'AAPL', hitType: 'entry', hitDate: '2025-01-15', entryPrice: Decimal.from(150), autoDetect: false, autoOpened: false, message: 'hit' },
+        { tradeId: 2, ticker: 'MSFT', hitType: 'entry', hitDate: '2025-01-15', entryPrice: Decimal.from(300), autoDetect: false, autoOpened: false, message: 'hit' },
       ])
 
       store.dismissEntryAlert(1)
@@ -236,7 +236,7 @@ describe('TradeStore', () => {
     it('dismisses sltp alert by trade id', async () => {
       const store = createStore()
       store.sltpAlerts$.set([
-        { tradeId: 1, ticker: 'AAPL', hitType: 'sl', hitDate: '2025-01-15', hitPrice: Decimal.from(140), paperTrade: false, autoClosed: false, message: 'hit' },
+        { tradeId: 1, ticker: 'AAPL', hitType: 'sl', hitDate: '2025-01-15', hitPrice: Decimal.from(140), autoDetect: false, autoClosed: false, message: 'hit' },
       ])
 
       store.dismissSltpAlert(1)
@@ -247,10 +247,10 @@ describe('TradeStore', () => {
     it('dismisses all alerts', async () => {
       const store = createStore()
       store.entryAlerts$.set([
-        { tradeId: 1, ticker: 'AAPL', hitType: 'entry', hitDate: '2025-01-15', entryPrice: Decimal.from(150), paperTrade: false, autoOpened: false, message: 'hit' },
+        { tradeId: 1, ticker: 'AAPL', hitType: 'entry', hitDate: '2025-01-15', entryPrice: Decimal.from(150), autoDetect: false, autoOpened: false, message: 'hit' },
       ])
       store.sltpAlerts$.set([
-        { tradeId: 2, ticker: 'MSFT', hitType: 'sl', hitDate: '2025-01-15', hitPrice: Decimal.from(140), paperTrade: false, autoClosed: false, message: 'hit' },
+        { tradeId: 2, ticker: 'MSFT', hitType: 'sl', hitDate: '2025-01-15', hitPrice: Decimal.from(140), autoDetect: false, autoClosed: false, message: 'hit' },
       ])
       store.lastDetectionResult$.set({ autoOpenedCount: 1, autoClosedCount: 0, partialCloseCount: 0, conflictCount: 0 })
 

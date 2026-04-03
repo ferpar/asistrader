@@ -10,7 +10,7 @@ export function mapFundEvent(dto: FundEventDTO): FundEvent {
     amount: Decimal.from(dto.amount),
     description: dto.description,
     tradeId: dto.trade_id,
-    paperTrade: dto.paper_trade,
+    autoDetect: dto.auto_detect,
     voided: dto.voided,
     eventDate: new Date(dto.event_date),
     createdAt: new Date(dto.created_at),

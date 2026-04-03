@@ -74,7 +74,7 @@ describe('mapTrade', () => {
     order_type: null,
     time_in_effect: null,
     gtd_date: null,
-    paper_trade: false,
+    auto_detect: false,
     is_layered: false,
     remaining_units: null,
     exit_levels: [],
@@ -101,7 +101,7 @@ describe('mapTrade', () => {
     expect(result.entryPrice.toNumber()).toBe(150)
     expect(result.stopLoss.toNumber()).toBe(140)
     expect(result.takeProfit.toNumber()).toBe(170)
-    expect(result.paperTrade).toBe(false)
+    expect(result.autoDetect).toBe(false)
     expect(result.isLayered).toBe(false)
     expect(result.strategyId).toBe(1)
     expect(result.strategyName).toBe('Swing')
@@ -190,7 +190,7 @@ describe('mapEntryAlert', () => {
       hit_type: 'entry',
       hit_date: '2025-01-15',
       entry_price: 150,
-      paper_trade: true,
+      auto_detect: true,
       auto_opened: true,
       message: 'auto opened',
     }
@@ -203,7 +203,7 @@ describe('mapEntryAlert', () => {
     expect(result.hitDate).toBe('2025-01-15')
     expect(result.entryPrice).toBeInstanceOf(Decimal)
     expect(result.entryPrice.toNumber()).toBe(150)
-    expect(result.paperTrade).toBe(true)
+    expect(result.autoDetect).toBe(true)
     expect(result.autoOpened).toBe(true)
     expect(result.message).toBe('auto opened')
   })
@@ -217,7 +217,7 @@ describe('mapSLTPAlert', () => {
       hit_type: 'sl',
       hit_date: '2025-01-15',
       hit_price: 140,
-      paper_trade: true,
+      auto_detect: true,
       auto_closed: true,
       message: 'auto closed',
     }
@@ -242,7 +242,7 @@ describe('mapLayeredAlert', () => {
       hit_price: 180,
       units_closed: 5,
       remaining_units: 10,
-      paper_trade: false,
+      auto_detect: false,
       auto_processed: true,
       message: 'TP1 hit',
     }
@@ -268,7 +268,7 @@ describe('mapDetectionResponse', () => {
         hit_type: 'entry',
         hit_date: '2025-01-15',
         entry_price: 150,
-        paper_trade: true,
+        auto_detect: true,
         auto_opened: true,
         message: 'opened',
       }],
@@ -278,7 +278,7 @@ describe('mapDetectionResponse', () => {
         hit_type: 'sl',
         hit_date: '2025-01-15',
         hit_price: 140,
-        paper_trade: true,
+        auto_detect: true,
         auto_closed: true,
         message: 'closed',
       }],

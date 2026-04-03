@@ -36,7 +36,7 @@ export function TradeCreationForm() {
     units: '',
     date_planned: new Date().toISOString().split('T')[0],
     strategy_id: '',
-    paper_trade: false,
+    auto_detect: false,
     order_type: '' as OrderType | '',
     time_in_effect: '' as TimeInEffect | '',
     gtd_date: '',
@@ -219,11 +219,11 @@ export function TradeCreationForm() {
         units: parseInt(formData.units),
         date_planned: formData.date_planned,
         strategy_id: formData.strategy_id ? parseInt(formData.strategy_id) : null,
-        paper_trade: formData.paper_trade,
+        auto_detect: formData.auto_detect,
         exit_levels: exitLevelsToSend,
-        order_type: !formData.paper_trade && formData.order_type ? formData.order_type as OrderType : null,
-        time_in_effect: !formData.paper_trade && formData.time_in_effect ? formData.time_in_effect as TimeInEffect : null,
-        gtd_date: !formData.paper_trade && formData.time_in_effect === 'gtd' && formData.gtd_date ? formData.gtd_date : null,
+        order_type: formData.order_type ? formData.order_type as OrderType : null,
+        time_in_effect: formData.time_in_effect ? formData.time_in_effect as TimeInEffect : null,
+        gtd_date: formData.time_in_effect === 'gtd' && formData.gtd_date ? formData.gtd_date : null,
       }
       await store.createTrade(request)
       setFormData({
@@ -234,7 +234,7 @@ export function TradeCreationForm() {
         units: '',
         date_planned: new Date().toISOString().split('T')[0],
         strategy_id: '',
-        paper_trade: false,
+        auto_detect: false,
         order_type: '',
         time_in_effect: '',
         gtd_date: '',
@@ -327,14 +327,14 @@ export function TradeCreationForm() {
         </div>
 
         <div className={`${formStyles.formGroup} ${formStyles.formGroupCheckbox}`}>
-          <label htmlFor="paper_trade">
+          <label htmlFor="auto_detect">
             <input
               type="checkbox"
-              id="paper_trade"
-              checked={formData.paper_trade}
-              onChange={(e) => setFormData(prev => ({ ...prev, paper_trade: e.target.checked }))}
+              id="auto_detect"
+              checked={formData.auto_detect}
+              onChange={(e) => setFormData(prev => ({ ...prev, auto_detect: e.target.checked }))}
             />
-            Paper Trade
+            Auto-Detect
           </label>
           <span className={formStyles.formHint}>Auto-close on SL/TP hit</span>
         </div>
@@ -353,8 +353,7 @@ export function TradeCreationForm() {
         </div>
       </div>
 
-      {!formData.paper_trade && (
-        <div className={formStyles.formRow}>
+      <div className={formStyles.formRow}>
           <div className={formStyles.formGroup}>
             <label htmlFor="order_type">Order Type</label>
             <select
@@ -399,7 +398,6 @@ export function TradeCreationForm() {
             </div>
           )}
         </div>
-      )}
 
       <div className={formStyles.formRow}>
         <div className={formStyles.formGroup}>

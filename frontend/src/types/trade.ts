@@ -47,7 +47,7 @@ export interface Trade {
   order_type: OrderType | null
   time_in_effect: TimeInEffect | null
   gtd_date: string | null
-  paper_trade: boolean
+  auto_detect: boolean
   // Layered SL/TP
   is_layered: boolean
   remaining_units: number | null
@@ -78,7 +78,7 @@ export interface TradeCreateRequest {
   units: number
   date_planned: string
   strategy_id?: number | null
-  paper_trade?: boolean
+  auto_detect?: boolean
   exit_levels?: ExitLevelCreateRequest[] | null
   order_type?: OrderType | null
   time_in_effect?: TimeInEffect | null
@@ -152,7 +152,7 @@ export interface SLTPAlert {
   hit_type: SLTPHitType
   hit_date: string
   hit_price: number
-  paper_trade: boolean
+  auto_detect: boolean
   auto_closed: boolean
   message: string
 }
@@ -163,7 +163,7 @@ export interface EntryAlert {
   hit_type: EntryHitType
   hit_date: string
   entry_price: number
-  paper_trade: boolean
+  auto_detect: boolean
   auto_opened: boolean
   message: string
 }
@@ -177,7 +177,7 @@ export interface LayeredAlert {
   hit_price: number
   units_closed: number
   remaining_units: number
-  paper_trade: boolean
+  auto_detect: boolean
   auto_processed: boolean
   message: string
 }

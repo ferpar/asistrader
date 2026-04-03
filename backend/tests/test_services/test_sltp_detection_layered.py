@@ -208,19 +208,19 @@ class TestBackwardsCompatibility:
         # Whether hit is None or not depends on market data, but the function should work
 
     def test_simple_trade_auto_closes_fully(
-        self, db_session: Session, sample_paper_trade: Trade, market_data_tp_hit_simple: list[MarketData]
+        self, db_session: Session, sample_auto_detect: Trade, market_data_tp_hit_simple: list[MarketData]
     ):
         """Simple trade closes 100% when SL/TP hit."""
         from asistrader.services.sltp_detection_service import process_open_trades
 
         sltp_alerts, layered_alerts, auto_closed, partial_close_count, conflicts = process_open_trades(
-            db_session, sample_paper_trade.user_id
+            db_session, sample_auto_detect.user_id
         )
 
         # Find the trade
-        db_session.refresh(sample_paper_trade)
+        db_session.refresh(sample_auto_detect)
         if auto_closed > 0:
-            assert sample_paper_trade.status == TradeStatus.CLOSE
+            assert sample_auto_detect.status == TradeStatus.CLOSE
 
     def test_layered_trade_uses_new_logic(
         self, db_session: Session, sample_layered_long_trade: Trade, market_data_tp1_hit: list[MarketData]

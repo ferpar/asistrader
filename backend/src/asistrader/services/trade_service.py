@@ -33,7 +33,7 @@ def create_trade(
     take_profit: float | None = None,
     strategy_id: int | None = None,
     user_id: int | None = None,
-    paper_trade: bool = False,
+    auto_detect: bool = False,
     exit_levels: list[dict] | None = None,
 ) -> Trade:
     """
@@ -52,7 +52,7 @@ def create_trade(
         take_profit: Take profit price (required if no exit_levels)
         strategy_id: Optional strategy ID
         user_id: Optional user ID
-        paper_trade: Whether this is a paper trade
+        auto_detect: Whether to auto-detect entry/exit hits from market data
         exit_levels: Optional list of exit level dicts for layered trades
 
     Raises:
@@ -85,7 +85,7 @@ def create_trade(
         strategy_id=strategy_id,
         user_id=user_id,
         status=TradeStatus.PLAN,
-        paper_trade=paper_trade,
+        auto_detect=auto_detect,
         is_layered=is_layered,
         remaining_units=units,
     )
@@ -111,7 +111,7 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
     Update a trade with the given updates.
 
     Handles status transitions:
-    - plan → ordered: only for non-paper trades
+    - plan → ordered
     - plan → open: sets date_actual if not provided
     - plan → canceled: requires cancel_reason
     - ordered → open: sets date_actual if not provided
@@ -144,9 +144,8 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
                 raise TradeUpdateError("cancel_reason is required when canceling a trade")
 
         elif current_status == TradeStatus.PLAN and new_status == TradeStatus.ORDERED:
-            # plan → ordered: only for non-paper trades
-            if trade.paper_trade:
-                raise TradeUpdateError("Paper trades cannot be ordered. Open them directly.")
+            # plan → ordered
+            pass
 
         elif current_status == TradeStatus.PLAN and new_status == TradeStatus.OPEN:
             # plan → open: auto-set date_actual if not provided
@@ -198,6 +197,15 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
     updates.pop("stop_loss", None)
     updates.pop("take_profit", None)
 
+    # Fund pre-check: verify funds BEFORE committing status change
+    if new_status and trade.user_id is not None:
+        from asistrader.services.fund_service import check_trade_allowed
+
+        if new_status == TradeStatus.ORDERED and current_status == TradeStatus.PLAN:
+            check_trade_allowed(db, trade.user_id, trade.amount)
+        elif new_status == TradeStatus.OPEN and current_status == TradeStatus.PLAN:
+            check_trade_allowed(db, trade.user_id, trade.amount)
+
     # Apply updates
     for key, value in updates.items():
         if value is not None and hasattr(trade, key):
@@ -210,14 +218,14 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
     db.commit()
     db.refresh(trade)
 
-    # Fund integration: handle status transitions
+    # Fund post-commit: create/void reserves and handle close
     if new_status and trade.user_id is not None:
         from asistrader.services.fund_service import create_reserve, handle_trade_close, void_reserve_for_trade
 
         if new_status == TradeStatus.ORDERED and current_status == TradeStatus.PLAN:
-            create_reserve(db, trade.user_id, trade_id, trade.amount, paper_trade=False)
-        elif new_status == TradeStatus.OPEN and current_status == TradeStatus.PLAN and not trade.paper_trade:
-            create_reserve(db, trade.user_id, trade_id, trade.amount, paper_trade=False)
+            create_reserve(db, trade.user_id, trade_id, trade.amount, auto_detect=trade.auto_detect)
+        elif new_status == TradeStatus.OPEN and current_status == TradeStatus.PLAN:
+            create_reserve(db, trade.user_id, trade_id, trade.amount, auto_detect=trade.auto_detect)
         elif new_status == TradeStatus.PLAN and current_status == TradeStatus.ORDERED:
             void_reserve_for_trade(db, trade.user_id, trade_id)
         elif new_status == TradeStatus.CANCELED:

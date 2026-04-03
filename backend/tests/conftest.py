@@ -532,7 +532,7 @@ def sample_layered_trade_with_be(
 
 
 @pytest.fixture
-def sample_paper_trade(
+def sample_auto_detect(
     db_session: Session, sample_ticker: Ticker, sample_strategy: Strategy, sample_user: User
 ) -> Trade:
     """Create a simple paper trade (not layered)."""
@@ -546,7 +546,7 @@ def sample_paper_trade(
         date_actual=date(2025, 1, 16),
         strategy_id=sample_strategy.id,
         user_id=sample_user.id,
-        paper_trade=True,
+        auto_detect=True,
         is_layered=False,
         remaining_units=100,
     )

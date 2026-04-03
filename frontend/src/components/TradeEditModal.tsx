@@ -151,7 +151,7 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
           units: parseInt(formData.units),
           strategy_id: formData.strategy_id ? parseInt(formData.strategy_id) : null,
           exit_levels: exitLevelsToSend,
-          ...(!trade.paperTrade && canEditLayeredMode ? {
+          ...(canEditLayeredMode ? {
             order_type: formData.order_type ? formData.order_type as OrderType : null,
             time_in_effect: formData.time_in_effect ? formData.time_in_effect as TimeInEffect : null,
             gtd_date: formData.time_in_effect === 'gtd' && formData.gtd_date ? formData.gtd_date : null,
@@ -398,7 +398,7 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
                 </select>
               </div>
 
-              {!trade.paperTrade && canEditLayeredMode && (
+              {canEditLayeredMode && (
                 <>
                   <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
                     <label htmlFor="order_type">Order Type</label>

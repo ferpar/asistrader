@@ -20,7 +20,7 @@ export function buildTrade(overrides?: Partial<TradeWithMetrics>): TradeWithMetr
     orderType: null,
     timeInEffect: null,
     gtdDate: null,
-    paperTrade: false,
+    autoDetect: false,
     isLayered: false,
     remainingUnits: null,
     exitLevels: [],

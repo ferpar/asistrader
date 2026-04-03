@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
 from asistrader.models.db import Trade, User
+from asistrader.services.fund_service import FundError
 from asistrader.models.schemas import (
     MarkLevelHitRequest,
     TradeCreateRequest,
@@ -63,7 +64,7 @@ def _trade_to_schema(t: Trade) -> TradeSchema:
         exit_date=t.exit_date,
         exit_type=t.exit_type,
         exit_price=t.exit_price,
-        paper_trade=t.paper_trade or False,
+        auto_detect=t.auto_detect or False,
         is_layered=t.is_layered or False,
         remaining_units=t.remaining_units,
         exit_levels=exit_level_schemas,
@@ -137,7 +138,7 @@ def create_new_trade(
             take_profit=request.take_profit,
             strategy_id=request.strategy_id,
             user_id=current_user.id,
-            paper_trade=request.paper_trade,
+            auto_detect=request.auto_detect,
             exit_levels=exit_levels_data,
         )
     except (ExitLevelValidationError, ValueError) as e:
@@ -164,7 +165,7 @@ def update_existing_trade(
 
     try:
         trade = update_trade(db, trade_id, **updates)
-    except TradeUpdateError as e:
+    except (TradeUpdateError, FundError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     return TradeResponse(trade=_trade_to_schema(trade), message="Trade updated successfully")
@@ -177,8 +178,8 @@ def detect_trade_hits(
 ) -> TradeDetectionResponse:
     """Detect entry and SL/TP hits for all trades.
 
-    For PLAN trades: detects entry price hits and auto-opens paper trades.
-    For OPEN trades: detects SL/TP hits and auto-closes paper trades.
+    For ORDERED trades: detects entry price hits and auto-opens auto-detect trades.
+    For OPEN trades: detects SL/TP hits and auto-closes auto-detect trades.
     For layered trades: processes partial closes when individual levels are hit.
     """
     result = sltp_detection_service.process_all_trades(db, user_id=current_user.id)

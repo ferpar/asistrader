@@ -82,25 +82,21 @@ def test_voided_events_excluded(db_session: Session, sample_user: User) -> None:
     assert balance["equity"] == 0.0
 
 
-def test_paper_trade_excluded_by_default(db_session: Session, sample_user: User) -> None:
-    """Test that paper trade events are excluded from balance by default."""
+def test_auto_detect_events_included_in_balance(db_session: Session, sample_user: User) -> None:
+    """Test that auto_detect events are included in the balance like any other event."""
     create_deposit(db_session, sample_user.id, 10000.0)
-    # Paper trade reserve
     event = FundEvent(
         user_id=sample_user.id,
         event_type=FundEventType.RESERVE,
         amount=500.0,
-        paper_trade=True,
+        auto_detect=True,
         trade_id=1,
     )
     db_session.add(event)
     db_session.commit()
 
-    balance = compute_balance(db_session, sample_user.id, include_paper=False)
-    assert balance["committed"] == 0.0  # Paper reserve excluded
-
-    balance_with_paper = compute_balance(db_session, sample_user.id, include_paper=True)
-    assert balance_with_paper["committed"] == 500.0  # Paper reserve included
+    balance = compute_balance(db_session, sample_user.id)
+    assert balance["committed"] == 500.0
 
 
 def test_check_trade_allowed_passes(db_session: Session, sample_user: User) -> None:

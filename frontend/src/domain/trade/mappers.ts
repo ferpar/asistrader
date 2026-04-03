@@ -53,7 +53,7 @@ export function mapTrade(dto: TradeDTO): TradeWithMetrics {
     orderType: dto.order_type,
     timeInEffect: dto.time_in_effect,
     gtdDate: dto.gtd_date ? new Date(dto.gtd_date) : null,
-    paperTrade: dto.paper_trade,
+    autoDetect: dto.auto_detect,
     isLayered: dto.is_layered,
     exitLevels: dto.exit_levels.map(mapExitLevel),
     strategyId: dto.strategy_id,
@@ -82,7 +82,7 @@ export function mapEntryAlert(dto: EntryAlertDTO): EntryAlert {
     hitType: dto.hit_type,
     hitDate: dto.hit_date,
     entryPrice: Decimal.from(dto.entry_price),
-    paperTrade: dto.paper_trade,
+    autoDetect: dto.auto_detect,
     autoOpened: dto.auto_opened,
     message: dto.message,
   }
@@ -95,7 +95,7 @@ export function mapSLTPAlert(dto: SLTPAlertDTO): SLTPAlert {
     hitType: dto.hit_type,
     hitDate: dto.hit_date,
     hitPrice: Decimal.from(dto.hit_price),
-    paperTrade: dto.paper_trade,
+    autoDetect: dto.auto_detect,
     autoClosed: dto.auto_closed,
     message: dto.message,
   }
@@ -111,7 +111,7 @@ export function mapLayeredAlert(dto: LayeredAlertDTO): LayeredAlert {
     hitPrice: Decimal.from(dto.hit_price),
     unitsClosed: dto.units_closed,
     remainingUnits: dto.remaining_units,
-    paperTrade: dto.paper_trade,
+    autoDetect: dto.auto_detect,
     autoProcessed: dto.auto_processed,
     message: dto.message,
   }

@@ -7,7 +7,7 @@ export interface FundEventDTO {
   amount: number
   description: string | null
   trade_id: number | null
-  paper_trade: boolean
+  auto_detect: boolean
   voided: boolean
   event_date: string
   created_at: string
