@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { observer } from '@legendapp/state/react'
 import { useFundStore } from '../container/ContainerContext'
 import { BalanceCard } from '../components/fund/BalanceCard'
@@ -10,11 +9,6 @@ import { FundEventTable } from '../components/fund/FundEventTable'
 export const FundDashboard = observer(function FundDashboard() {
   const store = useFundStore()
   const error = store.error$.get()
-
-  useEffect(() => {
-    store.loadEvents()
-    store.loadRiskPct()
-  }, [store])
 
   return (
     <section>

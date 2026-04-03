@@ -305,7 +305,8 @@ def rebuild_events_from_trades(db: Session, user_id: int) -> dict:
 
     For each trade that has no fund events, creates the appropriate events
     based on the trade's current status:
-    - PLAN/ORDERED/OPEN → reserve (non-voided)
+    - PLAN → no events (funds not yet committed)
+    - ORDERED/OPEN → reserve (non-voided)
     - CLOSE → voided reserve + benefit or loss
     - CANCELED → voided reserve
 
@@ -335,7 +336,12 @@ def rebuild_events_from_trades(db: Session, user_id: int) -> dict:
             skipped += 1
             continue
 
-        # Create reserve event for all trades
+        # PLAN trades have no fund events (funds not yet committed)
+        if trade.status == TradeStatus.PLAN:
+            skipped += 1
+            continue
+
+        # Create reserve event for ordered/open/close/canceled trades
         reserve = FundEvent(
             user_id=user_id,
             event_type=FundEventType.RESERVE,
@@ -343,7 +349,7 @@ def rebuild_events_from_trades(db: Session, user_id: int) -> dict:
             trade_id=trade.id,
             paper_trade=trade.paper_trade,
             description=f"Reserve for trade #{trade.id} (rebuilt)",
-            event_date=trade.date_planned,
+            event_date=trade.date_actual or trade.date_planned,
         )
         db.add(reserve)
         created += 1

@@ -76,12 +76,6 @@ def create_trade(
 
     amount = entry_price * units
 
-    # Fund integration: check risk limit before creating trade
-    if user_id is not None:
-        from asistrader.services.fund_service import check_trade_allowed
-
-        check_trade_allowed(db, user_id, amount, include_paper=paper_trade)
-
     trade = Trade(
         ticker=ticker,
         entry_price=entry_price,
@@ -102,12 +96,6 @@ def create_trade(
     # Always create exit levels
     create_exit_levels(db, trade.id, exit_levels)
     db.refresh(trade)
-
-    # Fund integration: create reserve event
-    if user_id is not None:
-        from asistrader.services.fund_service import create_reserve
-
-        create_reserve(db, user_id, trade.id, amount, paper_trade=paper_trade)
 
     return trade
 
@@ -224,9 +212,15 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
 
     # Fund integration: handle status transitions
     if new_status and trade.user_id is not None:
-        from asistrader.services.fund_service import handle_trade_close, void_reserve_for_trade
+        from asistrader.services.fund_service import create_reserve, handle_trade_close, void_reserve_for_trade
 
-        if new_status == TradeStatus.CANCELED:
+        if new_status == TradeStatus.ORDERED and current_status == TradeStatus.PLAN:
+            create_reserve(db, trade.user_id, trade_id, trade.amount, paper_trade=False)
+        elif new_status == TradeStatus.OPEN and current_status == TradeStatus.PLAN and not trade.paper_trade:
+            create_reserve(db, trade.user_id, trade_id, trade.amount, paper_trade=False)
+        elif new_status == TradeStatus.PLAN and current_status == TradeStatus.ORDERED:
+            void_reserve_for_trade(db, trade.user_id, trade_id)
+        elif new_status == TradeStatus.CANCELED:
             void_reserve_for_trade(db, trade.user_id, trade_id)
         elif new_status == TradeStatus.CLOSE:
             handle_trade_close(db, trade)

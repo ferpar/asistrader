@@ -1,33 +1,13 @@
-DONE - New status for trades: canceled alongside a cancel_reason that can be any of "INPUT_ERROR", "MARKET_CONDITIONS", "TICKER_FUNDAMENTALS" or "OTHER"
-
-DONE - when creating a trade:
-	allow to input whether it is a limit, stop or market order.
-	allow to input the time in effect of the order
-
-DONE - when opening a trade, 
-	ability to edit the open price from the open trade menu.
-	prevent selecting an open trade date into the future (validation)
-		
-allow to specify whether an order is executed within market hours both on open and close (is it after market?)
-
-DONE - Funds management Feature
-	- based on event sourcing
-	EVENTS:
-		- add funds
-		- retire funds
-		- benefit
-		- loss
-
-get schedules for most markets
-	check if we can get the market out of yfinance info for a ticker
-	allow to see the market a given ticker is on and its schedule
-
-consolidate SL dist and TP dist in a single column Current Position (CP)
 
 overbooking for funds management, detect when there are no funds available to make an order
 
+find a way to automatically update the tickers data
+
 radar screen with 
  - indicators for each ticker
+	- mean band positions
+	- 50 and 5 day average change both % and value  
+	- 
  - macro indicators
 
 strategies / techniques
@@ -60,3 +40,31 @@ strategies / techniques
 	II - market analysis and trading systems (triple screen system for instance)
 	III - Money Management (2% rule)
 	
+
+////
+allow to specify whether an order is executed within market hours both on open and close (is it after market?)
+
+get schedules for most markets
+	check if we can get the market out of yfinance info for a ticker
+	allow to see the market a given ticker is on and its schedule
+////
+
+DONE - New status for trades: canceled alongside a cancel_reason that can be any of "INPUT_ERROR", "MARKET_CONDITIONS", "TICKER_FUNDAMENTALS" or "OTHER"
+
+DONE - when creating a trade:
+	allow to input whether it is a limit, stop or market order.
+	allow to input the time in effect of the order
+
+DONE - when opening a trade, 
+	ability to edit the open price from the open trade menu.
+	prevent selecting an open trade date into the future (validation)
+
+DONE - Funds management Feature
+	- based on event sourcing
+	EVENTS:
+		- add funds
+		- retire funds
+		- benefit
+		- loss
+
+DONE - consolidate SL dist and TP dist in a single column Current Position (CP)

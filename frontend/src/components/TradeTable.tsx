@@ -3,7 +3,7 @@ import { observer } from '@legendapp/state/react'
 import type { TradeWithMetrics, LiveMetrics } from '../domain/trade/types'
 import { TradeEditModal, EditMode } from './TradeEditModal'
 import { ExitLevelSummary } from './ExitLevelSummary'
-import { useLiveMetricsStore, useTradeStore } from '../container/ContainerContext'
+import { useLiveMetricsStore, useTradeStore, useFundStore } from '../container/ContainerContext'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen, formatOpenToClose } from '../utils/trade'
 import styles from './TradeTable.module.css'
 
@@ -19,6 +19,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
   const [expandedTradeId, setExpandedTradeId] = useState<number | null>(null)
   const metricsStore = useLiveMetricsStore()
   const tradeStore = useTradeStore()
+  const fundStore = useFundStore()
 
   useEffect(() => {
     metricsStore.refreshPrices()
@@ -33,6 +34,38 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
 
   const handleCloseModal = () => {
     setEditingTrade(null)
+    fundStore.loadEvents()
+  }
+
+  const checkFundsAndOrder = async (trade: TradeWithMetrics) => {
+    const balance = fundStore.balance$.get()
+    const amount = trade.amount.toNumber()
+    if (amount > balance.maxPerTrade.toNumber()) {
+      alert(`Trade amount $${amount.toFixed(2)} exceeds max per trade $${balance.maxPerTrade.toFixed(2)}`)
+      return
+    }
+    if (amount > balance.available.toNumber()) {
+      alert(`Trade amount $${amount.toFixed(2)} exceeds available funds $${balance.available.toFixed(2)}`)
+      return
+    }
+    await tradeStore.updateTrade(trade.id, { status: 'ordered' })
+    await fundStore.loadEvents()
+  }
+
+  const checkFundsAndOpen = async (trade: TradeWithMetrics) => {
+    if (!trade.paperTrade) {
+      const balance = fundStore.balance$.get()
+      const amount = trade.amount.toNumber()
+      if (amount > balance.maxPerTrade.toNumber()) {
+        alert(`Trade amount $${amount.toFixed(2)} exceeds max per trade $${balance.maxPerTrade.toFixed(2)}`)
+        return
+      }
+      if (amount > balance.available.toNumber()) {
+        alert(`Trade amount $${amount.toFixed(2)} exceeds available funds $${balance.available.toFixed(2)}`)
+        return
+      }
+    }
+    handleOpenModal(trade, 'open')
   }
 
   if (loading) {
@@ -242,14 +275,14 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
                   {!trade.paperTrade && (
                     <button
                       className={`${styles.btnAction} ${styles.btnOrder}`}
-                      onClick={() => tradeStore.updateTrade(trade.id, { status: 'ordered' })}
+                      onClick={() => checkFundsAndOrder(trade)}
                     >
                       Order
                     </button>
                   )}
                   <button
                     className={`${styles.btnAction} ${styles.btnOpen}`}
-                    onClick={() => handleOpenModal(trade, 'open')}
+                    onClick={() => checkFundsAndOpen(trade)}
                   >
                     Open
                   </button>
@@ -277,7 +310,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
                   </button>
                   <button
                     className={`${styles.btnAction} ${styles.btnRetract}`}
-                    onClick={() => tradeStore.updateTrade(trade.id, { status: 'plan' })}
+                    onClick={async () => { await tradeStore.updateTrade(trade.id, { status: 'plan' }); await fundStore.loadEvents() }}
                   >
                     Retract
                   </button>
