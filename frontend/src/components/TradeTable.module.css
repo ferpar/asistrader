@@ -23,6 +23,10 @@
   color: var(--color-text);
 }
 
+.separator {
+  border-left: 2px solid var(--color-border);
+}
+
 .tickerName {
   max-width: 150px;
   overflow: hidden;

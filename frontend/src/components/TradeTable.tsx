@@ -166,30 +166,30 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
           <th>Ticker</th>
           <th>Name</th>
           <th>Status</th>
-          <th>Amount</th>
-          <th>Units</th>
+          <th className={styles.separator}>Units</th>
           <th>Entry</th>
-          <th>Stop Loss</th>
+          <th>Amount</th>
+          <th className={styles.separator}>Stop Loss</th>
           <th>Take Profit</th>
-          <th>Current</th>
-          <th>Position</th>
-          <th>PE Dist</th>
-          <th>Unr. PnL</th>
-          <th>Risk</th>
+          <th className={styles.separator}>Risk</th>
           <th>Risk %</th>
           <th>Profit</th>
           <th>Profit %</th>
           <th>Ratio</th>
-          <th>Strategy</th>
-          <th>Auto</th>
-          <th>Mode</th>
-          <th>Remaining</th>
-          <th>Planned</th>
+          <th className={styles.separator}>Current</th>
+          <th>Unr. PnL</th>
+          <th>Position</th>
+          <th>PE Dist</th>
+          <th className={styles.separator}>Planned</th>
           <th>Actual</th>
           <th>Plan Age</th>
           <th>Open Age</th>
           <th>Plan→Open</th>
           <th>Open→Close</th>
+          <th className={styles.separator}>Strategy</th>
+          <th>Auto</th>
+          <th>Mode</th>
+          <th>Remaining</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -211,30 +211,12 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
             <td>{trade.ticker}</td>
             <td className={styles.tickerName} title={trade.tickerName || ''}>{trade.tickerName || '-'}</td>
             <td className={getStatusClass(trade.status)}>{trade.status}</td>
-            <td>{formatCurrency(trade.amount.toNumber())}</td>
-            <td>{trade.units}</td>
+            <td className={styles.separator}>{trade.units}</td>
             <td>{formatCurrency(trade.entryPrice.toNumber())}</td>
-            <td>{formatCurrency(trade.stopLoss.toNumber())}</td>
+            <td>{formatCurrency(trade.amount.toNumber())}</td>
+            <td className={styles.separator}>{formatCurrency(trade.stopLoss.toNumber())}</td>
             <td>{formatCurrency(trade.takeProfit.toNumber())}</td>
-            <td>{formatLiveMetric(trade, liveMetrics[trade.id], 'price')}</td>
-            <td className={
-              positionNum !== null
-                ? (positionNum >= 0 ? styles.distanceNear : styles.distanceDanger)
-                : ''
-            }>
-              {trade.status !== 'open' ? '-' : (positionNum !== null ? formatPercent(positionNum) : '-')}
-            </td>
-            <td className={getPEDistanceClass(peDistNum)}>
-              {formatLiveMetric(trade, liveMetrics[trade.id], 'peDist')}
-            </td>
-            <td className={
-              pnlNum !== null
-                ? (pnlNum > 0 ? 'positive' : 'negative')
-                : ''
-            }>
-              {formatLiveMetric(trade, liveMetrics[trade.id], 'pnl')}
-            </td>
-            <td className={trade.riskAbs.isNegative() ? 'negative' : 'positive'}>
+            <td className={`${styles.separator} ${trade.riskAbs.isNegative() ? 'negative' : 'positive'}`}>
               {formatCurrency(trade.riskAbs.toNumber())}
             </td>
             <td className={trade.riskPct.isNegative() ? 'negative' : 'positive'}>
@@ -247,7 +229,31 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
               {formatPercent(trade.profitPct.toNumber())}
             </td>
             <td>{formatRatio(trade.ratio.toNumber())}</td>
-            <td>{trade.strategyName ?? '-'}</td>
+            <td className={styles.separator}>{formatLiveMetric(trade, liveMetrics[trade.id], 'price')}</td>
+            <td className={
+              pnlNum !== null
+                ? (pnlNum > 0 ? 'positive' : 'negative')
+                : ''
+            }>
+              {formatLiveMetric(trade, liveMetrics[trade.id], 'pnl')}
+            </td>
+            <td className={
+              positionNum !== null
+                ? (positionNum >= 0 ? styles.distanceNear : styles.distanceDanger)
+                : ''
+            }>
+              {trade.status !== 'open' ? '-' : (positionNum !== null ? formatPercent(positionNum) : '-')}
+            </td>
+            <td className={getPEDistanceClass(peDistNum)}>
+              {formatLiveMetric(trade, liveMetrics[trade.id], 'peDist')}
+            </td>
+            <td className={styles.separator}>{formatDate(trade.datePlanned)}</td>
+            <td>{formatDate(trade.dateActual)}</td>
+            <td>{formatPlanAge(trade)}</td>
+            <td>{formatOpenAge(trade)}</td>
+            <td>{formatPlanToOpen(trade)}</td>
+            <td>{formatOpenToClose(trade)}</td>
+            <td className={styles.separator}>{trade.strategyName ?? '-'}</td>
             <td>{trade.autoDetect ? 'Yes' : '-'}</td>
             <td
               className={`${trade.isLayered ? styles.modeLayered : styles.modeSimple}${trade.isLayered ? ' clickable' : ''}`}
@@ -263,12 +269,6 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
                 ? `${trade.remainingUnits}/${trade.units}`
                 : '-'}
             </td>
-            <td>{formatDate(trade.datePlanned)}</td>
-            <td>{formatDate(trade.dateActual)}</td>
-            <td>{formatPlanAge(trade)}</td>
-            <td>{formatOpenAge(trade)}</td>
-            <td>{formatPlanToOpen(trade)}</td>
-            <td>{formatOpenToClose(trade)}</td>
             <td className={styles.tradeActions}>
               {trade.status === 'plan' && (
                 <>
