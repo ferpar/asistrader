@@ -60,6 +60,7 @@ describe('mapTrade', () => {
     id: 1,
     number: 1,
     ticker: 'AAPL',
+    ticker_name: 'Apple Inc.',
     status: 'open',
     amount: 1500,
     units: 10,

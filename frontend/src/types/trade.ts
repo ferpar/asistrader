@@ -32,6 +32,7 @@ export interface Trade {
   id: number
   number: number | null
   ticker: string
+  ticker_name: string | null
   status: TradeStatus
   amount: number
   units: number

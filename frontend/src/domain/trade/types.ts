@@ -18,6 +18,7 @@ export interface Trade {
   id: number
   number: number | null
   ticker: string
+  tickerName: string | null
   status: TradeStatus
   amount: Decimal
   units: number

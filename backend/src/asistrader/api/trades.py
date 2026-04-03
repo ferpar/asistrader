@@ -69,6 +69,7 @@ def _trade_to_schema(t: Trade) -> TradeSchema:
         remaining_units=t.remaining_units,
         exit_levels=exit_level_schemas,
         strategy_id=t.strategy_id,
+        ticker_name=t.ticker_rel.name if t.ticker_rel else None,
         strategy_name=t.strategy_rel.name if t.strategy_rel else None,
         risk_abs=t.risk_abs,
         profit_abs=t.profit_abs,

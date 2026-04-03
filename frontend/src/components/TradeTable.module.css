@@ -23,6 +23,13 @@
   color: var(--color-text);
 }
 
+.tickerName {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tradeTable tbody tr:hover {
   background-color: var(--color-table-row-hover);
 }

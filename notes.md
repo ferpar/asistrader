@@ -1,15 +1,6 @@
-
 update inputs
 
-overbooking for funds management, detect when there are no funds available to make an order
-
 find a way to automatically update the tickers data
-
-update paper-trades to "automatic trades"
-
-update desktop layout to stop wasting vertical space on it
-	- update "new trade" button to have a text and then the plus sign
-	- put the three first rows in a single column
 
 radar screen with 
  - indicators for each ticker
@@ -76,3 +67,11 @@ DONE - Funds management Feature
 		- loss
 
 DONE - consolidate SL dist and TP dist in a single column Current Position (CP)
+
+DONE - update paper-trades to "automatic trades"
+
+DONE - overbooking for funds management, detect when there are no funds available to make an order
+
+DONE - update desktop layout to stop wasting vertical space on it
+	- update "new trade" button to have a text and then the plus sign
+	- put the three first rows in a single column

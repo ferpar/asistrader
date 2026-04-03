@@ -227,6 +227,7 @@ class TradeSchema(BaseModel):
     id: int
     number: int | None = None
     ticker: str
+    ticker_name: str | None = None
     status: TradeStatus
     amount: float
     units: int

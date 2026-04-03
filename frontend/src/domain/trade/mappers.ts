@@ -38,6 +38,7 @@ export function mapTrade(dto: TradeDTO): TradeWithMetrics {
     id: dto.id,
     number: dto.number,
     ticker: dto.ticker,
+    tickerName: dto.ticker_name,
     status: dto.status,
     amount: Decimal.from(dto.amount),
     units: dto.units,

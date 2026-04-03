@@ -164,6 +164,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
         <tr>
           <th>#</th>
           <th>Ticker</th>
+          <th>Name</th>
           <th>Status</th>
           <th>Amount</th>
           <th>Units</th>
@@ -208,6 +209,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
           <tr data-testid={`trade-row-${trade.id}`}>
             <td>{trade.number ?? trade.id}</td>
             <td>{trade.ticker}</td>
+            <td className={styles.tickerName} title={trade.tickerName || ''}>{trade.tickerName || '-'}</td>
             <td className={getStatusClass(trade.status)}>{trade.status}</td>
             <td>{formatCurrency(trade.amount.toNumber())}</td>
             <td>{trade.units}</td>
@@ -352,7 +354,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
           </tr>
           {trade.isLayered && expandedTradeId === trade.id && (
             <tr className={styles.exitLevelExpansionRow}>
-              <td colSpan={28}>
+              <td colSpan={29}>
                 <ExitLevelSummary
                   levels={trade.exitLevels}
                   entryPrice={trade.entryPrice.toNumber()}
