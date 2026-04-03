@@ -81,7 +81,7 @@
   color: var(--color-error-dark);
 }
 
-@media (max-width: 600px) {
+@media (max-width: 850px) {
   .formRow {
     flex-direction: column;
   }

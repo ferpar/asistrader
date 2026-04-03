@@ -1,591 +1,282 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import { TradeCreateRequest, ExitLevelCreateRequest, OrderType, TimeInEffect } from '../types/trade'
-import type { Strategy } from '../domain/strategy/types'
-import type { Ticker } from '../domain/ticker/types'
+import React, { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { TickerSearchInput } from './TickerSearchInput'
-import { useTradeValidation } from '../hooks/useTradeValidation'
-import { useTradeStore, useStrategyRepo, useTickerStore } from '../container/ContainerContext'
+import { useTradeCreation } from '../hooks/useTradeCreation'
 import formStyles from '../styles/forms.module.css'
 import layeredStyles from '../styles/layeredLevels.module.css'
 import styles from './TradeCreationForm.module.css'
 
-interface ExitLevelInput {
-  price: string
-  units_pct: string
-  move_sl_to_breakeven: boolean
+interface TradeCreationFormProps {
+  onClose: () => void
 }
 
-export function TradeCreationForm() {
-  const store = useTradeStore()
-  const strategyRepo = useStrategyRepo()
-  const tickerStore = useTickerStore()
-  const [tickers, setTickers] = useState<Ticker[]>([])
-  const [strategies, setStrategies] = useState<Strategy[]>([])
-  const [loadingTickers, setLoadingTickers] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [collapsed, setCollapsed] = useState(true)
-  const [currentPrice, setCurrentPrice] = useState<number | null>(null)
-  const [loadingPrice, setLoadingPrice] = useState(false)
-
-  const [formData, setFormData] = useState({
-    ticker: '',
-    entry_price: '',
-    stop_loss: '',
-    take_profit: '',
-    units: '',
-    date_planned: new Date().toISOString().split('T')[0],
-    strategy_id: '',
-    auto_detect: false,
-    order_type: '' as OrderType | '',
-    time_in_effect: '' as TimeInEffect | '',
-    gtd_date: '',
-  })
-
-  const [layeredMode, setLayeredMode] = useState(false)
-  const [tpLevels, setTpLevels] = useState<ExitLevelInput[]>([
-    { price: '', units_pct: '50', move_sl_to_breakeven: true },
-    { price: '', units_pct: '30', move_sl_to_breakeven: false },
-    { price: '', units_pct: '20', move_sl_to_breakeven: false },
-  ])
+export function TradeCreationForm({ onClose }: TradeCreationFormProps) {
+  const {
+    formData,
+    layeredMode,
+    setLayeredMode,
+    tpLevels,
+    setTpLevels,
+    tickers,
+    strategies,
+    loadingTickers,
+    submitting,
+    error,
+    currentPrice,
+    loadingPrice,
+    preview,
+    validation,
+    getFieldError,
+    handleChange,
+    handleSubmit,
+    addTicker,
+    selectTicker,
+    setAutoDetect,
+  } = useTradeCreation()
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [loadedTickers, loadedStrategies] = await Promise.all([
-          tickerStore.loadTickers().then(() => tickerStore.tickers$.get()),
-          strategyRepo.fetchStrategies(),
-        ])
-        setTickers(loadedTickers)
-        setStrategies(loadedStrategies)
-        if (loadedTickers.length > 0) {
-          setFormData(prev => ({ ...prev, ticker: loadedTickers[0].symbol }))
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load data')
-      } finally {
-        setLoadingTickers(false)
-      }
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
     }
-    loadData()
-  }, [])
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [onClose])
 
-  const loadCurrentPrice = useCallback(async (symbol: string) => {
-    if (!symbol) {
-      setCurrentPrice(null)
-      return
-    }
-    setLoadingPrice(true)
-    try {
-      const response = await tickerStore.fetchTickerPrice(symbol)
-      setCurrentPrice(response.valid ? response.price : null)
-    } catch {
-      setCurrentPrice(null)
-    } finally {
-      setLoadingPrice(false)
-    }
-  }, [tickerStore])
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 
-  useEffect(() => {
-    loadCurrentPrice(formData.ticker)
-  }, [formData.ticker, loadCurrentPrice])
+  const formatPercent = (value: number) =>
+    new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value)
 
-  const preview = useMemo(() => {
-    const entryPrice = parseFloat(formData.entry_price) || 0
-    const units = parseInt(formData.units) || 0
-    const stopLoss = parseFloat(formData.stop_loss) || 0
-
-    let takeProfit: number
-
-    if (layeredMode) {
-      const validTpLevels = tpLevels.filter(l => l.price && l.units_pct)
-      if (validTpLevels.length > 0) {
-        const totalPct = validTpLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0)
-        takeProfit = validTpLevels.reduce((sum, l) => {
-          const price = parseFloat(l.price) || 0
-          const pct = parseFloat(l.units_pct) || 0
-          return sum + (price * pct)
-        }, 0) / (totalPct || 1)
-      } else {
-        takeProfit = 0
-      }
-    } else {
-      takeProfit = parseFloat(formData.take_profit) || 0
-    }
-
-    const amount = entryPrice * units
-    const riskAbs = (stopLoss - entryPrice) * units
-    const profitAbs = (takeProfit - entryPrice) * units
-    const riskPct = amount !== 0 ? riskAbs / amount : 0
-    const profitPct = amount !== 0 ? profitAbs / amount : 0
-    const ratio = riskAbs !== 0 ? -profitAbs / riskAbs : 0
-
-    return { amount, riskAbs, profitAbs, riskPct, profitPct, ratio }
-  }, [formData.entry_price, formData.stop_loss, formData.take_profit, formData.units, layeredMode, tpLevels])
-
-  const exitLevelsForValidation = useMemo((): ExitLevelCreateRequest[] | undefined => {
-    if (!layeredMode) return undefined
-
-    const levels: ExitLevelCreateRequest[] = []
-
-    for (const level of tpLevels) {
-      if (level.price) {
-        levels.push({
-          level_type: 'tp',
-          price: parseFloat(level.price) || 0,
-          units_pct: (parseFloat(level.units_pct) || 0) / 100,
-          move_sl_to_breakeven: level.move_sl_to_breakeven,
-        })
-      }
-    }
-
-    const slPrice = parseFloat(formData.stop_loss)
-    if (slPrice) {
-      levels.push({
-        level_type: 'sl',
-        price: slPrice,
-        units_pct: 1.0,
-        move_sl_to_breakeven: false,
-      })
-    }
-
-    return levels.length > 0 ? levels : undefined
-  }, [layeredMode, tpLevels, formData.stop_loss])
-
-  const validationValues = useMemo(() => {
-    const stopLoss = parseFloat(formData.stop_loss) || 0
-
-    let takeProfit: number
-    if (layeredMode && exitLevelsForValidation && exitLevelsForValidation.length > 0) {
-      const tpLevelsArr = exitLevelsForValidation.filter(l => l.level_type === 'tp')
-      if (tpLevelsArr.length > 0) {
-        const totalPct = tpLevelsArr.reduce((sum, l) => sum + l.units_pct, 0)
-        takeProfit = tpLevelsArr.reduce((sum, l) => sum + (l.price * l.units_pct), 0) / (totalPct || 1)
-      } else {
-        takeProfit = 0
-      }
-    } else {
-      takeProfit = parseFloat(formData.take_profit) || 0
-    }
-
-    return {
-      entry_price: parseFloat(formData.entry_price) || 0,
-      stop_loss: stopLoss,
-      take_profit: takeProfit,
-      units: parseInt(formData.units) || 0,
-      exit_levels: exitLevelsForValidation,
-    }
-  }, [formData.entry_price, formData.stop_loss, formData.take_profit, formData.units, exitLevelsForValidation, layeredMode])
-
-  const validation = useTradeValidation(validationValues)
-
-  const getFieldError = (field: string) =>
-    validation.errors.find(e => e.field === field)?.message ?? null
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-    setError(null)
+  const onSubmit = async (e: React.FormEvent) => {
+    const success = await handleSubmit(e)
+    if (success) onClose()
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!validation.isValid) {
-      setError('Please fix the validation errors')
-      return
-    }
-
-    setSubmitting(true)
-    setError(null)
-
-    try {
-      let exitLevelsToSend: ExitLevelCreateRequest[]
-
-      if (layeredMode && exitLevelsForValidation && exitLevelsForValidation.length > 0) {
-        exitLevelsToSend = exitLevelsForValidation
-      } else {
-        const stopLoss = parseFloat(formData.stop_loss)
-        const takeProfit = parseFloat(formData.take_profit)
-        exitLevelsToSend = [
-          { level_type: 'sl', price: stopLoss, units_pct: 1.0, move_sl_to_breakeven: false },
-          { level_type: 'tp', price: takeProfit, units_pct: 1.0, move_sl_to_breakeven: false },
-        ]
-      }
-
-      const request: TradeCreateRequest = {
-        ticker: formData.ticker,
-        entry_price: parseFloat(formData.entry_price),
-        units: parseInt(formData.units),
-        date_planned: formData.date_planned,
-        strategy_id: formData.strategy_id ? parseInt(formData.strategy_id) : null,
-        auto_detect: formData.auto_detect,
-        exit_levels: exitLevelsToSend,
-        order_type: formData.order_type ? formData.order_type as OrderType : null,
-        time_in_effect: formData.time_in_effect ? formData.time_in_effect as TimeInEffect : null,
-        gtd_date: formData.time_in_effect === 'gtd' && formData.gtd_date ? formData.gtd_date : null,
-      }
-      await store.createTrade(request)
-      setFormData({
-        ticker: tickers.length > 0 ? tickers[0].symbol : '',
-        entry_price: '',
-        stop_loss: '',
-        take_profit: '',
-        units: '',
-        date_planned: new Date().toISOString().split('T')[0],
-        strategy_id: '',
-        auto_detect: false,
-        order_type: '',
-        time_in_effect: '',
-        gtd_date: '',
-      })
-      setLayeredMode(false)
-      setTpLevels([
-        { price: '', units_pct: '50', move_sl_to_breakeven: true },
-        { price: '', units_pct: '30', move_sl_to_breakeven: false },
-        { price: '', units_pct: '20', move_sl_to_breakeven: false },
-      ])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create trade')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(value)
-  }
-
-  const formatPercent = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'percent',
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    }).format(value)
-  }
-
-  if (loadingTickers) {
-    return <div className={styles.tradeForm}>Loading tickers...</div>
-  }
-
-  return (
-    <div className={`${styles.tradeForm} ${collapsed ? styles.collapsed : ''}`}>
-      <div className={styles.tradeFormHeader} onClick={() => setCollapsed(!collapsed)}>
-        <h3>New Trade</h3>
-        <button type="button" className={styles.collapseToggle}>
-          {collapsed ? '+' : '-'}
-        </button>
-      </div>
-
-      {!collapsed && (
-        <form onSubmit={handleSubmit}>
-          {error && <div className={formStyles.formError}>{error}</div>}
-
-          <div className={formStyles.formRow}>
-        <div className={formStyles.formGroup}>
-          <label htmlFor="ticker">Ticker</label>
-          <TickerSearchInput
-            existingTickers={tickers}
-            selectedTicker={formData.ticker}
-            onTickerSelect={(symbol) => setFormData(prev => ({ ...prev, ticker: symbol }))}
-            onTickerCreated={(newTicker) => {
-              setTickers(prev => [...prev, newTicker].sort((a, b) => a.symbol.localeCompare(b.symbol)))
-            }}
-          />
+  const modalContent = (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h3>New Trade</h3>
+          <button className={styles.modalClose} onClick={onClose}>&times;</button>
         </div>
 
-        <div className={formStyles.formGroup}>
-          <label htmlFor="date_planned">Planned Date</label>
-          <input
-            type="date"
-            id="date_planned"
-            name="date_planned"
-            value={formData.date_planned}
-            onChange={handleChange}
-            required
-          />
-        </div>
+        {loadingTickers ? (
+          <div className={styles.modalBody}>Loading tickers...</div>
+        ) : (
+          <form onSubmit={onSubmit} className={styles.modalBody}>
+            {error && <div className={formStyles.formError}>{error}</div>}
 
-        <div className={formStyles.formGroup}>
-          <label htmlFor="strategy_id">Strategy</label>
-          <select
-            id="strategy_id"
-            name="strategy_id"
-            value={formData.strategy_id}
-            onChange={handleChange}
-          >
-            <option value="">None</option>
-            {strategies.map((strategy) => (
-              <option key={strategy.id} value={strategy.id}>
-                {strategy.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className={`${formStyles.formGroup} ${formStyles.formGroupCheckbox}`}>
-          <label htmlFor="auto_detect">
-            <input
-              type="checkbox"
-              id="auto_detect"
-              checked={formData.auto_detect}
-              onChange={(e) => setFormData(prev => ({ ...prev, auto_detect: e.target.checked }))}
-            />
-            Auto-Detect
-          </label>
-          <span className={formStyles.formHint}>Auto-close on SL/TP hit</span>
-        </div>
-
-        <div className={`${formStyles.formGroup} ${formStyles.formGroupCheckbox}`}>
-          <label htmlFor="layered_mode">
-            <input
-              type="checkbox"
-              id="layered_mode"
-              checked={layeredMode}
-              onChange={(e) => setLayeredMode(e.target.checked)}
-            />
-            Layered Exits
-          </label>
-          <span className={formStyles.formHint}>Multiple TP levels</span>
-        </div>
-      </div>
-
-      <div className={formStyles.formRow}>
-          <div className={formStyles.formGroup}>
-            <label htmlFor="order_type">Order Type</label>
-            <select
-              id="order_type"
-              name="order_type"
-              value={formData.order_type}
-              onChange={handleChange}
-            >
-              <option value="">None</option>
-              <option value="limit">Limit</option>
-              <option value="stop">Stop</option>
-              <option value="market">Market</option>
-            </select>
-          </div>
-
-          <div className={formStyles.formGroup}>
-            <label htmlFor="time_in_effect">Time in Effect</label>
-            <select
-              id="time_in_effect"
-              name="time_in_effect"
-              value={formData.time_in_effect}
-              onChange={handleChange}
-            >
-              <option value="">None</option>
-              <option value="day">Day</option>
-              <option value="gtc">GTC</option>
-              <option value="gtd">GTD</option>
-            </select>
-          </div>
-
-          {formData.time_in_effect === 'gtd' && (
-            <div className={formStyles.formGroup}>
-              <label htmlFor="gtd_date">GTD Expiry Date</label>
-              <input
-                type="date"
-                id="gtd_date"
-                name="gtd_date"
-                value={formData.gtd_date}
-                onChange={handleChange}
-                required
-              />
-            </div>
-          )}
-        </div>
-
-      <div className={formStyles.formRow}>
-        <div className={formStyles.formGroup}>
-          <label htmlFor="entry_price">
-            Entry Price
-            {loadingPrice && <span className={`${styles.currentPriceHint} ${styles.loading}`}>Loading...</span>}
-            {!loadingPrice && currentPrice !== null && (
-              <span className={styles.currentPriceHint}>
-                Current: {formatCurrency(currentPrice)}
-              </span>
-            )}
-          </label>
-          <input
-            type="number"
-            id="entry_price"
-            name="entry_price"
-            className={getFieldError('entry_price') ? formStyles.inputError : ''}
-            value={formData.entry_price}
-            onChange={handleChange}
-            step="0.01"
-            min="0"
-            required
-          />
-          {getFieldError('entry_price') && <span className={formStyles.fieldError}>{getFieldError('entry_price')}</span>}
-        </div>
-
-        <div className={formStyles.formGroup}>
-          <label htmlFor="stop_loss">Stop Loss</label>
-          <input
-            type="number"
-            id="stop_loss"
-            name="stop_loss"
-            className={getFieldError('stop_loss') ? formStyles.inputError : ''}
-            value={formData.stop_loss}
-            onChange={handleChange}
-            step="0.01"
-            min="0"
-            required
-          />
-          {getFieldError('stop_loss') && <span className={formStyles.fieldError}>{getFieldError('stop_loss')}</span>}
-        </div>
-
-        {!layeredMode && (
-          <div className={formStyles.formGroup}>
-            <label htmlFor="take_profit">Take Profit</label>
-            <input
-              type="number"
-              id="take_profit"
-              name="take_profit"
-              className={getFieldError('take_profit') ? formStyles.inputError : ''}
-              value={formData.take_profit}
-              onChange={handleChange}
-              step="0.01"
-              min="0"
-              required
-            />
-            {getFieldError('take_profit') && <span className={formStyles.fieldError}>{getFieldError('take_profit')}</span>}
-          </div>
-        )}
-
-        <div className={formStyles.formGroup}>
-          <label htmlFor="units">Units</label>
-          <input
-            type="number"
-            id="units"
-            name="units"
-            className={getFieldError('units') ? formStyles.inputError : ''}
-            value={formData.units}
-            onChange={handleChange}
-            min="1"
-            required
-          />
-          {getFieldError('units') && <span className={formStyles.fieldError}>{getFieldError('units')}</span>}
-        </div>
-      </div>
-
-      {layeredMode && (
-        <div className={layeredStyles.layeredLevelsSection}>
-          <div className={layeredStyles.layeredLevelsGroup}>
-            <div className={layeredStyles.layeredLevelsHeader}>
-              <span>Take Profit Levels</span>
-              <span className={`${layeredStyles.levelsTotal} ${
-                tpLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0) === 100 ? layeredStyles.complete : layeredStyles.incomplete
-              }`}>
-                Total: {tpLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0)}%
-                {tpLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0) === 100 && ' \u2713'}
-              </span>
-            </div>
-            {tpLevels.map((level, index) => (
-              <div key={`tp-${index}`} className={layeredStyles.levelInputRow}>
-                <span className={layeredStyles.levelLabel}>TP{index + 1}</span>
-                <input
-                  type="number"
-                  placeholder="Price"
-                  value={level.price}
-                  onChange={(e) => {
-                    const newLevels = [...tpLevels]
-                    newLevels[index] = { ...newLevels[index], price: e.target.value }
-                    setTpLevels(newLevels)
-                  }}
-                  step="0.01"
-                  min="0"
+            <div className={formStyles.formRow}>
+              <div className={formStyles.formGroup}>
+                <label htmlFor="ticker">Ticker</label>
+                <TickerSearchInput
+                  existingTickers={tickers}
+                  selectedTicker={formData.ticker}
+                  onTickerSelect={selectTicker}
+                  onTickerCreated={addTicker}
                 />
+              </div>
+
+              <div className={formStyles.formGroup}>
+                <label htmlFor="date_planned">Planned Date</label>
                 <input
-                  type="number"
-                  placeholder="%"
-                  value={level.units_pct}
-                  onChange={(e) => {
-                    const newLevels = [...tpLevels]
-                    newLevels[index] = { ...newLevels[index], units_pct: e.target.value }
-                    setTpLevels(newLevels)
-                  }}
-                  min="0"
-                  max="100"
-                  className={layeredStyles.pctInput}
+                  type="date"
+                  id="date_planned"
+                  name="date_planned"
+                  value={formData.date_planned}
+                  onChange={handleChange}
+                  required
                 />
-                <label className={layeredStyles.beCheckbox}>
+              </div>
+
+              <div className={formStyles.formGroup}>
+                <label htmlFor="strategy_id">Strategy</label>
+                <select id="strategy_id" name="strategy_id" value={formData.strategy_id} onChange={handleChange}>
+                  <option value="">None</option>
+                  {strategies.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className={formStyles.formRow}>
+              <div className={`${formStyles.formGroup} ${formStyles.formGroupCheckbox}`}>
+                <label htmlFor="auto_detect">
                   <input
                     type="checkbox"
-                    checked={level.move_sl_to_breakeven}
-                    onChange={(e) => {
-                      const newLevels = [...tpLevels]
-                      newLevels[index] = { ...newLevels[index], move_sl_to_breakeven: e.target.checked }
-                      setTpLevels(newLevels)
-                    }}
+                    id="auto_detect"
+                    checked={formData.auto_detect}
+                    onChange={(e) => setAutoDetect(e.target.checked)}
                   />
-                  <span className={layeredStyles.beLabel}>BE</span>
+                  Auto-Detect
                 </label>
-                {tpLevels.length > 1 && (
-                  <button
-                    type="button"
-                    className={layeredStyles.btnRemoveLevel}
-                    onClick={() => setTpLevels(tpLevels.filter((_, i) => i !== index))}
-                  >
-                    &times;
-                  </button>
-                )}
+                <span className={formStyles.formHint}>Auto-open/close on hits</span>
               </div>
-            ))}
-            <button
-              type="button"
-              className={layeredStyles.btnAddLevel}
-              onClick={() => setTpLevels([...tpLevels, { price: '', units_pct: '', move_sl_to_breakeven: false }])}
-            >
-              + Add TP Level
-            </button>
-          </div>
 
-          {getFieldError('exit_levels') && (
-            <div className={formStyles.fieldError}>{getFieldError('exit_levels')}</div>
-          )}
-        </div>
-      )}
+              <div className={`${formStyles.formGroup} ${formStyles.formGroupCheckbox}`}>
+                <label htmlFor="layered_mode">
+                  <input
+                    type="checkbox"
+                    id="layered_mode"
+                    checked={layeredMode}
+                    onChange={(e) => setLayeredMode(e.target.checked)}
+                  />
+                  Layered Exits
+                </label>
+                <span className={formStyles.formHint}>Multiple TP levels</span>
+              </div>
+            </div>
 
-      <div className={styles.formPreview}>
-        <div className={styles.previewItem}>
-          <span>Amount:</span>
-          <span>{formatCurrency(preview.amount)}</span>
-        </div>
-        <div className={styles.previewItem}>
-          <span>Risk:</span>
-          <span className={preview.riskAbs < 0 ? 'negative' : 'positive'}>
-            {formatCurrency(preview.riskAbs)} ({formatPercent(preview.riskPct)})
-          </span>
-        </div>
-        <div className={styles.previewItem}>
-          <span>Profit:</span>
-          <span className={preview.profitAbs > 0 ? 'positive' : 'negative'}>
-            {formatCurrency(preview.profitAbs)} ({formatPercent(preview.profitPct)})
-          </span>
-        </div>
-        <div className={styles.previewItem}>
-          <span>Ratio:</span>
-          <span>{preview.ratio.toFixed(2)}</span>
-        </div>
-        <div className={styles.previewItem}>
-          <span>Direction:</span>
-          <span className={validation.direction === 'long' ? 'positive' : validation.direction === 'short' ? 'negative' : ''}>
-            {validation.direction?.toUpperCase() ?? '-'}
-          </span>
-        </div>
+            <div className={formStyles.formRow}>
+              <div className={formStyles.formGroup}>
+                <label htmlFor="order_type">Order Type</label>
+                <select id="order_type" name="order_type" value={formData.order_type} onChange={handleChange}>
+                  <option value="">None</option>
+                  <option value="limit">Limit</option>
+                  <option value="stop">Stop</option>
+                  <option value="market">Market</option>
+                </select>
+              </div>
+
+              <div className={formStyles.formGroup}>
+                <label htmlFor="time_in_effect">Time in Effect</label>
+                <select id="time_in_effect" name="time_in_effect" value={formData.time_in_effect} onChange={handleChange}>
+                  <option value="">None</option>
+                  <option value="day">Day</option>
+                  <option value="gtc">GTC</option>
+                  <option value="gtd">GTD</option>
+                </select>
+              </div>
+
+              {formData.time_in_effect === 'gtd' && (
+                <div className={formStyles.formGroup}>
+                  <label htmlFor="gtd_date">GTD Expiry Date</label>
+                  <input type="date" id="gtd_date" name="gtd_date" value={formData.gtd_date} onChange={handleChange} required />
+                </div>
+              )}
+            </div>
+
+            <div className={formStyles.formRow}>
+              <div className={formStyles.formGroup}>
+                <label htmlFor="entry_price">
+                  Entry Price
+                  {loadingPrice && <span className={`${styles.currentPriceHint} ${styles.loading}`}>Loading...</span>}
+                  {!loadingPrice && currentPrice !== null && (
+                    <span className={styles.currentPriceHint}>Current: {formatCurrency(currentPrice)}</span>
+                  )}
+                </label>
+                <input
+                  type="number" id="entry_price" name="entry_price"
+                  className={getFieldError('entry_price') ? formStyles.inputError : ''}
+                  value={formData.entry_price} onChange={handleChange} step="0.01" min="0" required
+                />
+                {getFieldError('entry_price') && <span className={formStyles.fieldError}>{getFieldError('entry_price')}</span>}
+              </div>
+
+              <div className={formStyles.formGroup}>
+                <label htmlFor="stop_loss">Stop Loss</label>
+                <input
+                  type="number" id="stop_loss" name="stop_loss"
+                  className={getFieldError('stop_loss') ? formStyles.inputError : ''}
+                  value={formData.stop_loss} onChange={handleChange} step="0.01" min="0" required
+                />
+                {getFieldError('stop_loss') && <span className={formStyles.fieldError}>{getFieldError('stop_loss')}</span>}
+              </div>
+
+              {!layeredMode && (
+                <div className={formStyles.formGroup}>
+                  <label htmlFor="take_profit">Take Profit</label>
+                  <input
+                    type="number" id="take_profit" name="take_profit"
+                    className={getFieldError('take_profit') ? formStyles.inputError : ''}
+                    value={formData.take_profit} onChange={handleChange} step="0.01" min="0" required
+                  />
+                  {getFieldError('take_profit') && <span className={formStyles.fieldError}>{getFieldError('take_profit')}</span>}
+                </div>
+              )}
+
+              <div className={formStyles.formGroup}>
+                <label htmlFor="units">Units</label>
+                <input
+                  type="number" id="units" name="units"
+                  className={getFieldError('units') ? formStyles.inputError : ''}
+                  value={formData.units} onChange={handleChange} min="1" required
+                />
+                {getFieldError('units') && <span className={formStyles.fieldError}>{getFieldError('units')}</span>}
+              </div>
+            </div>
+
+            {layeredMode && (
+              <div className={layeredStyles.layeredLevelsSection}>
+                <div className={layeredStyles.layeredLevelsGroup}>
+                  <div className={layeredStyles.layeredLevelsHeader}>
+                    <span>Take Profit Levels</span>
+                    <span className={`${layeredStyles.levelsTotal} ${
+                      tpLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0) === 100 ? layeredStyles.complete : layeredStyles.incomplete
+                    }`}>
+                      Total: {tpLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0)}%
+                      {tpLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0) === 100 && ' \u2713'}
+                    </span>
+                  </div>
+                  {tpLevels.map((level, index) => (
+                    <div key={`tp-${index}`} className={layeredStyles.levelInputRow}>
+                      <span className={layeredStyles.levelLabel}>TP{index + 1}</span>
+                      <input type="number" placeholder="Price" value={level.price}
+                        onChange={(e) => { const n = [...tpLevels]; n[index] = { ...n[index], price: e.target.value }; setTpLevels(n) }}
+                        step="0.01" min="0" />
+                      <input type="number" placeholder="%" value={level.units_pct}
+                        onChange={(e) => { const n = [...tpLevels]; n[index] = { ...n[index], units_pct: e.target.value }; setTpLevels(n) }}
+                        min="0" max="100" className={layeredStyles.pctInput} />
+                      <label className={layeredStyles.beCheckbox}>
+                        <input type="checkbox" checked={level.move_sl_to_breakeven}
+                          onChange={(e) => { const n = [...tpLevels]; n[index] = { ...n[index], move_sl_to_breakeven: e.target.checked }; setTpLevels(n) }} />
+                        <span className={layeredStyles.beLabel}>BE</span>
+                      </label>
+                      {tpLevels.length > 1 && (
+                        <button type="button" className={layeredStyles.btnRemoveLevel}
+                          onClick={() => setTpLevels(tpLevels.filter((_, i) => i !== index))}>&times;</button>
+                      )}
+                    </div>
+                  ))}
+                  <button type="button" className={layeredStyles.btnAddLevel}
+                    onClick={() => setTpLevels([...tpLevels, { price: '', units_pct: '', move_sl_to_breakeven: false }])}>
+                    + Add TP Level
+                  </button>
+                </div>
+                {getFieldError('exit_levels') && <div className={formStyles.fieldError}>{getFieldError('exit_levels')}</div>}
+              </div>
+            )}
+
+            <div className={styles.formPreview}>
+              <div className={styles.previewItem}><span>Amount:</span><span>{formatCurrency(preview.amount)}</span></div>
+              <div className={styles.previewItem}>
+                <span>Risk:</span>
+                <span className={preview.riskAbs < 0 ? 'negative' : 'positive'}>{formatCurrency(preview.riskAbs)} ({formatPercent(preview.riskPct)})</span>
+              </div>
+              <div className={styles.previewItem}>
+                <span>Profit:</span>
+                <span className={preview.profitAbs > 0 ? 'positive' : 'negative'}>{formatCurrency(preview.profitAbs)} ({formatPercent(preview.profitPct)})</span>
+              </div>
+              <div className={styles.previewItem}><span>Ratio:</span><span>{preview.ratio.toFixed(2)}</span></div>
+              <div className={styles.previewItem}>
+                <span>Direction:</span>
+                <span className={validation.direction === 'long' ? 'positive' : validation.direction === 'short' ? 'negative' : ''}>
+                  {validation.direction?.toUpperCase() ?? '-'}
+                </span>
+              </div>
+            </div>
+
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnSecondary} onClick={onClose}>Cancel</button>
+              <button type="submit" disabled={submitting}>{submitting ? 'Creating...' : 'Create Trade'}</button>
+            </div>
+          </form>
+        )}
       </div>
-
-          <button type="submit" disabled={submitting}>
-            {submitting ? 'Creating...' : 'Create Trade'}
-          </button>
-        </form>
-      )}
     </div>
   )
+
+  return createPortal(modalContent, document.body)
 }

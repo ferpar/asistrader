@@ -1,0 +1,16 @@
+.actionPanels {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.actionPanels > * {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .actionPanels {
+    flex-direction: column;
+  }
+}

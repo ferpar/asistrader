@@ -1,0 +1,232 @@
+.actionBar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: var(--color-surface);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.btnNewTrade {
+  padding: 8px 16px;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnNewTrade:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.syncGroup {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dateInput {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+.btnSync {
+  padding: 6px 12px;
+  background-color: var(--color-info);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnSync:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btnSync:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.alertGroup {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+}
+
+.btnDetect {
+  padding: 6px 12px;
+  background-color: var(--color-warning);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnDetect:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btnDetect:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.alertSummary {
+  display: flex;
+  gap: 8px;
+  font-size: 0.75rem;
+}
+
+.summaryItem {
+  color: var(--color-success);
+}
+
+.summaryConflict {
+  color: var(--color-warning);
+}
+
+.btnDismissAll {
+  padding: 4px 10px;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.btnDismissAll:hover {
+  background-color: var(--color-surface-hover);
+}
+
+/* Sync result message */
+.syncResult {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  margin-bottom: 12px;
+}
+
+.syncSuccess {
+  background-color: var(--color-distance-near-bg);
+  border: 1px solid var(--color-success);
+  color: var(--color-distance-near-text);
+}
+
+.syncError {
+  background-color: var(--color-error-light);
+  border: 1px solid var(--color-error);
+  color: var(--color-error-dark);
+}
+
+/* Alert list */
+.alertList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.alertItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+}
+
+.alertIcon {
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.alertMessage {
+  flex: 1;
+}
+
+.btnDismiss {
+  background: none;
+  border: none;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.btnDismiss:hover {
+  color: var(--color-text);
+}
+
+/* Alert type variants */
+.alertSl {
+  background-color: var(--color-error-light);
+  border: 1px solid var(--color-error);
+  color: var(--color-error-dark);
+}
+
+.alertTp {
+  background-color: var(--color-distance-near-bg);
+  border: 1px solid var(--color-success);
+  color: var(--color-distance-near-text);
+}
+
+.alertConflict {
+  background-color: var(--color-distance-warning-bg);
+  border: 1px solid var(--color-warning);
+  color: var(--color-distance-warning-text);
+}
+
+.alertAutoClosed {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.alertEntry {
+  background-color: #e3f2fd;
+  border: 1px solid var(--color-info);
+  color: #1565c0;
+}
+
+.alertEntryOpened {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .actionBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .alertGroup {
+    margin-left: 0;
+  }
+
+  .syncGroup {
+    width: 100%;
+  }
+
+  .dateInput {
+    flex: 1;
+  }
+}

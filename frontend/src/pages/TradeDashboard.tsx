@@ -4,9 +4,7 @@ import { TradeTable } from '../components/TradeTable'
 import { TradeFilters } from '../components/TradeFilters'
 import { TradeStatistics } from '../components/TradeStatistics'
 import { TickerPerformance } from '../components/TickerPerformance'
-import { TradeCreationForm } from '../components/TradeCreationForm'
-import { MarketDataSync } from '../components/MarketDataSync'
-import { TradeAlertBanner } from '../components/TradeAlertBanner'
+import { TradeActionBar } from '../components/TradeActionBar'
 import { useTradeStore } from '../container/ContainerContext'
 
 export const TradeDashboard = observer(function TradeDashboard() {
@@ -23,9 +21,7 @@ export const TradeDashboard = observer(function TradeDashboard() {
 
   return (
     <>
-      <MarketDataSync />
-      <TradeCreationForm />
-      <TradeAlertBanner />
+      <TradeActionBar />
       <section className="trades-section">
         <h2>Trades</h2>
         <TradeStatistics trades={filteredTrades} />

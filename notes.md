@@ -1,4 +1,6 @@
 
+update inputs
+
 overbooking for funds management, detect when there are no funds available to make an order
 
 find a way to automatically update the tickers data
