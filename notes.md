@@ -1,5 +1,13 @@
 update inputs
 
+autocalculate number of stocks suggestion based on risk percentage
+
+optional alphabetical ordering for trades list
+
+highligh row on hover / focus / active
+
+warn before allowing to create a new trade with a ratio below 1.5x
+
 find a way to automatically update the tickers data
 
 radar screen with 
@@ -8,6 +16,8 @@ radar screen with
 	- 50 and 5 day average change both % and value  
 	- 
  - macro indicators
+	
+check currency being used in data coming from the yfinance api
 
 strategies / techniques
 	ability for selecting multiple strategies

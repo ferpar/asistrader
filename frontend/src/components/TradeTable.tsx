@@ -13,11 +13,28 @@ interface TradeTableProps {
   error?: string | null
 }
 
+type SortKey = 'tickerName' | null
+type SortDir = 'asc' | 'desc'
+
 export const TradeTable = observer(function TradeTable({ trades, loading, error }: TradeTableProps) {
   const [editingTrade, setEditingTrade] = useState<TradeWithMetrics | null>(null)
   const [editMode, setEditMode] = useState<EditMode>('edit')
   const [expandedTradeId, setExpandedTradeId] = useState<number | null>(null)
   const [docked, setDocked] = useState(true)
+  const [sortKey, setSortKey] = useState<SortKey>(null)
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+
+  const handleSort = (key: Exclude<SortKey, null>) => {
+    if (sortKey !== key) {
+      setSortKey(key)
+      setSortDir('asc')
+    } else if (sortDir === 'asc') {
+      setSortDir('desc')
+    } else {
+      setSortKey(null)
+      setSortDir('asc')
+    }
+  }
   const metricsStore = useLiveMetricsStore()
   const tradeStore = useTradeStore()
   const fundStore = useFundStore()
@@ -171,7 +188,12 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
         <tr>
           <th className={docked ? `${styles.stickyCol} ${styles.stickyCol1}` : ''}>#</th>
           <th className={docked ? `${styles.stickyCol} ${styles.stickyCol2}` : ''}>Ticker</th>
-          <th className={`${docked ? `${styles.stickyCol} ${styles.stickyCol3}` : ''} ${styles.tickerName}`}>Name</th>
+          <th
+            className={`${docked ? `${styles.stickyCol} ${styles.stickyCol3}` : ''} ${styles.tickerName} ${styles.sortable}`}
+            onClick={() => handleSort('tickerName')}
+          >
+            Name <span className={styles.sortIndicator}>{sortKey === 'tickerName' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
+          </th>
           <th className={docked ? `${styles.stickyCol} ${styles.stickyCol4}` : ''}>Status</th>
           <th className={styles.separator}>Units</th>
           <th>Entry</th>
@@ -201,7 +223,15 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
         </tr>
       </thead>
       <tbody>
-        {trades.map((trade) => {
+        {(sortKey
+          ? [...trades].sort((a, b) => {
+              const av = (a.tickerName ?? '').toLowerCase()
+              const bv = (b.tickerName ?? '').toLowerCase()
+              const cmp = av.localeCompare(bv)
+              return sortDir === 'asc' ? cmp : -cmp
+            })
+          : trades
+        ).map((trade) => {
           const tpDistNum = liveMetrics[trade.id]?.distanceToTP?.toNumber() ?? null
           const slDistNum = liveMetrics[trade.id]?.distanceToSL?.toNumber() ?? null
           // Consolidated position: positive = toward TP, negative = toward SL
