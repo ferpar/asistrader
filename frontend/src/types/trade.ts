@@ -3,7 +3,7 @@ export type ExitType = 'sl' | 'tp'
 export type CancelReason = 'input_error' | 'market_conditions' | 'ticker_fundamentals' | 'other'
 export type OrderType = 'limit' | 'stop' | 'market'
 export type TimeInEffect = 'day' | 'gtc' | 'gtd'
-export type ExtendedFilter = 'all' | 'plan' | 'ordered' | 'open' | 'close' | 'canceled' | 'winners' | 'losers'
+export type ExtendedFilter = 'all' | 'plan' | 'ordered' | 'open' | 'winning' | 'losing' | 'close' | 'canceled' | 'winners' | 'losers'
 export type ExitLevelType = 'sl' | 'tp'
 export type ExitLevelStatus = 'pending' | 'hit' | 'cancelled'
 

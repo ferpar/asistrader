@@ -107,6 +107,8 @@ function getPnLClass(value: number): string {
 const UNREALIZED_ACTIVE: Record<ExtendedFilter, boolean> = {
   all: true,
   open: true,
+  winning: true,
+  losing: true,
   plan: false,
   ordered: false,
   close: false,
@@ -118,6 +120,8 @@ const UNREALIZED_ACTIVE: Record<ExtendedFilter, boolean> = {
 const REALIZED_ACTIVE: Record<ExtendedFilter, boolean> = {
   all: true,
   open: false,
+  winning: false,
+  losing: false,
   plan: false,
   ordered: false,
   close: true,

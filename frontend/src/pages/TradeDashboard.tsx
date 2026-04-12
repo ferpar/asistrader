@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { observer } from '@legendapp/state/react'
 import { TradeTable } from '../components/TradeTable'
 import { TradeFilters } from '../components/TradeFilters'
@@ -16,11 +16,27 @@ export const TradeDashboard = observer(function TradeDashboard() {
   }, [store])
 
   const allTrades = store.trades$.get()
-  const filteredTrades = store.filteredTrades$.get()
+  const baseFilteredTrades = store.filteredTrades$.get()
   const liveMetrics = liveMetricsStore.metrics$.get()
   const loading = store.loading$.get()
   const error = store.error$.get()
   const filter = store.filter$.get()
+
+  const filteredTrades = useMemo(() => {
+    if (filter === 'winning') {
+      return baseFilteredTrades.filter((t) => {
+        const pnl = liveMetrics[t.id]?.unrealizedPnL
+        return pnl?.isPositive() ?? false
+      })
+    }
+    if (filter === 'losing') {
+      return baseFilteredTrades.filter((t) => {
+        const pnl = liveMetrics[t.id]?.unrealizedPnL
+        return pnl?.isNegative() ?? false
+      })
+    }
+    return baseFilteredTrades
+  }, [baseFilteredTrades, filter, liveMetrics])
 
   return (
     <>

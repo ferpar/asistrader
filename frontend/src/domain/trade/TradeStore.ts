@@ -24,6 +24,9 @@ export class TradeStore {
         return trades.filter(t => t.status === 'close' && t.exitType === 'tp')
       case 'losers':
         return trades.filter(t => t.status === 'close' && t.exitType === 'sl')
+      case 'winning':
+      case 'losing':
+        return trades.filter(t => t.status === 'open')
       default:
         return trades.filter(t => t.status === filter)
     }
