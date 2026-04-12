@@ -104,6 +104,22 @@
   font-style: italic;
 }
 
+.suggestedUnitsBtn {
+  background: none;
+  border: none;
+  color: var(--color-success);
+  font-size: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.suggestedUnitsBtn:hover {
+  color: var(--color-primary);
+}
+
 .formPreview {
   display: flex;
   gap: 20px;

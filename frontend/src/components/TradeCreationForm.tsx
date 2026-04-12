@@ -25,6 +25,8 @@ export function TradeCreationForm({ onClose }: TradeCreationFormProps) {
     currentPrice,
     loadingPrice,
     preview,
+    suggestedUnits,
+    applySuggestedUnits,
     validation,
     getFieldError,
     handleChange,
@@ -198,7 +200,14 @@ export function TradeCreationForm({ onClose }: TradeCreationFormProps) {
               )}
 
               <div className={formStyles.formGroup}>
-                <label htmlFor="units">Units</label>
+                <label htmlFor="units">
+                  Units
+                  {suggestedUnits !== null && (
+                    <span className={styles.currentPriceHint}>
+                      Suggested: <button type="button" className={styles.suggestedUnitsBtn} onClick={applySuggestedUnits}>{suggestedUnits}</button>
+                    </span>
+                  )}
+                </label>
                 <input
                   type="number" id="units" name="units"
                   className={getFieldError('units') ? formStyles.inputError : ''}

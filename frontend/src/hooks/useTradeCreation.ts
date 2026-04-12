@@ -3,7 +3,7 @@ import { TradeCreateRequest, ExitLevelCreateRequest, OrderType, TimeInEffect } f
 import type { Strategy } from '../domain/strategy/types'
 import type { Ticker } from '../domain/ticker/types'
 import { useTradeValidation } from './useTradeValidation'
-import { useTradeStore, useStrategyRepo, useTickerStore } from '../container/ContainerContext'
+import { useTradeStore, useStrategyRepo, useTickerStore, useFundStore } from '../container/ContainerContext'
 
 export interface ExitLevelInput {
   price: string
@@ -15,6 +15,7 @@ export function useTradeCreation() {
   const store = useTradeStore()
   const strategyRepo = useStrategyRepo()
   const tickerStore = useTickerStore()
+  const fundStore = useFundStore()
   const [tickers, setTickers] = useState<Ticker[]>([])
   const [strategies, setStrategies] = useState<Strategy[]>([])
   const [loadingTickers, setLoadingTickers] = useState(true)
@@ -172,6 +173,21 @@ export function useTradeCreation() {
     }
   }, [formData.entry_price, formData.stop_loss, formData.take_profit, formData.units, exitLevelsForValidation, layeredMode])
 
+  const suggestedUnits = useMemo(() => {
+    const entryPrice = parseFloat(formData.entry_price) || 0
+    if (entryPrice <= 0) return null
+    const maxPerTrade = fundStore.balance$.get().maxPerTrade.toNumber()
+    if (maxPerTrade <= 0) return null
+    const units = Math.floor(maxPerTrade / entryPrice)
+    return units > 0 ? units : null
+  }, [formData.entry_price, fundStore])
+
+  const applySuggestedUnits = () => {
+    if (suggestedUnits !== null) {
+      setFormData(prev => ({ ...prev, units: String(suggestedUnits) }))
+    }
+  }
+
   const validation = useTradeValidation(validationValues)
 
   const getFieldError = (field: string) =>
@@ -280,6 +296,8 @@ export function useTradeCreation() {
     currentPrice,
     loadingPrice,
     preview,
+    suggestedUnits,
+    applySuggestedUnits,
     validation,
     getFieldError,
     handleChange,

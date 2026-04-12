@@ -2,13 +2,10 @@ update inputs
 
 autocalculate number of stocks suggestion based on risk percentage
 
-optional alphabetical ordering for trades list
-
 highligh row on hover / focus / active
 
 warn before allowing to create a new trade with a ratio below 1.5x
 
-find a way to automatically update the tickers data
 
 radar screen with 
  - indicators for each ticker
@@ -18,6 +15,9 @@ radar screen with
  - macro indicators
 	
 check currency being used in data coming from the yfinance api
+
+find a way to automatically update the tickers data
+	- send request on every frontend run?
 
 strategies / techniques
 	ability for selecting multiple strategies
@@ -85,3 +85,5 @@ DONE - overbooking for funds management, detect when there are no funds availabl
 DONE - update desktop layout to stop wasting vertical space on it
 	- update "new trade" button to have a text and then the plus sign
 	- put the three first rows in a single column
+
+DONE - optional alphabetical ordering for trades list
