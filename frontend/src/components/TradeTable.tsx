@@ -20,6 +20,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
   const [editingTrade, setEditingTrade] = useState<TradeWithMetrics | null>(null)
   const [editMode, setEditMode] = useState<EditMode>('edit')
   const [expandedTradeId, setExpandedTradeId] = useState<number | null>(null)
+  const [selectedTradeId, setSelectedTradeId] = useState<number | null>(null)
   const [docked, setDocked] = useState(true)
   const [sortKey, setSortKey] = useState<SortKey>(null)
   const [sortDir, setSortDir] = useState<SortDir>('asc')
@@ -243,7 +244,11 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
 
           return (
           <React.Fragment key={trade.id}>
-          <tr data-testid={`trade-row-${trade.id}`}>
+          <tr
+            data-testid={`trade-row-${trade.id}`}
+            className={selectedTradeId === trade.id ? styles.rowSelected : ''}
+            onClick={() => setSelectedTradeId(selectedTradeId === trade.id ? null : trade.id)}
+          >
             <td className={docked ? `${styles.stickyCol} ${styles.stickyCol1}` : ''}>{trade.number ?? trade.id}</td>
             <td className={docked ? `${styles.stickyCol} ${styles.stickyCol2}` : ''}>{trade.ticker}</td>
             <td className={`${docked ? `${styles.stickyCol} ${styles.stickyCol3}` : ''} ${styles.tickerName}`} title={trade.tickerName || ''}>{trade.tickerName || '-'}</td>

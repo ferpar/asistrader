@@ -63,10 +63,10 @@
   background-color: var(--color-table-header);
 }
 
-.stickyCol1 { left: 0; }
-.stickyCol2 { left: 41px; }
-.stickyCol3 { left: 112px; }
-.stickyCol4 { left: 286px; border-right: 2px solid var(--color-border); }
+.stickyCol1 { left: 0; min-width: 40px; }
+.stickyCol2 { left: 40px; min-width: 70px; }
+.stickyCol3 { left: 110px; min-width: 150px; }
+.stickyCol4 { left: 260px; border-right: 2px solid var(--color-border); }
 
 .tradeTable th,
 .tradeTable td {
@@ -95,6 +95,26 @@
 
 .tradeTable tbody tr:hover {
   background-color: var(--color-table-row-hover);
+}
+
+.tradeTable tbody tr:hover td.stickyCol {
+  background-color: var(--color-table-row-hover);
+}
+
+.rowSelected {
+  background-color: var(--color-table-row-selected);
+}
+
+.rowSelected td.stickyCol {
+  background-color: var(--color-table-row-selected);
+}
+
+.tradeTable tbody tr.rowSelected:hover {
+  background-color: var(--color-table-row-selected);
+}
+
+.tradeTable tbody tr.rowSelected:hover td.stickyCol {
+  background-color: var(--color-table-row-selected);
 }
 
 .statusPlan {
