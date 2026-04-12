@@ -1,0 +1,84 @@
+import { useEffect, useMemo, useState } from 'react'
+import { observer } from '@legendapp/state/react'
+import { useRadarStore, useTickerStore } from '../container/ContainerContext'
+import { TickerSearchInput } from '../components/TickerSearchInput'
+import { RadarTickerCard } from '../components/radar/RadarTickerCard'
+import type { Ticker } from '../domain/ticker/types'
+import styles from './RadarDashboard.module.css'
+
+export const RadarDashboard = observer(function RadarDashboard() {
+  const radarStore = useRadarStore()
+  const tickerStore = useTickerStore()
+  const [tickers, setTickers] = useState<Ticker[]>([])
+  const [selectedTicker, setSelectedTicker] = useState('')
+
+  const tickerNameMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const t of tickers) if (t.name) map[t.symbol.toUpperCase()] = t.name
+    return map
+  }, [tickers])
+
+  const indicators = radarStore.indicators$.get()
+  const loading = radarStore.loading$.get()
+  const error = radarStore.error$.get()
+
+  useEffect(() => {
+    tickerStore.loadTickers().then(() => setTickers(tickerStore.tickers$.get()))
+  }, [tickerStore])
+
+  useEffect(() => {
+    radarStore.loadIndicators()
+  }, [radarStore])
+
+  const handleTickerSelect = (symbol: string) => {
+    setSelectedTicker('')
+    radarStore.addSymbol(symbol)
+  }
+
+  const handleTickerCreated = (ticker: Ticker) => {
+    setTickers((prev) => [...prev, ticker].sort((a, b) => a.symbol.localeCompare(b.symbol)))
+    radarStore.addSymbol(ticker.symbol)
+  }
+
+  return (
+    <section>
+      <h2>Radar</h2>
+
+      <div className={styles.controls}>
+        <div className={styles.addTicker}>
+          <label className={styles.addLabel}>Add Ticker</label>
+          <TickerSearchInput
+            existingTickers={tickers}
+            selectedTicker={selectedTicker}
+            onTickerSelect={handleTickerSelect}
+            onTickerCreated={handleTickerCreated}
+          />
+        </div>
+        <button
+          className={styles.refreshBtn}
+          onClick={() => radarStore.loadIndicators(true)}
+          disabled={loading}
+        >
+          {loading ? 'Loading...' : 'Refresh'}
+        </button>
+      </div>
+
+      {error && <div className={styles.error}>{error}</div>}
+
+      {indicators.length === 0 && !loading && (
+        <div className={styles.empty}>No tickers in your radar. Add one above to get started.</div>
+      )}
+
+      <div className={styles.cardList}>
+        {indicators.map((ind) => (
+          <RadarTickerCard
+            key={ind.symbol}
+            indicators={ind}
+            tickerName={tickerNameMap[ind.symbol] ?? null}
+            onRemove={(symbol) => radarStore.removeSymbol(symbol)}
+          />
+        ))}
+      </div>
+    </section>
+  )
+})

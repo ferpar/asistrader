@@ -1,8 +1,5 @@
 update inputs
 
-highligh row on hover / focus / active
-
-
 radar screen with 
  - indicators for each ticker
 	- mean band positions
@@ -11,6 +8,10 @@ radar screen with
  - macro indicators
 	
 check currency being used in data coming from the yfinance api
+
+check what to do with stocks that have 4 decimals
+check what to do with currencies
+	- are they coming via yfinance?
 
 find a way to automatically update the tickers data
 	- send request on every frontend run?
@@ -87,3 +88,5 @@ DONE - optional alphabetical ordering for trades list
 DONE - autocalculate number of stocks suggestion based on risk percentage
 
 DONE - warn before allowing to create a new trade with a ratio below 1.5x
+
+DONE - highligh row on hover / focus / active

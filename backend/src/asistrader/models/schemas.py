@@ -401,6 +401,20 @@ class BulkExtendResponse(BaseModel):
     errors: dict[str, str]
 
 
+class BulkMarketDataRequest(BaseModel):
+    """Request schema for bulk market data retrieval."""
+
+    symbols: list[str]
+    start_date: date
+
+
+class BulkMarketDataResponse(BaseModel):
+    """Response schema for bulk market data retrieval."""
+
+    data: dict[str, list[MarketDataSchema]]
+    errors: dict[str, str]
+
+
 class SyncRequest(BaseModel):
     """Request schema for syncing market data."""
 

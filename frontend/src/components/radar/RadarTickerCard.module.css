@@ -1,0 +1,132 @@
+.card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cardError {
+  opacity: 0.7;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.symbolGroup {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.symbol {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.tickerName {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.price {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.removeBtn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.removeBtn:hover {
+  color: var(--color-error);
+}
+
+.errorMsg {
+  font-size: 0.8125rem;
+  color: var(--color-error);
+}
+
+.sections {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.sectionLabel {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.structure {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: monospace;
+  letter-spacing: 0.1em;
+}
+
+.bullish {
+  color: var(--color-success);
+}
+
+.bearish {
+  color: var(--color-error);
+}
+
+.emaValues {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.emaItem {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.emaLabel {
+  font-weight: 600;
+  color: var(--color-text);
+  margin-right: 2px;
+}
+
+.changeGrid {
+  display: flex;
+  gap: 20px;
+}
+
+.changeItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.8125rem;
+}
+
+.changeLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text);
+}

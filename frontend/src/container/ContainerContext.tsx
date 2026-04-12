@@ -47,3 +47,7 @@ export function useTickerStore() {
 export function useFundStore() {
   return useContainer().fundStore
 }
+
+export function useRadarStore() {
+  return useContainer().radarStore
+}

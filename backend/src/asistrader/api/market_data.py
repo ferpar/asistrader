@@ -11,6 +11,8 @@ from asistrader.models.schemas import (
     BulkExtendResponse,
     BulkFetchRequest,
     BulkFetchResponse,
+    BulkMarketDataRequest,
+    BulkMarketDataResponse,
     ExtendMarketDataRequest,
     FetchMarketDataRequest,
     MarketDataListResponse,
@@ -151,3 +153,24 @@ def sync_all_market_data(
         skipped=result["skipped"],
         errors=result["errors"],
     )
+
+
+@router.post("/bulk", response_model=BulkMarketDataResponse)
+def get_bulk_market_data(
+    request: BulkMarketDataRequest,
+    db: Session = Depends(get_db),
+) -> BulkMarketDataResponse:
+    """Get stored market data for multiple tickers in a single request."""
+    data: dict[str, list[MarketDataSchema]] = {}
+    errors: dict[str, str] = {}
+
+    for symbol in request.symbols:
+        try:
+            rows = market_data_service.get_market_data(
+                db, symbol, start_date=request.start_date
+            )
+            data[symbol] = [MarketDataSchema.model_validate(r) for r in rows]
+        except Exception as e:
+            errors[symbol] = str(e)
+
+    return BulkMarketDataResponse(data=data, errors=errors)

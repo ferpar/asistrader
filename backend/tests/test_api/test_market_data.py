@@ -229,3 +229,61 @@ def test_bulk_extend(
     assert data["total_rows"] == 10  # 5 per ticker
     assert data["results"]["ASML"] == 5
     assert data["results"]["NVDA"] == 5
+
+
+def test_bulk_market_data_with_data(
+    client: TestClient, db_session: Session, sample_ticker: Ticker, sample_market_data: list[MarketData]
+) -> None:
+    """Test bulk market data retrieval returns stored data keyed by symbol."""
+    response = client.post(
+        "/api/market-data/bulk",
+        json={"symbols": [sample_ticker.symbol], "start_date": "2024-01-01"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert sample_ticker.symbol in data["data"]
+    assert len(data["data"][sample_ticker.symbol]) == 3
+    assert data["data"][sample_ticker.symbol][0]["close"] == 104.0
+    assert data["errors"] == {}
+
+
+def test_bulk_market_data_empty(
+    client: TestClient, db_session: Session, sample_ticker: Ticker
+) -> None:
+    """Test bulk market data for a ticker with no data returns empty list."""
+    response = client.post(
+        "/api/market-data/bulk",
+        json={"symbols": [sample_ticker.symbol], "start_date": "2024-01-01"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data"][sample_ticker.symbol] == []
+
+
+def test_bulk_market_data_unknown_symbol(
+    client: TestClient, db_session: Session
+) -> None:
+    """Test bulk market data for a nonexistent symbol returns empty data."""
+    response = client.post(
+        "/api/market-data/bulk",
+        json={"symbols": ["ZZZZZ"], "start_date": "2024-01-01"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data"]["ZZZZZ"] == []
+
+
+def test_bulk_market_data_with_date_filter(
+    client: TestClient, db_session: Session, sample_ticker: Ticker, sample_market_data: list[MarketData]
+) -> None:
+    """Test bulk market data respects start_date filter."""
+    response = client.post(
+        "/api/market-data/bulk",
+        json={"symbols": [sample_ticker.symbol], "start_date": "2024-01-03"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    rows = data["data"][sample_ticker.symbol]
+    assert len(rows) == 2
+    assert rows[0]["date"] == "2024-01-03"
+    assert rows[1]["date"] == "2024-01-04"

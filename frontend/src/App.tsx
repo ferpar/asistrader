@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react'
 import { useAuth } from './context/AuthContext'
 import { Layout } from './components/Layout'
 import { AuthForm } from './components/AuthForm'
-import { TradeDashboard, FundDashboard } from './pages'
+import { TradeDashboard, FundDashboard, RadarDashboard } from './pages'
 import { useFundStore } from './container/ContainerContext'
 import './styles/global.css'
 import layoutStyles from './components/Layout.module.css'
 
-export type AppPage = 'trades' | 'fund'
+export type AppPage = 'trades' | 'fund' | 'radar'
 
 function App() {
   const { isAuthenticated, isLoading } = useAuth()
@@ -39,7 +39,7 @@ function App() {
 
   return (
     <Layout currentPage={page} onNavigate={setPage}>
-      {page === 'trades' ? <TradeDashboard /> : <FundDashboard />}
+      {page === 'trades' ? <TradeDashboard /> : page === 'fund' ? <FundDashboard /> : <RadarDashboard />}
     </Layout>
   )
 }

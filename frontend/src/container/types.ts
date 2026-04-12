@@ -4,6 +4,7 @@ import type { IStrategyRepository } from '../domain/strategy/IStrategyRepository
 import type { IMarketDataRepository } from '../domain/marketData/IMarketDataRepository'
 import { TickerStore } from '../domain/ticker/TickerStore'
 import { FundStore } from '../domain/fund/FundStore'
+import { RadarStore } from '../domain/radar/RadarStore'
 
 export interface AppContainer {
   tradeStore: TradeStore
@@ -12,4 +13,5 @@ export interface AppContainer {
   marketDataRepo: IMarketDataRepository
   tickerStore: TickerStore
   fundStore: FundStore
+  radarStore: RadarStore
 }
