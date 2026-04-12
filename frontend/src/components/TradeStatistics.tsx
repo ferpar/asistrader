@@ -104,7 +104,7 @@ function getPnLClass(value: number): string {
   return `${styles.statValue} neutral`
 }
 
-const SHOW_UNREALIZED: Record<ExtendedFilter, boolean> = {
+const UNREALIZED_ACTIVE: Record<ExtendedFilter, boolean> = {
   all: true,
   open: true,
   plan: false,
@@ -115,7 +115,7 @@ const SHOW_UNREALIZED: Record<ExtendedFilter, boolean> = {
   losers: false,
 }
 
-const SHOW_REALIZED: Record<ExtendedFilter, boolean> = {
+const REALIZED_ACTIVE: Record<ExtendedFilter, boolean> = {
   all: true,
   open: false,
   plan: false,
@@ -129,11 +129,12 @@ const SHOW_REALIZED: Record<ExtendedFilter, boolean> = {
 interface SectionProps {
   title: string
   stats: PnLStats
+  active: boolean
 }
 
-function StatSection({ title, stats }: SectionProps) {
+function StatSection({ title, stats, active }: SectionProps) {
   return (
-    <div className={styles.section}>
+    <div className={`${styles.section} ${active ? '' : styles.dimmed}`}>
       <div className={styles.sectionTitle}>{title}</div>
       <div className={styles.statGrid}>
         <div className={styles.statItem}>
@@ -175,11 +176,11 @@ function StatSection({ title, stats }: SectionProps) {
 
 export function TradeStatistics({ allTrades, filteredTrades, liveMetrics, filter }: TradeStatisticsProps) {
   const totalNonCanceled = allTrades.filter((t) => t.status !== 'canceled').length
-  const showUnrealized = SHOW_UNREALIZED[filter]
-  const showRealized = SHOW_REALIZED[filter]
+  const unrealizedActive = UNREALIZED_ACTIVE[filter]
+  const realizedActive = REALIZED_ACTIVE[filter]
 
-  const unrealizedStats = showUnrealized ? calculateUnrealizedStats(filteredTrades, liveMetrics) : null
-  const realizedStats = showRealized ? calculateRealizedStats(filteredTrades) : null
+  const unrealizedStats = calculateUnrealizedStats(filteredTrades, liveMetrics)
+  const realizedStats = calculateRealizedStats(filteredTrades)
 
   return (
     <div className={styles.tradeStatistics}>
@@ -193,8 +194,10 @@ export function TradeStatistics({ allTrades, filteredTrades, liveMetrics, filter
           <span className={styles.statValue}>{totalNonCanceled}</span>
         </div>
       </div>
-      {unrealizedStats && <StatSection title="Unrealized" stats={unrealizedStats} />}
-      {realizedStats && <StatSection title="Realized" stats={realizedStats} />}
+      <div className={styles.sectionsRow}>
+        <StatSection title="Unrealized" stats={unrealizedStats} active={unrealizedActive} />
+        <StatSection title="Realized" stats={realizedStats} active={realizedActive} />
+      </div>
     </div>
   )
 }

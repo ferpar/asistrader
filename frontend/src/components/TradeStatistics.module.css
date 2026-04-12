@@ -16,10 +16,23 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+.sectionsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 40px;
+}
+
 .section {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1 1 35rem;
+  min-width: 0;
+  transition: opacity 0.15s ease;
+}
+
+.dimmed {
+  opacity: 0.35;
 }
 
 .sectionTitle {
