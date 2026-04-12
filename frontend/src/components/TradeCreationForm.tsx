@@ -51,6 +51,10 @@ export function TradeCreationForm({ onClose }: TradeCreationFormProps) {
     new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value)
 
   const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (preview.ratio > 0 && preview.ratio < 1.5) {
+      if (!window.confirm(`Risk/reward ratio is ${preview.ratio.toFixed(2)}. Continue anyway?`)) return
+    }
     const success = await handleSubmit(e)
     if (success) onClose()
   }

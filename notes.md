@@ -1,10 +1,6 @@
 update inputs
 
-autocalculate number of stocks suggestion based on risk percentage
-
 highligh row on hover / focus / active
-
-warn before allowing to create a new trade with a ratio below 1.5x
 
 
 radar screen with 
@@ -87,3 +83,7 @@ DONE - update desktop layout to stop wasting vertical space on it
 	- put the three first rows in a single column
 
 DONE - optional alphabetical ordering for trades list
+
+DONE - autocalculate number of stocks suggestion based on risk percentage
+
+DONE - warn before allowing to create a new trade with a ratio below 1.5x
