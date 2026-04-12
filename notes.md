@@ -1,8 +1,8 @@
 update inputs
 
-FIX and update moving averages to simple moving averages and add tests for them
-
 fix trade summary not picking up data
+	mark current p&l avg win loss and ratio as realized and win and loss 
+	add unrealized version of all these and separate them and winning and losing
 
 fix PE dist in white instead of red when its negative
 
@@ -12,6 +12,8 @@ create trade from the radar
 
 tickers with open trades should be distinguishable in the radar
 
+check what to do with stocks that have 4 decimals
+
 radar screen with 
  - automatically pick up tickers that already have trades
  - regression
@@ -19,7 +21,6 @@ radar screen with
 	
 check currency being used in data coming from the yfinance api
 
-check what to do with stocks that have 4 decimals
 check what to do with currencies
 	- are they coming via yfinance?
 
@@ -108,3 +109,5 @@ DONE
 
 DONE - max width in all modals needs to be proportional to font size, so when user zooms in it doesnt overflow
 	max width 90dvw or in rem 
+
+DONE - FIX and update moving averages to simple moving averages and add tests for them

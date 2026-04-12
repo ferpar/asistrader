@@ -5,16 +5,19 @@ import { TradeFilters } from '../components/TradeFilters'
 import { TradeStatistics } from '../components/TradeStatistics'
 import { TickerPerformance } from '../components/TickerPerformance'
 import { TradeActionBar } from '../components/TradeActionBar'
-import { useTradeStore } from '../container/ContainerContext'
+import { useTradeStore, useLiveMetricsStore } from '../container/ContainerContext'
 
 export const TradeDashboard = observer(function TradeDashboard() {
   const store = useTradeStore()
+  const liveMetricsStore = useLiveMetricsStore()
 
   useEffect(() => {
     store.loadTrades()
   }, [store])
 
+  const allTrades = store.trades$.get()
   const filteredTrades = store.filteredTrades$.get()
+  const liveMetrics = liveMetricsStore.metrics$.get()
   const loading = store.loading$.get()
   const error = store.error$.get()
   const filter = store.filter$.get()
@@ -24,7 +27,12 @@ export const TradeDashboard = observer(function TradeDashboard() {
       <TradeActionBar />
       <section className="trades-section">
         <h2>Trades</h2>
-        <TradeStatistics trades={filteredTrades} />
+        <TradeStatistics
+          allTrades={allTrades}
+          filteredTrades={filteredTrades}
+          liveMetrics={liveMetrics}
+          filter={filter}
+        />
         <TickerPerformance trades={store.trades$.get()} />
         <TradeFilters value={filter} onChange={(f) => store.setFilter(f)} />
         <TradeTable
