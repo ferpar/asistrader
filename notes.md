@@ -1,10 +1,23 @@
 update inputs
 
+FIX and update moving averages to simple moving averages and add tests for them
+
+fix trade summary not picking up data
+
+fix PE dist in white instead of red when its negative
+
+max width in all modals needs to be proportional to font size, so when user zooms in it doesnt overflow
+	max width 90dvw or in rem 
+
+dates and ages should move from trades table to radar list
+
+create trade from the radar
+
+tickers with open trades should be distinguishable in the radar
+
 radar screen with 
- - indicators for each ticker
-	- mean band positions
-	- 50 and 5 day average change both % and value  
-	- 
+ - automatically pick up tickers that already have trades
+ - regression
  - macro indicators
 	
 check currency being used in data coming from the yfinance api
@@ -90,3 +103,8 @@ DONE - autocalculate number of stocks suggestion based on risk percentage
 DONE - warn before allowing to create a new trade with a ratio below 1.5x
 
 DONE - highligh row on hover / focus / active
+
+DONE
+ - indicators for each ticker
+	- mean band positions
+	- 50 and 5 day average change both % and value  

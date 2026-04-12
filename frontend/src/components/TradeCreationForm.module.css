@@ -15,7 +15,7 @@
   background-color: var(--color-bg);
   border-radius: 8px;
   width: 100%;
-  max-width: min(900px, 90dvw);
+  max-width: min(56.25rem, 90dvw);
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
