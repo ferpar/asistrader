@@ -1,7 +1,7 @@
 import { observable } from '@legendapp/state'
 import type { IRadarRepository } from './IRadarRepository'
 import type { TickerIndicators } from './types'
-import { computeEmaStructure, computePriceChanges } from './indicators'
+import { computeSmaStructure, computePriceChanges } from './indicators'
 
 const STORAGE_KEY = 'asistrader:radar:symbols'
 
@@ -59,7 +59,7 @@ export class RadarStore {
             symbol,
             name: null,
             currentPrice: null,
-            ema: { ema5: null, ema20: null, ema50: null, ema200: null, structure: null },
+            sma: { sma5: null, sma20: null, sma50: null, sma200: null, structure: null },
             priceChanges: { avgChange50d: null, avgChangePct50d: null, avgChange5d: null, avgChangePct5d: null },
             error: errors[symbol],
           }
@@ -73,7 +73,7 @@ export class RadarStore {
             symbol,
             name: null,
             currentPrice: null,
-            ema: { ema5: null, ema20: null, ema50: null, ema200: null, structure: null },
+            sma: { sma5: null, sma20: null, sma50: null, sma200: null, structure: null },
             priceChanges: { avgChange50d: null, avgChangePct50d: null, avgChange5d: null, avgChangePct5d: null },
             error: 'No price data available',
           }
@@ -84,7 +84,7 @@ export class RadarStore {
           symbol,
           name: null,
           currentPrice,
-          ema: computeEmaStructure(closes, currentPrice),
+          sma: computeSmaStructure(closes, currentPrice),
           priceChanges: computePriceChanges(closes),
           error: null,
         }

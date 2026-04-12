@@ -21,7 +21,7 @@ function getStructureColor(structure: string | null): string {
 }
 
 export function RadarTickerCard({ indicators, tickerName, onRemove }: RadarTickerCardProps) {
-  const { symbol, currentPrice, ema, priceChanges, error } = indicators
+  const { symbol, currentPrice, sma, priceChanges, error } = indicators
 
   if (error) {
     return (
@@ -52,15 +52,15 @@ export function RadarTickerCard({ indicators, tickerName, onRemove }: RadarTicke
 
       <div className={styles.sections}>
         <div className={styles.section}>
-          <div className={styles.sectionLabel}>EMA Structure</div>
-          <div className={`${styles.structure} ${getStructureColor(ema.structure)}`}>
-            {ema.structure ?? '-'}
+          <div className={styles.sectionLabel}>SMA Structure</div>
+          <div className={`${styles.structure} ${getStructureColor(sma.structure)}`}>
+            {sma.structure ?? '-'}
           </div>
           <div className={styles.emaValues}>
-            <span className={styles.emaItem}><span className={styles.emaLabel}>5</span> {ema.ema5 !== null ? formatCurrency(ema.ema5) : '-'}</span>
-            <span className={styles.emaItem}><span className={styles.emaLabel}>20</span> {ema.ema20 !== null ? formatCurrency(ema.ema20) : '-'}</span>
-            <span className={styles.emaItem}><span className={styles.emaLabel}>50</span> {ema.ema50 !== null ? formatCurrency(ema.ema50) : '-'}</span>
-            <span className={styles.emaItem}><span className={styles.emaLabel}>200</span> {ema.ema200 !== null ? formatCurrency(ema.ema200) : '-'}</span>
+            <span className={styles.emaItem}><span className={styles.emaLabel}>5</span> {sma.sma5 !== null ? formatCurrency(sma.sma5) : '-'}</span>
+            <span className={styles.emaItem}><span className={styles.emaLabel}>20</span> {sma.sma20 !== null ? formatCurrency(sma.sma20) : '-'}</span>
+            <span className={styles.emaItem}><span className={styles.emaLabel}>50</span> {sma.sma50 !== null ? formatCurrency(sma.sma50) : '-'}</span>
+            <span className={styles.emaItem}><span className={styles.emaLabel}>200</span> {sma.sma200 !== null ? formatCurrency(sma.sma200) : '-'}</span>
           </div>
         </div>
 

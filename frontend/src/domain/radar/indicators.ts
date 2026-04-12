@@ -1,39 +1,33 @@
-import type { EmaStructure, PriceChanges } from './types'
+import type { SmaStructure, PriceChanges } from './types'
 
-export function computeEma(closes: number[], period: number): number | null {
+export function computeSma(closes: number[], period: number): number | null {
   if (closes.length < period) return null
-  let sma = 0
-  for (let i = 0; i < period; i++) sma += closes[i]
-  sma /= period
-
-  const k = 2 / (period + 1)
-  let ema = sma
-  for (let i = period; i < closes.length; i++) {
-    ema = closes[i] * k + ema * (1 - k)
-  }
-  return ema
+  const slice = closes.slice(-period)
+  let sum = 0
+  for (const c of slice) sum += c
+  return sum / period
 }
 
-export function computeEmaStructure(closes: number[], currentPrice: number): EmaStructure {
-  const ema5 = computeEma(closes, 5)
-  const ema20 = computeEma(closes, 20)
-  const ema50 = computeEma(closes, 50)
-  const ema200 = computeEma(closes, 200)
+export function computeSmaStructure(closes: number[], currentPrice: number): SmaStructure {
+  const sma5 = computeSma(closes, 5)
+  const sma20 = computeSma(closes, 20)
+  const sma50 = computeSma(closes, 50)
+  const sma200 = computeSma(closes, 200)
 
   let structure: string | null = null
-  if (ema5 !== null && ema20 !== null && ema50 !== null && ema200 !== null) {
+  if (sma5 !== null && sma20 !== null && sma50 !== null && sma200 !== null) {
     const items: [number, string][] = [
       [currentPrice, '0'],
-      [ema5, '1'],
-      [ema20, '2'],
-      [ema50, '3'],
-      [ema200, '4'],
+      [sma5, '1'],
+      [sma20, '2'],
+      [sma50, '3'],
+      [sma200, '4'],
     ]
     items.sort((a, b) => b[0] - a[0])
     structure = items.map(([, label]) => label).join('')
   }
 
-  return { ema5, ema20, ema50, ema200, structure }
+  return { sma5, sma20, sma50, sma200, structure }
 }
 
 export function computePriceChanges(closes: number[]): PriceChanges {

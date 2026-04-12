@@ -1,8 +1,8 @@
-export interface EmaStructure {
-  ema5: number | null
-  ema20: number | null
-  ema50: number | null
-  ema200: number | null
+export interface SmaStructure {
+  sma5: number | null
+  sma20: number | null
+  sma50: number | null
+  sma200: number | null
   structure: string | null
 }
 
@@ -17,7 +17,7 @@ export interface TickerIndicators {
   symbol: string
   name: string | null
   currentPrice: number | null
-  ema: EmaStructure
+  sma: SmaStructure
   priceChanges: PriceChanges
   error: string | null
 }

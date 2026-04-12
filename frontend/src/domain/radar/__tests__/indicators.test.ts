@@ -1,57 +1,76 @@
 import { describe, it, expect } from 'vitest'
-import { computeEma, computeEmaStructure, computePriceChanges } from '../indicators'
+import { computeSma, computeSmaStructure, computePriceChanges } from '../indicators'
 
-describe('computeEma', () => {
+describe('computeSma', () => {
   it('returns null when insufficient data', () => {
-    expect(computeEma([1, 2, 3], 5)).toBeNull()
-    expect(computeEma([], 1)).toBeNull()
+    expect(computeSma([1, 2, 3], 5)).toBeNull()
+    expect(computeSma([], 1)).toBeNull()
   })
 
-  it('returns SMA when data length equals period', () => {
-    const closes = [2, 4, 6, 8, 10]
-    const result = computeEma(closes, 5)
-    expect(result).toBeCloseTo(6, 5)
+  it('returns the average when data length equals period', () => {
+    expect(computeSma([2, 4, 6, 8, 10], 5)).toBe(6)
   })
 
-  it('computes EMA correctly for known series', () => {
-    // 10-day EMA of [22,22,22,22,22,22,22,22,22,22,23,24,25]
-    // SMA of first 10 = 22, then k = 2/11 ≈ 0.1818
-    // EMA after 23: 22 + 0.1818*(23-22) = 22.1818
-    // EMA after 24: 22.1818 + 0.1818*(24-22.1818) = 22.5124
-    // EMA after 25: 22.5124 + 0.1818*(25-22.5124) = 22.9647
-    const closes = [22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 23, 24, 25]
-    const result = computeEma(closes, 10)!
-    expect(result).toBeCloseTo(22.9647, 2)
+  it('uses only the last N closes when more data is available', () => {
+    // Last 5 of [1..10]: 6+7+8+9+10 = 40, /5 = 8
+    expect(computeSma([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 5)).toBe(8)
+  })
+
+  it('computes correctly for period 2', () => {
+    // Last 2 of [10, 20, 30]: (20+30)/2 = 25
+    expect(computeSma([10, 20, 30], 2)).toBe(25)
+  })
+
+  it('handles a single-element period', () => {
+    expect(computeSma([42], 1)).toBe(42)
   })
 })
 
-describe('computeEmaStructure', () => {
-  it('returns all nulls when insufficient data for 200-day EMA', () => {
+describe('computeSmaStructure', () => {
+  it('returns all-null fields when insufficient data for 200-period SMA', () => {
     const closes = Array(50).fill(100)
-    const result = computeEmaStructure(closes, 100)
-    expect(result.ema200).toBeNull()
+    const result = computeSmaStructure(closes, 100)
+    expect(result.sma200).toBeNull()
     expect(result.structure).toBeNull()
-    expect(result.ema5).not.toBeNull()
-    expect(result.ema20).not.toBeNull()
-    expect(result.ema50).not.toBeNull()
+    expect(result.sma5).not.toBeNull()
+    expect(result.sma20).not.toBeNull()
+    expect(result.sma50).not.toBeNull()
   })
 
-  it('returns "01234" for bullish structure', () => {
-    // Steadily rising prices: EMA200 < EMA50 < EMA20 < EMA5 < current price
+  it('returns "01234" for a steadily rising bullish series', () => {
+    // Rising prices ⇒ current > SMA5 > SMA20 > SMA50 > SMA200
     const closes: number[] = []
     for (let i = 0; i < 250; i++) closes.push(50 + i * 0.5)
     const currentPrice = closes[closes.length - 1]
-    const result = computeEmaStructure(closes, currentPrice)
+    const result = computeSmaStructure(closes, currentPrice)
     expect(result.structure).toBe('01234')
   })
 
-  it('returns "43210" for bearish structure', () => {
-    // Steadily falling prices: current < EMA5 < EMA20 < EMA50 < EMA200
+  it('returns "43210" for a steadily falling bearish series', () => {
     const closes: number[] = []
     for (let i = 0; i < 250; i++) closes.push(200 - i * 0.5)
     const currentPrice = closes[closes.length - 1]
-    const result = computeEmaStructure(closes, currentPrice)
+    const result = computeSmaStructure(closes, currentPrice)
     expect(result.structure).toBe('43210')
+  })
+
+  it('computes individual SMA values matching hand-verified math', () => {
+    // 200 closes, all = 100. Each SMA(5/20/50/200) = 100.
+    const closes = Array(200).fill(100)
+    const result = computeSmaStructure(closes, 100)
+    expect(result.sma5).toBe(100)
+    expect(result.sma20).toBe(100)
+    expect(result.sma50).toBe(100)
+    expect(result.sma200).toBe(100)
+  })
+
+  it('returns correct structure when current price matches an SMA exactly', () => {
+    // 200 closes all 100; current price 100. All values equal -> sort is stable.
+    // structure should still be 5 chars from {0,1,2,3,4}.
+    const closes = Array(200).fill(100)
+    const result = computeSmaStructure(closes, 100)
+    expect(result.structure).toHaveLength(5)
+    expect(new Set(result.structure!.split(''))).toEqual(new Set(['0', '1', '2', '3', '4']))
   })
 })
 
@@ -62,15 +81,13 @@ describe('computePriceChanges', () => {
   })
 
   it('computes 5d average changes correctly', () => {
-    // 6 closes: changes are +1, +1, +1, +1, +1
     const closes = [100, 101, 102, 103, 104, 105]
     const result = computePriceChanges(closes)
     expect(result.avgChange5d).toBeCloseTo(1, 5)
-    expect(result.avgChangePct5d).toBeCloseTo(0.0098, 3) // ~1% of ~101 avg
+    expect(result.avgChangePct5d).toBeCloseTo(0.0098, 3)
   })
 
   it('computes 50d average changes for short data', () => {
-    // With only 6 data points, 50d uses all available data
     const closes = [100, 102, 104, 106, 108, 110]
     const result = computePriceChanges(closes)
     expect(result.avgChange50d).toBeCloseTo(2, 5)
