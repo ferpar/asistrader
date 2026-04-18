@@ -130,3 +130,143 @@
   font-weight: 600;
   color: var(--color-text);
 }
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tradeCounts {
+  display: flex;
+  gap: 4px;
+}
+
+.countChip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 0.6875rem;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  line-height: 1.2;
+}
+
+.countLabel {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.countValue {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.countPlan .countLabel {
+  color: var(--color-text-muted);
+}
+
+.countOrdered .countLabel {
+  color: var(--color-warning);
+}
+
+.countOpen .countLabel {
+  color: var(--color-info);
+}
+
+.countClosed .countLabel {
+  color: var(--color-success);
+}
+
+.tradesSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--color-border);
+}
+
+.tradesList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tradeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  font-size: 0.8125rem;
+  padding: 6px 8px;
+  background-color: var(--color-bg);
+  border-radius: 4px;
+}
+
+.tradeId {
+  font-weight: 700;
+  font-family: monospace;
+  min-width: 36px;
+}
+
+.tradeStatus {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.tradeCell {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.2;
+}
+
+.tradeCellLabel {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.statusPlan {
+  color: var(--color-text-muted);
+}
+
+.statusOrdered {
+  color: var(--color-warning);
+}
+
+.statusOpen {
+  color: var(--color-info);
+}
+
+.statusClose {
+  color: var(--color-success);
+}
+
+.statusCanceled {
+  color: var(--color-error);
+}
+
+.distanceDanger {
+  background-color: var(--color-distance-danger-bg);
+  color: var(--color-distance-danger-text);
+  font-weight: 600;
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.distanceNear {
+  background-color: var(--color-distance-near-bg);
+  color: var(--color-distance-near-text);
+  font-weight: 600;
+  padding: 0 4px;
+  border-radius: 3px;
+}

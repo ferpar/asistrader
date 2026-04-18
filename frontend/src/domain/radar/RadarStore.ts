@@ -28,6 +28,7 @@ const SYNC_THROTTLE_MS = 5 * 60 * 1000
 
 export class RadarStore {
   readonly symbols$ = observable<string[]>(loadSymbols())
+  readonly derivedSymbols$ = observable<string[]>([])
   readonly indicators$ = observable<TickerIndicators[]>([])
   readonly loading$ = observable(false)
   readonly error$ = observable<string | null>(null)
@@ -35,8 +36,25 @@ export class RadarStore {
 
   constructor(private readonly repo: IRadarRepository) {}
 
+  private allSymbols(): string[] {
+    const watchlist = this.symbols$.get()
+    const derived = this.derivedSymbols$.get()
+    const seen = new Set(watchlist)
+    const extras = derived.filter((s) => !seen.has(s))
+    return [...watchlist, ...extras]
+  }
+
+  setDerivedSymbols(symbols: string[]): void {
+    const normalized = Array.from(new Set(symbols.map((s) => s.toUpperCase())))
+    const prev = this.derivedSymbols$.get()
+    const same = prev.length === normalized.length && prev.every((s, i) => s === normalized[i])
+    if (same) return
+    this.derivedSymbols$.set(normalized)
+    this.loadIndicators()
+  }
+
   async loadIndicators(force = false): Promise<void> {
-    const symbols = this.symbols$.get()
+    const symbols = this.allSymbols()
     if (symbols.length === 0) {
       this.indicators$.set([])
       return
@@ -112,6 +130,8 @@ export class RadarStore {
     const updated = this.symbols$.get().filter((s) => s !== symbol)
     this.symbols$.set(updated)
     saveSymbols(updated)
-    this.indicators$.set(this.indicators$.get().filter((i) => i.symbol !== symbol))
+    if (!this.derivedSymbols$.get().includes(symbol)) {
+      this.indicators$.set(this.indicators$.get().filter((i) => i.symbol !== symbol))
+    }
   }
 }

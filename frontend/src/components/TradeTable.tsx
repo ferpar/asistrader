@@ -5,6 +5,7 @@ import { TradeEditModal, EditMode } from './TradeEditModal'
 import { ExitLevelSummary } from './ExitLevelSummary'
 import { useLiveMetricsStore, useTradeStore, useFundStore } from '../container/ContainerContext'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen, formatOpenToClose } from '../utils/trade'
+import { getPositionNum } from '../utils/tradeLive'
 import styles from './TradeTable.module.css'
 
 interface TradeTableProps {
@@ -233,12 +234,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
             })
           : trades
         ).map((trade) => {
-          const tpDistNum = liveMetrics[trade.id]?.distanceToTP?.toNumber() ?? null
-          const slDistNum = liveMetrics[trade.id]?.distanceToSL?.toNumber() ?? null
-          // Consolidated position: positive = toward TP, negative = toward SL
-          const positionNum = tpDistNum !== null && slDistNum !== null
-            ? (tpDistNum >= 0 ? tpDistNum : -slDistNum)
-            : null
+          const positionNum = getPositionNum(liveMetrics[trade.id])
           const peDistNum = liveMetrics[trade.id]?.distanceToPE?.toNumber() ?? null
           const pnlNum = liveMetrics[trade.id]?.unrealizedPnL?.toNumber() ?? null
 
