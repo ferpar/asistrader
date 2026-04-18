@@ -11,7 +11,7 @@ export interface ExitLevelInput {
   move_sl_to_breakeven: boolean
 }
 
-export function useTradeCreation() {
+export function useTradeCreation(initialTicker?: string) {
   const store = useTradeStore()
   const strategyRepo = useStrategyRepo()
   const tickerStore = useTickerStore()
@@ -54,8 +54,9 @@ export function useTradeCreation() {
         ])
         setTickers(loadedTickers)
         setStrategies(loadedStrategies)
-        if (loadedTickers.length > 0) {
-          setFormData(prev => ({ ...prev, ticker: loadedTickers[0].symbol }))
+        const defaultSymbol = initialTicker ?? (loadedTickers.length > 0 ? loadedTickers[0].symbol : '')
+        if (defaultSymbol) {
+          setFormData(prev => ({ ...prev, ticker: defaultSymbol }))
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data')
@@ -201,7 +202,7 @@ export function useTradeCreation() {
 
   const resetForm = () => {
     setFormData({
-      ticker: tickers.length > 0 ? tickers[0].symbol : '',
+      ticker: initialTicker ?? (tickers.length > 0 ? tickers[0].symbol : ''),
       entry_price: '',
       stop_loss: '',
       take_profit: '',

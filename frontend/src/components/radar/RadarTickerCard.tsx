@@ -14,6 +14,7 @@ interface RadarTickerCardProps {
   liveMetrics: Record<number, LiveMetrics>
   removable: boolean
   onRemove: (symbol: string) => void
+  onNewTrade: (symbol: string) => void
 }
 
 const formatPercent = (value: number) =>
@@ -128,6 +129,7 @@ export const RadarTickerCard = observer(function RadarTickerCard({
   liveMetrics,
   removable,
   onRemove,
+  onNewTrade,
 }: RadarTickerCardProps) {
   const { symbol, currentPrice, sma, priceChanges, error } = indicators
   const fmt = (value: number) => formatPrice(value, ticker?.currency, ticker?.priceHint)
@@ -163,6 +165,13 @@ export const RadarTickerCard = observer(function RadarTickerCard({
             <span className={styles.countValue}>{counts.closed}</span>
           </span>
         </div>
+        <button
+          className={styles.newTradeBtn}
+          onClick={() => onNewTrade(symbol)}
+          title="New trade"
+        >
+          +
+        </button>
         {removable && (
           <button className={styles.removeBtn} onClick={() => onRemove(symbol)}>&times;</button>
         )}
