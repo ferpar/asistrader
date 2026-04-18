@@ -138,8 +138,8 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
 
   const getPEDistanceClass = (distance: number | null): string => {
     if (distance === null) return ''
-    if (distance >= 0.05) return styles.distanceNear      // +5% or more = good
-    if (distance <= -0.05) return styles.distanceDanger   // -5% or more = bad
+    if (distance > 0) return styles.distanceNear
+    if (distance < 0) return styles.distanceDanger
     return ''
   }
 
