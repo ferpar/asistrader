@@ -5,6 +5,8 @@ import type { TradeWithMetrics, LiveMetrics } from '../../domain/trade/types'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen } from '../../utils/trade'
 import { getPositionNum } from '../../utils/tradeLive'
 import { formatPrice } from '../../utils/priceFormat'
+import { computeDaysRange, formatDaysRange } from '../../utils/timelineExpectations'
+import type { PriceChanges } from '../../domain/radar/types'
 import styles from './RadarTickerCard.module.css'
 
 interface RadarTickerCardProps {
@@ -55,10 +57,11 @@ function statusClass(status: TradeWithMetrics['status']): string {
 interface TradeLineProps {
   trade: TradeWithMetrics
   metric: LiveMetrics | undefined
+  priceChanges: PriceChanges
   fmt: (value: number) => string
 }
 
-function TradeLine({ trade, metric, fmt }: TradeLineProps) {
+function TradeLine({ trade, metric, priceChanges, fmt }: TradeLineProps) {
   const positionNum = getPositionNum(metric)
   const peDistNum = metric?.distanceToPE?.toNumber() ?? null
   const pnlNum = metric?.unrealizedPnL?.toNumber() ?? null
@@ -70,6 +73,18 @@ function TradeLine({ trade, metric, fmt }: TradeLineProps) {
 
   const pnlText = showPnl && pnlNum !== null && pnlPctNum !== null
     ? `${fmt(pnlNum)} (${formatPercentShort(pnlPctNum)})`
+    : '-'
+
+  const showEtaPe = trade.status === 'plan' || trade.status === 'ordered'
+  const showEtaTpSl = trade.status === 'open'
+  const etaPeText = showEtaPe && metric?.currentPrice
+    ? formatDaysRange(computeDaysRange(metric.currentPrice, trade.entryPrice, priceChanges.avgChange50d, priceChanges.avgChange5d))
+    : '-'
+  const etaTpText = showEtaTpSl && metric?.currentPrice
+    ? formatDaysRange(computeDaysRange(metric.currentPrice, trade.takeProfit, priceChanges.avgChange50d, priceChanges.avgChange5d))
+    : '-'
+  const etaSlText = showEtaTpSl && metric?.currentPrice
+    ? formatDaysRange(computeDaysRange(metric.currentPrice, trade.stopLoss, priceChanges.avgChange50d, priceChanges.avgChange5d))
     : '-'
 
   return (
@@ -117,6 +132,18 @@ function TradeLine({ trade, metric, fmt }: TradeLineProps) {
         <span className={showPnl && pnlNum !== null ? (pnlNum > 0 ? 'positive' : 'negative') : ''}>
           {pnlText}
         </span>
+      </span>
+      <span className={styles.tradeCell}>
+        <span className={styles.tradeCellLabel}>ETA→PE</span>
+        <span>{etaPeText}</span>
+      </span>
+      <span className={styles.tradeCell}>
+        <span className={styles.tradeCellLabel}>ETA→TP</span>
+        <span>{etaTpText}</span>
+      </span>
+      <span className={styles.tradeCell}>
+        <span className={styles.tradeCellLabel}>ETA→SL</span>
+        <span>{etaSlText}</span>
       </span>
     </div>
   )
@@ -241,7 +268,7 @@ export const RadarTickerCard = observer(function RadarTickerCard({
           <div className={styles.sectionLabel}>Active Trades</div>
           <div className={styles.tradesList}>
             {activeTrades.map((t) => (
-              <TradeLine key={t.id} trade={t} metric={liveMetrics[t.id]} fmt={fmt} />
+              <TradeLine key={t.id} trade={t} metric={liveMetrics[t.id]} priceChanges={priceChanges} fmt={fmt} />
             ))}
           </div>
         </div>
