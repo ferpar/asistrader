@@ -165,17 +165,21 @@ export const RadarTickerCard = observer(function RadarTickerCard({
             <span className={styles.countValue}>{counts.closed}</span>
           </span>
         </div>
-        <button
-          className={styles.newTradeBtn}
-          onClick={() => onNewTrade(symbol)}
-          title="New trade"
-        >
-          +
-        </button>
         {removable && (
           <button className={styles.removeBtn} onClick={() => onRemove(symbol)}>&times;</button>
         )}
       </div>
+    </div>
+  )
+
+  const footer = (
+    <div className={styles.cardFooter}>
+      <button
+        className={`${styles.btnAction} ${styles.btnNewTrade}`}
+        onClick={() => onNewTrade(symbol)}
+      >
+        + New Trade
+      </button>
     </div>
   )
 
@@ -184,6 +188,7 @@ export const RadarTickerCard = observer(function RadarTickerCard({
       <div className={`${styles.card} ${styles.cardError}`}>
         {header}
         <div className={styles.errorMsg}>{error}</div>
+        {footer}
       </div>
     )
   }
@@ -241,6 +246,8 @@ export const RadarTickerCard = observer(function RadarTickerCard({
           </div>
         </div>
       )}
+
+      {footer}
     </div>
   )
 })

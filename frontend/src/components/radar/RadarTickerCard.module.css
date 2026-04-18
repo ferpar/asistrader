@@ -55,18 +55,27 @@
   color: var(--color-error);
 }
 
-.newTradeBtn {
-  background: none;
-  border: none;
-  font-size: 1.25rem;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  padding: 0 4px;
-  line-height: 1;
+.cardFooter {
+  display: flex;
+  justify-content: flex-end;
 }
 
-.newTradeBtn:hover {
-  color: var(--color-success);
+.btnAction {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnNewTrade {
+  background-color: var(--color-info);
+  color: white;
+}
+
+.btnNewTrade:hover {
+  background-color: var(--color-info-dark);
 }
 
 .errorMsg {

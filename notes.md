@@ -1,3 +1,6 @@
+update price input to consider the number of decimals in the ticker
+
+create trade from the radar
 
 add timeline expectations 
 		- entry
@@ -6,21 +9,14 @@ add timeline expectations
 
 	given 50 and 5 days 
 	- explore possibility of using initial point estimations as well as comparing 50 and 5 of today	
-	
-bug - when opening seems to add layered to the trades 
 
-fix PE dist in white instead of red when its negative
-
-dates and ages should move from trades table to radar list
-
-create trade from the radar
-
-tickers with open trades should be distinguishable in the radar
 
 check what to do with stocks that have 4 decimals
 
+add name under the ticker symbol on edit open close etc... modals
+
 radar screen with 
- - automatically pick up tickers that already have trades
+ DONE - automatically pick up tickers that already have trades
  - regression
  - macro indicators
 	
@@ -120,3 +116,14 @@ DONE - FIX and update moving averages to simple moving averages and add tests fo
 DONE - fix trade summary not picking up data
 	mark current p&l avg win loss and ratio as realized and win and loss 
 	add unrealized version of all these and separate them and winning and losing
+
+DONE * - bug - when opening seems to add layered to the trades 
+
+DONE - dates and ages at trades table should also be visible at the radar list
+
+DONE - fix PE dist in white instead of red when its negative
+
+DONE - tickers with open trades should be distinguishable in the radar
+
+DONE - prefill exit price with current when closing and autocalculate whether its take profit or stop loss for the default option when closing
+
