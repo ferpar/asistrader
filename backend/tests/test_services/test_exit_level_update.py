@@ -233,5 +233,6 @@ class TestUpdateTradeWithExitLevels:
         # stop_loss and take_profit are computed from exit_levels
         assert updated.stop_loss == 97.0
         assert updated.take_profit == 112.0
-        assert updated.is_layered is True
+        # 1 SL + 1 TP at full size is a simple trade, not layered
+        assert updated.is_layered is False
         assert len(updated.exit_levels) == 2

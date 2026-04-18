@@ -1,8 +1,13 @@
-update inputs
 
-fix trade summary not picking up data
-	mark current p&l avg win loss and ratio as realized and win and loss 
-	add unrealized version of all these and separate them and winning and losing
+add timeline expectations 
+		- entry
+		- take profit
+		- stop loss
+
+	given 50 and 5 days 
+	- explore possibility of using initial point estimations as well as comparing 50 and 5 of today	
+	
+bug - when opening seems to add layered to the trades 
 
 fix PE dist in white instead of red when its negative
 
@@ -111,3 +116,7 @@ DONE - max width in all modals needs to be proportional to font size, so when us
 	max width 90dvw or in rem 
 
 DONE - FIX and update moving averages to simple moving averages and add tests for them
+
+DONE - fix trade summary not picking up data
+	mark current p&l avg win loss and ratio as realized and win and loss 
+	add unrealized version of all these and separate them and winning and losing

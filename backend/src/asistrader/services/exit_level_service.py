@@ -235,7 +235,9 @@ def replace_exit_levels(
 
     # Create new levels using existing create_exit_levels function
     created = create_exit_levels(db, trade_id, levels_data)
-    return created, True
+    tp_levels = [l for l in created if l.level_type == ExitLevelType.TP]
+    is_layered = len(tp_levels) > 1 or any(l.units_pct != 1.0 for l in tp_levels)
+    return created, is_layered
 
 
 def apply_manual_level_hit(
