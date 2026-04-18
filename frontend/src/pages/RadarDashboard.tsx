@@ -15,9 +15,9 @@ export const RadarDashboard = observer(function RadarDashboard() {
   const [tickers, setTickers] = useState<Ticker[]>([])
   const [selectedTicker, setSelectedTicker] = useState('')
 
-  const tickerNameMap = useMemo(() => {
-    const map: Record<string, string> = {}
-    for (const t of tickers) if (t.name) map[t.symbol.toUpperCase()] = t.name
+  const tickerMap = useMemo(() => {
+    const map: Record<string, Ticker> = {}
+    for (const t of tickers) map[t.symbol.toUpperCase()] = t
     return map
   }, [tickers])
 
@@ -112,7 +112,7 @@ export const RadarDashboard = observer(function RadarDashboard() {
           <RadarTickerCard
             key={ind.symbol}
             indicators={ind}
-            tickerName={tickerNameMap[ind.symbol] ?? null}
+            ticker={tickerMap[ind.symbol] ?? null}
             trades={tradesBySymbol[ind.symbol] ?? []}
             liveMetrics={liveMetrics}
             removable={watchlistSet.has(ind.symbol)}

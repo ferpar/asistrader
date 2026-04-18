@@ -6,6 +6,7 @@ import { ExitLevelSummary } from './ExitLevelSummary'
 import { useLiveMetricsStore, useTradeStore, useFundStore } from '../container/ContainerContext'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen, formatOpenToClose } from '../utils/trade'
 import { getPositionNum } from '../utils/tradeLive'
+import { formatPrice } from '../utils/priceFormat'
 import styles from './TradeTable.module.css'
 
 interface TradeTableProps {
@@ -98,12 +99,8 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
     return <div data-testid="empty">No trades found</div>
   }
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(value)
-  }
+  const formatCurrency = (value: number, trade: TradeWithMetrics) =>
+    formatPrice(value, trade.tickerCurrency, trade.tickerPriceHint)
 
   const formatDate = (date: Date | null) => {
     if (!date) return '-'
@@ -163,12 +160,12 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
 
     switch (type) {
       case 'price':
-        return metric.currentPrice !== null ? formatCurrency(metric.currentPrice.toNumber()) : '-'
+        return metric.currentPrice !== null ? formatCurrency(metric.currentPrice.toNumber(), trade) : '-'
       case 'peDist':
         return metric.distanceToPE !== null ? formatPercent(metric.distanceToPE.toNumber()) : '-'
       case 'pnl':
         if (metric.unrealizedPnL === null || metric.unrealizedPnLPct === null) return '-'
-        const pnlStr = formatCurrency(metric.unrealizedPnL.toNumber())
+        const pnlStr = formatCurrency(metric.unrealizedPnL.toNumber(), trade)
         const pctStr = formatPercent(metric.unrealizedPnLPct.toNumber())
         return `${pnlStr} (${pctStr})`
       default:
@@ -250,18 +247,18 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
             <td className={`${docked ? `${styles.stickyCol} ${styles.stickyCol3}` : ''} ${styles.tickerName}`} title={trade.tickerName || ''}>{trade.tickerName || '-'}</td>
             <td className={`${docked ? `${styles.stickyCol} ${styles.stickyCol4}` : ''} ${getStatusClass(trade.status)}`}>{trade.status}</td>
             <td className={styles.separator}>{trade.units}</td>
-            <td>{formatCurrency(trade.entryPrice.toNumber())}</td>
-            <td>{formatCurrency(trade.amount.toNumber())}</td>
-            <td className={styles.separator}>{formatCurrency(trade.stopLoss.toNumber())}</td>
-            <td>{formatCurrency(trade.takeProfit.toNumber())}</td>
+            <td>{formatCurrency(trade.entryPrice.toNumber(), trade)}</td>
+            <td>{formatCurrency(trade.amount.toNumber(), trade)}</td>
+            <td className={styles.separator}>{formatCurrency(trade.stopLoss.toNumber(), trade)}</td>
+            <td>{formatCurrency(trade.takeProfit.toNumber(), trade)}</td>
             <td className={`${styles.separator} ${trade.riskAbs.isNegative() ? 'negative' : 'positive'}`}>
-              {formatCurrency(trade.riskAbs.toNumber())}
+              {formatCurrency(trade.riskAbs.toNumber(), trade)}
             </td>
             <td className={trade.riskPct.isNegative() ? 'negative' : 'positive'}>
               {formatPercent(trade.riskPct.toNumber())}
             </td>
             <td className={trade.profitAbs.isPositive() ? 'positive' : 'negative'}>
-              {formatCurrency(trade.profitAbs.toNumber())}
+              {formatCurrency(trade.profitAbs.toNumber(), trade)}
             </td>
             <td className={trade.profitPct.isPositive() ? 'positive' : 'negative'}>
               {formatPercent(trade.profitPct.toNumber())}
@@ -398,6 +395,8 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
                   entryPrice={trade.entryPrice.toNumber()}
                   units={trade.units}
                   tradeStatus={trade.status}
+                  currency={trade.tickerCurrency}
+                  priceHint={trade.tickerPriceHint}
                   onLevelHit={(levelId, hitDate, hitPrice) =>
                     tradeStore.markExitLevelHit(trade.id, levelId, { hit_date: hitDate, hit_price: hitPrice })
                   }

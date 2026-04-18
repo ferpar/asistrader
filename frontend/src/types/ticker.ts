@@ -1,6 +1,8 @@
 export interface TickerDTO {
   symbol: string
   name: string | null
+  currency: string | null
+  price_hint: number | null
   probability: number | null
   trend_mean_growth: number | null
   trend_std_deviation: number | null

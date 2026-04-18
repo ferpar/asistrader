@@ -45,19 +45,24 @@ def validate_ticker_with_yfinance(symbol: str) -> dict:
         symbol: The ticker symbol to validate
 
     Returns:
-        dict with 'name' and 'valid' keys
+        dict with 'name', 'currency', 'price_hint', and 'valid' keys
     """
     try:
         ticker = yf.Ticker(symbol)
         info = ticker.info
         # Check if we got valid data (yfinance returns empty dict for invalid tickers)
         if not info or info.get("quoteType") is None:
-            return {"name": None, "valid": False}
+            return {"name": None, "currency": None, "price_hint": None, "valid": False}
         name = info.get("shortName") or info.get("longName")
-        return {"name": name, "valid": True}
+        return {
+            "name": name,
+            "currency": info.get("currency"),
+            "price_hint": info.get("priceHint"),
+            "valid": True,
+        }
     except Exception:
         logger.exception("Failed to validate ticker %s with yfinance", symbol)
-        return {"name": None, "valid": False}
+        return {"name": None, "currency": None, "price_hint": None, "valid": False}
 
 
 def create_ticker(db: Session, symbol: str) -> Ticker:
@@ -87,12 +92,53 @@ def create_ticker(db: Session, symbol: str) -> Ticker:
         raise TickerValidationError(f"Invalid ticker symbol: {symbol}")
 
     # Create the ticker
-    ticker = Ticker(symbol=symbol, name=validation["name"])
+    ticker = Ticker(
+        symbol=symbol,
+        name=validation["name"],
+        currency=validation["currency"],
+        price_hint=validation["price_hint"],
+    )
     db.add(ticker)
     db.commit()
     db.refresh(ticker)
 
     return ticker
+
+
+def backfill_ticker_metadata(db: Session, ticker: Ticker) -> bool:
+    """Fill missing currency/price_hint on an existing ticker from yfinance.
+
+    Returns True if any field was updated, False if both were already populated
+    or the yfinance lookup failed.
+    """
+    if ticker.currency is not None and ticker.price_hint is not None:
+        return False
+
+    try:
+        info = yf.Ticker(ticker.symbol).info
+    except Exception:
+        logger.exception("Failed to backfill metadata for %s", ticker.symbol)
+        return False
+
+    if not info or info.get("quoteType") is None:
+        return False
+
+    updated = False
+    if ticker.currency is None:
+        currency = info.get("currency")
+        if currency:
+            ticker.currency = currency
+            updated = True
+    if ticker.price_hint is None:
+        price_hint = info.get("priceHint")
+        if price_hint is not None:
+            ticker.price_hint = price_hint
+            updated = True
+
+    if updated:
+        db.commit()
+        db.refresh(ticker)
+    return updated
 
 
 def get_current_price(symbol: str) -> dict:

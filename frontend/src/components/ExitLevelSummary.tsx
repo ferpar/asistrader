@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import type { ExitLevel } from '../domain/trade/types'
 import type { TradeStatus } from '../types/trade'
+import { formatPrice } from '../utils/priceFormat'
 import styles from './ExitLevelSummary.module.css'
 
 interface ExitLevelSummaryProps {
@@ -8,11 +9,13 @@ interface ExitLevelSummaryProps {
   entryPrice: number
   units: number
   tradeStatus?: TradeStatus
+  currency?: string | null
+  priceHint?: number | null
   onLevelHit?: (levelId: number, hitDate: string, hitPrice?: number) => Promise<void>
   onLevelRevert?: (levelId: number) => Promise<void>
 }
 
-export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units, tradeStatus, onLevelHit, onLevelRevert }: ExitLevelSummaryProps) {
+export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units, tradeStatus, currency, priceHint, onLevelHit, onLevelRevert }: ExitLevelSummaryProps) {
   // entryPrice is available for future use (e.g., calculating profit per level)
   void _entryPrice
   const [confirmingLevelId, setConfirmingLevelId] = useState<number | null>(null)
@@ -25,12 +28,7 @@ export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units, trade
 
   const showActions = tradeStatus === 'open' && (onLevelHit || onLevelRevert)
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(value)
-  }
+  const formatCurrency = (value: number) => formatPrice(value, currency, priceHint)
 
   const formatPercent = (value: number) => {
     return `${Math.round(value * 100)}%`

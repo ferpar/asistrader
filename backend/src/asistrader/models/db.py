@@ -152,6 +152,8 @@ class Ticker(Base):
 
     symbol = Column(String, primary_key=True)
     name = Column(String, nullable=True)
+    currency = Column(String, nullable=True)
+    price_hint = Column(Integer, nullable=True)
     probability = Column(Float, nullable=True)
     trend_mean_growth = Column(Float, nullable=True)
     trend_std_deviation = Column(Float, nullable=True)

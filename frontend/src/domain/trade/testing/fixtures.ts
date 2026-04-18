@@ -7,6 +7,8 @@ export function buildTrade(overrides?: Partial<TradeWithMetrics>): TradeWithMetr
     number: 1,
     ticker: 'AAPL',
     tickerName: null,
+    tickerCurrency: null,
+    tickerPriceHint: null,
     status: 'open',
     amount: Decimal.from(1500),
     units: 10,

@@ -1,10 +1,13 @@
 import { useMemo } from 'react'
 import { Decimal } from '../domain/shared/Decimal'
 import type { TradeWithMetrics } from '../domain/trade/types'
+import { formatPrice } from '../utils/priceFormat'
 import styles from './TickerPerformance.module.css'
 
 interface TickerStats {
   symbol: string
+  currency: string | null
+  priceHint: number | null
   tradeCount: number
   wins: number
   losses: number
@@ -39,6 +42,8 @@ function calculateTickerPerformance(trades: TradeWithMetrics[]): TickerStats[] {
 
     stats.push({
       symbol,
+      currency: tickerTrades[0]?.tickerCurrency ?? null,
+      priceHint: tickerTrades[0]?.tickerPriceHint ?? null,
       tradeCount: tickerTrades.length,
       wins: winners.length,
       losses: losers.length,
@@ -60,9 +65,6 @@ interface TickerPerformanceProps {
 
 export function TickerPerformance({ trades }: TickerPerformanceProps) {
   const tickerStats = useMemo(() => calculateTickerPerformance(trades), [trades])
-
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 
   if (tickerStats.length === 0) {
     return null  // Don't show if no closed trades
@@ -90,10 +92,10 @@ export function TickerPerformance({ trades }: TickerPerformanceProps) {
               <td>{stat.wins}/{stat.losses}</td>
               <td>{stat.winRate.toFixed(1)}%</td>
               <td className={stat.totalPnL >= 0 ? 'positive' : 'negative'}>
-                {formatCurrency(stat.totalPnL)}
+                {formatPrice(stat.totalPnL, stat.currency, stat.priceHint)}
               </td>
               <td className={stat.avgPnL >= 0 ? 'positive' : 'negative'}>
-                {formatCurrency(stat.avgPnL)}
+                {formatPrice(stat.avgPnL, stat.currency, stat.priceHint)}
               </td>
             </tr>
           ))}

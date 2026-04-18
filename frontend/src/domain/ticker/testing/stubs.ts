@@ -10,6 +10,8 @@ export function createStubTickerRepository(overrides?: Partial<ITickerRepository
     createTicker: async (request: TickerCreateRequest): Promise<Ticker> => ({
       symbol: request.symbol,
       name: null,
+      currency: null,
+      priceHint: null,
       probability: Decimal.from(0.5),
       trendMeanGrowth: null,
       trendStdDeviation: null,

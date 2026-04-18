@@ -2,6 +2,7 @@ import React, { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { TickerSearchInput } from './TickerSearchInput'
 import { useTradeCreation } from '../hooks/useTradeCreation'
+import { formatPrice } from '../utils/priceFormat'
 import formStyles from '../styles/forms.module.css'
 import layeredStyles from '../styles/layeredLevels.module.css'
 import styles from './TradeCreationForm.module.css'
@@ -44,8 +45,9 @@ export function TradeCreationForm({ onClose }: TradeCreationFormProps) {
     return () => document.removeEventListener('keydown', handleEscape)
   }, [onClose])
 
+  const selectedTicker = tickers.find((t) => t.symbol === formData.ticker) ?? null
   const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
+    formatPrice(value, selectedTicker?.currency, selectedTicker?.priceHint)
 
   const formatPercent = (value: number) =>
     new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value)

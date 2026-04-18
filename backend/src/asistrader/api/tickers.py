@@ -38,6 +38,8 @@ def list_tickers(db: Session = Depends(get_db)) -> TickerListResponse:
         TickerSchema(
             symbol=t.symbol,
             name=t.name,
+            currency=t.currency,
+            price_hint=t.price_hint,
             probability=t.probability,
             trend_mean_growth=t.trend_mean_growth,
             trend_std_deviation=t.trend_std_deviation,
@@ -89,6 +91,8 @@ def create_new_ticker(
         ticker_schema = TickerSchema(
             symbol=ticker.symbol,
             name=ticker.name,
+            currency=ticker.currency,
+            price_hint=ticker.price_hint,
             probability=ticker.probability,
             trend_mean_growth=ticker.trend_mean_growth,
             trend_std_deviation=ticker.trend_std_deviation,

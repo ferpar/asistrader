@@ -61,6 +61,8 @@ describe('mapTrade', () => {
     number: 1,
     ticker: 'AAPL',
     ticker_name: 'Apple Inc.',
+    ticker_currency: 'USD',
+    ticker_price_hint: 2,
     status: 'open',
     amount: 1500,
     units: 10,

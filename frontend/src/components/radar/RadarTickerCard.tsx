@@ -1,21 +1,20 @@
 import { observer } from '@legendapp/state/react'
 import type { TickerIndicators } from '../../domain/radar/types'
+import type { Ticker } from '../../domain/ticker/types'
 import type { TradeWithMetrics, LiveMetrics } from '../../domain/trade/types'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen } from '../../utils/trade'
 import { getPositionNum } from '../../utils/tradeLive'
+import { formatPrice } from '../../utils/priceFormat'
 import styles from './RadarTickerCard.module.css'
 
 interface RadarTickerCardProps {
   indicators: TickerIndicators
-  tickerName?: string | null
+  ticker?: Ticker | null
   trades: TradeWithMetrics[]
   liveMetrics: Record<number, LiveMetrics>
   removable: boolean
   onRemove: (symbol: string) => void
 }
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 
 const formatPercent = (value: number) =>
   new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)
@@ -55,9 +54,10 @@ function statusClass(status: TradeWithMetrics['status']): string {
 interface TradeLineProps {
   trade: TradeWithMetrics
   metric: LiveMetrics | undefined
+  fmt: (value: number) => string
 }
 
-function TradeLine({ trade, metric }: TradeLineProps) {
+function TradeLine({ trade, metric, fmt }: TradeLineProps) {
   const positionNum = getPositionNum(metric)
   const peDistNum = metric?.distanceToPE?.toNumber() ?? null
   const pnlNum = metric?.unrealizedPnL?.toNumber() ?? null
@@ -68,7 +68,7 @@ function TradeLine({ trade, metric }: TradeLineProps) {
   const showPosition = trade.status === 'open'
 
   const pnlText = showPnl && pnlNum !== null && pnlPctNum !== null
-    ? `${formatCurrency(pnlNum)} (${formatPercentShort(pnlPctNum)})`
+    ? `${fmt(pnlNum)} (${formatPercentShort(pnlPctNum)})`
     : '-'
 
   return (
@@ -123,13 +123,15 @@ function TradeLine({ trade, metric }: TradeLineProps) {
 
 export const RadarTickerCard = observer(function RadarTickerCard({
   indicators,
-  tickerName,
+  ticker,
   trades,
   liveMetrics,
   removable,
   onRemove,
 }: RadarTickerCardProps) {
   const { symbol, currentPrice, sma, priceChanges, error } = indicators
+  const fmt = (value: number) => formatPrice(value, ticker?.currency, ticker?.priceHint)
+  const tickerName = ticker?.name ?? null
   const counts = countByStatus(trades)
   const activeTrades = trades.filter((t) => t.status === 'plan' || t.status === 'ordered' || t.status === 'open')
 
@@ -139,7 +141,7 @@ export const RadarTickerCard = observer(function RadarTickerCard({
         <span className={styles.symbol}>{symbol}</span>
         {tickerName && <span className={styles.tickerName}>{tickerName}</span>}
         {!error && currentPrice !== null && (
-          <span className={styles.price}>{formatCurrency(currentPrice)}</span>
+          <span className={styles.price}>{fmt(currentPrice)}</span>
         )}
       </div>
       <div className={styles.headerRight}>
@@ -188,10 +190,10 @@ export const RadarTickerCard = observer(function RadarTickerCard({
             {sma.structure ?? '-'}
           </div>
           <div className={styles.emaValues}>
-            <span className={styles.emaItem}><span className={styles.emaLabel}>5</span> {sma.sma5 !== null ? formatCurrency(sma.sma5) : '-'}</span>
-            <span className={styles.emaItem}><span className={styles.emaLabel}>20</span> {sma.sma20 !== null ? formatCurrency(sma.sma20) : '-'}</span>
-            <span className={styles.emaItem}><span className={styles.emaLabel}>50</span> {sma.sma50 !== null ? formatCurrency(sma.sma50) : '-'}</span>
-            <span className={styles.emaItem}><span className={styles.emaLabel}>200</span> {sma.sma200 !== null ? formatCurrency(sma.sma200) : '-'}</span>
+            <span className={styles.emaItem}><span className={styles.emaLabel}>5</span> {sma.sma5 !== null ? fmt(sma.sma5) : '-'}</span>
+            <span className={styles.emaItem}><span className={styles.emaLabel}>20</span> {sma.sma20 !== null ? fmt(sma.sma20) : '-'}</span>
+            <span className={styles.emaItem}><span className={styles.emaLabel}>50</span> {sma.sma50 !== null ? fmt(sma.sma50) : '-'}</span>
+            <span className={styles.emaItem}><span className={styles.emaLabel}>200</span> {sma.sma200 !== null ? fmt(sma.sma200) : '-'}</span>
           </div>
         </div>
 
@@ -201,7 +203,7 @@ export const RadarTickerCard = observer(function RadarTickerCard({
             <div className={styles.changeItem}>
               <span className={styles.changeLabel}>50d</span>
               <span className={priceChanges.avgChange50d !== null && priceChanges.avgChange50d >= 0 ? 'positive' : 'negative'}>
-                {priceChanges.avgChange50d !== null ? formatCurrency(priceChanges.avgChange50d) : '-'}
+                {priceChanges.avgChange50d !== null ? fmt(priceChanges.avgChange50d) : '-'}
               </span>
               <span className={priceChanges.avgChangePct50d !== null && priceChanges.avgChangePct50d >= 0 ? 'positive' : 'negative'}>
                 {priceChanges.avgChangePct50d !== null ? formatPercent(priceChanges.avgChangePct50d) : '-'}
@@ -210,7 +212,7 @@ export const RadarTickerCard = observer(function RadarTickerCard({
             <div className={styles.changeItem}>
               <span className={styles.changeLabel}>5d</span>
               <span className={priceChanges.avgChange5d !== null && priceChanges.avgChange5d >= 0 ? 'positive' : 'negative'}>
-                {priceChanges.avgChange5d !== null ? formatCurrency(priceChanges.avgChange5d) : '-'}
+                {priceChanges.avgChange5d !== null ? fmt(priceChanges.avgChange5d) : '-'}
               </span>
               <span className={priceChanges.avgChangePct5d !== null && priceChanges.avgChangePct5d >= 0 ? 'positive' : 'negative'}>
                 {priceChanges.avgChangePct5d !== null ? formatPercent(priceChanges.avgChangePct5d) : '-'}
@@ -225,7 +227,7 @@ export const RadarTickerCard = observer(function RadarTickerCard({
           <div className={styles.sectionLabel}>Active Trades</div>
           <div className={styles.tradesList}>
             {activeTrades.map((t) => (
-              <TradeLine key={t.id} trade={t} metric={liveMetrics[t.id]} />
+              <TradeLine key={t.id} trade={t} metric={liveMetrics[t.id]} fmt={fmt} />
             ))}
           </div>
         </div>

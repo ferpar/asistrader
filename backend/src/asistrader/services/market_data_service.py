@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from asistrader.models.db import MarketData, Ticker
+from asistrader.services.ticker_service import backfill_ticker_metadata
 
 
 def get_last_trading_day(reference_date: date) -> date:
@@ -381,7 +382,8 @@ def sync_all(db: Session, start_date: date, symbols: list[str] | None = None) ->
 
     for symbol in symbols:
         try:
-            ensure_ticker_exists(db, symbol)
+            ticker = ensure_ticker_exists(db, symbol)
+            backfill_ticker_metadata(db, ticker)
             result = sync_ticker(db, symbol, start_date)
             results[symbol] = result["fetched"]
             total_rows += result["fetched"]

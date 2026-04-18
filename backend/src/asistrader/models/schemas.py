@@ -132,6 +132,8 @@ class TickerSchema(BaseModel):
 
     symbol: str
     name: str | None = None
+    currency: str | None = None
+    price_hint: int | None = None
     probability: float | None = None
     trend_mean_growth: float | None = None
     trend_std_deviation: float | None = None
@@ -228,6 +230,8 @@ class TradeSchema(BaseModel):
     number: int | None = None
     ticker: str
     ticker_name: str | None = None
+    ticker_currency: str | None = None
+    ticker_price_hint: int | None = None
     status: TradeStatus
     amount: float
     units: int

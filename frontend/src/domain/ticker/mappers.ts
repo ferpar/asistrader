@@ -6,6 +6,8 @@ export function mapTicker(dto: TickerDTO): Ticker {
   return {
     symbol: dto.symbol,
     name: dto.name,
+    currency: dto.currency,
+    priceHint: dto.price_hint,
     probability: dto.probability !== null ? Decimal.from(dto.probability) : null,
     trendMeanGrowth: dto.trend_mean_growth,
     trendStdDeviation: dto.trend_std_deviation,
