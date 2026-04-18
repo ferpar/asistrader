@@ -1,45 +1,46 @@
 import type { Decimal } from '../domain/shared/Decimal'
 
-export interface DaysRange {
-  min: number
-  max: number
-}
+export type DayEstimate = number | 'receding'
+
+export const RECEDING_MARK = '↘'
 
 export function computeDaysToTarget(
   current: Decimal,
   target: Decimal,
-  dailyChange: number | null,
-): number | null {
-  if (dailyChange === null) return null
-  const speed = Math.abs(dailyChange)
-  if (speed === 0) return null
-  const distance = Math.abs(current.minus(target).toNumber())
-  return distance / speed
+  signedSpeed: number | null,
+): DayEstimate | null {
+  if (signedSpeed === null || signedSpeed === 0) return null
+  const diff = target.minus(current).toNumber()
+  if (diff === 0) return 0
+  if (Math.sign(diff) === Math.sign(signedSpeed)) {
+    return Math.abs(diff) / Math.abs(signedSpeed)
+  }
+  return 'receding'
 }
 
-export function computeDaysRange(
-  current: Decimal,
-  target: Decimal,
-  speedA: number | null,
-  speedB: number | null,
-): DaysRange | null {
-  const a = computeDaysToTarget(current, target, speedA)
-  const b = computeDaysToTarget(current, target, speedB)
-  if (a === null && b === null) return null
-  if (a === null) return { min: b!, max: b! }
-  if (b === null) return { min: a, max: a }
-  return { min: Math.min(a, b), max: Math.max(a, b) }
-}
-
-function formatDayValue(days: number): string {
+function formatDayNumber(days: number): string {
   const rounded = Math.round(days)
   return rounded === 0 ? '<1' : String(rounded)
 }
 
-export function formatDaysRange(range: DaysRange | null): string {
-  if (!range) return '-'
-  const lo = formatDayValue(range.min)
-  const hi = formatDayValue(range.max)
-  if (lo === hi) return `${lo}d`
-  return `${lo}–${hi}d`
+export function formatTimelineCell(
+  a: DayEstimate | null,
+  b: DayEstimate | null,
+): string {
+  const estimates = [a, b].filter((v): v is DayEstimate => v !== null)
+  if (estimates.length === 0) return '-'
+
+  const numeric = estimates.filter((v): v is number => typeof v === 'number')
+  const hasReceding = estimates.some((v) => v === 'receding')
+
+  if (numeric.length === 0) return RECEDING_MARK
+
+  if (numeric.length === 1) {
+    const text = `${formatDayNumber(numeric[0])}d`
+    return hasReceding ? `${text} ${RECEDING_MARK}` : text
+  }
+
+  const lo = formatDayNumber(Math.min(numeric[0], numeric[1]))
+  const hi = formatDayNumber(Math.max(numeric[0], numeric[1]))
+  return lo === hi ? `${lo}d` : `${lo}–${hi}d`
 }

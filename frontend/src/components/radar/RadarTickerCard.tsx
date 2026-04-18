@@ -5,7 +5,7 @@ import type { TradeWithMetrics, LiveMetrics } from '../../domain/trade/types'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen } from '../../utils/trade'
 import { getPositionNum } from '../../utils/tradeLive'
 import { formatPrice } from '../../utils/priceFormat'
-import { computeDaysRange, formatDaysRange } from '../../utils/timelineExpectations'
+import { computeDaysToTarget, formatTimelineCell } from '../../utils/timelineExpectations'
 import type { PriceChanges } from '../../domain/radar/types'
 import styles from './RadarTickerCard.module.css'
 
@@ -77,15 +77,16 @@ function TradeLine({ trade, metric, priceChanges, fmt }: TradeLineProps) {
 
   const showEtaPe = trade.status === 'plan' || trade.status === 'ordered'
   const showEtaTpSl = trade.status === 'open'
-  const etaPeText = showEtaPe && metric?.currentPrice
-    ? formatDaysRange(computeDaysRange(metric.currentPrice, trade.entryPrice, priceChanges.avgChange50d, priceChanges.avgChange5d))
-    : '-'
-  const etaTpText = showEtaTpSl && metric?.currentPrice
-    ? formatDaysRange(computeDaysRange(metric.currentPrice, trade.takeProfit, priceChanges.avgChange50d, priceChanges.avgChange5d))
-    : '-'
-  const etaSlText = showEtaTpSl && metric?.currentPrice
-    ? formatDaysRange(computeDaysRange(metric.currentPrice, trade.stopLoss, priceChanges.avgChange50d, priceChanges.avgChange5d))
-    : '-'
+  const etaFor = (target: typeof trade.entryPrice) => {
+    if (!metric?.currentPrice) return '-'
+    return formatTimelineCell(
+      computeDaysToTarget(metric.currentPrice, target, priceChanges.avgChange50d),
+      computeDaysToTarget(metric.currentPrice, target, priceChanges.avgChange5d),
+    )
+  }
+  const etaPeText = showEtaPe ? etaFor(trade.entryPrice) : '-'
+  const etaTpText = showEtaTpSl ? etaFor(trade.takeProfit) : '-'
+  const etaSlText = showEtaTpSl ? etaFor(trade.stopLoss) : '-'
 
   return (
     <div className={styles.tradeRow}>
