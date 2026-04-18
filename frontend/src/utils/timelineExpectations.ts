@@ -1,8 +1,17 @@
 import type { Decimal } from '../domain/shared/Decimal'
+import type { PriceChanges } from '../domain/radar/types'
 
 export type DayEstimate = number | 'receding'
 
 export const RECEDING_MARK = '↘'
+
+export interface TimelineRange {
+  a: DayEstimate | null
+  b: DayEstimate | null
+  lo: number | null
+  hi: number | null
+  text: string
+}
 
 export function computeDaysToTarget(
   current: Decimal,
@@ -16,6 +25,19 @@ export function computeDaysToTarget(
     return Math.abs(diff) / Math.abs(signedSpeed)
   }
   return 'receding'
+}
+
+export function computeTimelineRange(
+  current: Decimal,
+  target: Decimal,
+  changes: PriceChanges,
+): TimelineRange {
+  const a = computeDaysToTarget(current, target, changes.avgChange50d)
+  const b = computeDaysToTarget(current, target, changes.avgChange5d)
+  const nums = [a, b].filter((v): v is number => typeof v === 'number')
+  const lo = nums.length ? Math.min(...nums) : null
+  const hi = nums.length ? Math.max(...nums) : null
+  return { a, b, lo, hi, text: formatTimelineCell(a, b) }
 }
 
 function formatDayNumber(days: number): string {

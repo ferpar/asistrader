@@ -1,12 +1,15 @@
 import { observer } from '@legendapp/state/react'
-import type { TickerIndicators } from '../../domain/radar/types'
+import type { TickerIndicators, DatedClose } from '../../domain/radar/types'
 import type { Ticker } from '../../domain/ticker/types'
 import type { TradeWithMetrics, LiveMetrics } from '../../domain/trade/types'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen } from '../../utils/trade'
 import { getPositionNum } from '../../utils/tradeLive'
 import { formatPrice } from '../../utils/priceFormat'
-import { computeDaysToTarget, formatTimelineCell } from '../../utils/timelineExpectations'
+import { computeTimelineRange } from '../../utils/timelineExpectations'
+import type { TimelineRange } from '../../utils/timelineExpectations'
 import type { PriceChanges } from '../../domain/radar/types'
+import { computePriceChangesAsOf } from '../../domain/radar/indicators'
+import { TimelineOverlapBar } from './TimelineOverlapBar'
 import styles from './RadarTickerCard.module.css'
 
 interface RadarTickerCardProps {
@@ -58,10 +61,27 @@ interface TradeLineProps {
   trade: TradeWithMetrics
   metric: LiveMetrics | undefined
   priceChanges: PriceChanges
+  datedCloses: DatedClose[]
   fmt: (value: number) => string
 }
 
-function TradeLine({ trade, metric, priceChanges, fmt }: TradeLineProps) {
+function baselineDate(trade: TradeWithMetrics): Date | null {
+  if (trade.status === 'open') return trade.dateActual
+  if (trade.status === 'plan' || trade.status === 'ordered') return trade.datePlanned
+  return null
+}
+
+function toIsoDay(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
+
+interface EtaCellData {
+  dynamic: TimelineRange
+  projected: TimelineRange | null
+  title: string
+}
+
+function TradeLine({ trade, metric, priceChanges, datedCloses, fmt }: TradeLineProps) {
   const positionNum = getPositionNum(metric)
   const peDistNum = metric?.distanceToPE?.toNumber() ?? null
   const pnlNum = metric?.unrealizedPnL?.toNumber() ?? null
@@ -77,16 +97,50 @@ function TradeLine({ trade, metric, priceChanges, fmt }: TradeLineProps) {
 
   const showEtaPe = trade.status === 'plan' || trade.status === 'ordered'
   const showEtaTpSl = trade.status === 'open'
-  const etaFor = (target: typeof trade.entryPrice) => {
-    if (!metric?.currentPrice) return '-'
-    return formatTimelineCell(
-      computeDaysToTarget(metric.currentPrice, target, priceChanges.avgChange50d),
-      computeDaysToTarget(metric.currentPrice, target, priceChanges.avgChange5d),
+
+  const baseline = baselineDate(trade)
+  const today = toIsoDay(new Date())
+  const baselineKey = baseline ? toIsoDay(baseline) : null
+  const projectedChanges: PriceChanges | null =
+    baselineKey && baselineKey < today
+      ? computePriceChangesAsOf(datedCloses, baselineKey)
+      : null
+
+  const etaFor = (target: typeof trade.entryPrice): EtaCellData | null => {
+    if (!metric?.currentPrice) return null
+    const dynamic = computeTimelineRange(metric.currentPrice, target, priceChanges)
+    const projected = projectedChanges
+      ? computeTimelineRange(metric.currentPrice, target, projectedChanges)
+      : null
+    const parts: string[] = [`now ${dynamic.text}`]
+    if (projected && (projected.lo !== null || typeof projected.a === 'string' || typeof projected.b === 'string')) {
+      parts.push(`proj ${projected.text}${baselineKey ? ` (from ${baselineKey})` : ''}`)
+    }
+    return { dynamic, projected, title: parts.join(' · ') }
+  }
+
+  const etaPe = showEtaPe ? etaFor(trade.entryPrice) : null
+  const etaTp = showEtaTpSl ? etaFor(trade.takeProfit) : null
+  const etaSl = showEtaTpSl ? etaFor(trade.stopLoss) : null
+
+  const renderEta = (data: EtaCellData | null, enabled: boolean) => {
+    if (!enabled) return <span>-</span>
+    if (!data) return <span>-</span>
+    const projectedForBar =
+      data.projected && (data.projected.a !== null || data.projected.b !== null)
+        ? { a: data.projected.a, b: data.projected.b }
+        : null
+    return (
+      <>
+        <span title={data.title}>{data.dynamic.text}</span>
+        <TimelineOverlapBar
+          dynamic={{ a: data.dynamic.a, b: data.dynamic.b }}
+          projected={projectedForBar}
+          title={data.title}
+        />
+      </>
     )
   }
-  const etaPeText = showEtaPe ? etaFor(trade.entryPrice) : '-'
-  const etaTpText = showEtaTpSl ? etaFor(trade.takeProfit) : '-'
-  const etaSlText = showEtaTpSl ? etaFor(trade.stopLoss) : '-'
 
   return (
     <div className={styles.tradeRow}>
@@ -136,15 +190,15 @@ function TradeLine({ trade, metric, priceChanges, fmt }: TradeLineProps) {
       </span>
       <span className={styles.tradeCell}>
         <span className={styles.tradeCellLabel}>ETA→PE</span>
-        <span>{etaPeText}</span>
+        {renderEta(etaPe, showEtaPe)}
       </span>
       <span className={styles.tradeCell}>
         <span className={styles.tradeCellLabel}>ETA→TP</span>
-        <span>{etaTpText}</span>
+        {renderEta(etaTp, showEtaTpSl)}
       </span>
       <span className={styles.tradeCell}>
         <span className={styles.tradeCellLabel}>ETA→SL</span>
-        <span>{etaSlText}</span>
+        {renderEta(etaSl, showEtaTpSl)}
       </span>
     </div>
   )
@@ -159,7 +213,7 @@ export const RadarTickerCard = observer(function RadarTickerCard({
   onRemove,
   onNewTrade,
 }: RadarTickerCardProps) {
-  const { symbol, currentPrice, sma, priceChanges, error } = indicators
+  const { symbol, currentPrice, sma, priceChanges, datedCloses, error } = indicators
   const fmt = (value: number) => formatPrice(value, ticker?.currency, ticker?.priceHint)
   const tickerName = ticker?.name ?? null
   const counts = countByStatus(trades)
@@ -269,7 +323,14 @@ export const RadarTickerCard = observer(function RadarTickerCard({
           <div className={styles.sectionLabel}>Active Trades</div>
           <div className={styles.tradesList}>
             {activeTrades.map((t) => (
-              <TradeLine key={t.id} trade={t} metric={liveMetrics[t.id]} priceChanges={priceChanges} fmt={fmt} />
+              <TradeLine
+                key={t.id}
+                trade={t}
+                metric={liveMetrics[t.id]}
+                priceChanges={priceChanges}
+                datedCloses={datedCloses}
+                fmt={fmt}
+              />
             ))}
           </div>
         </div>

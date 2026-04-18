@@ -1,4 +1,4 @@
-import type { SmaStructure, PriceChanges } from './types'
+import type { SmaStructure, PriceChanges, DatedClose } from './types'
 
 export function computeSma(closes: number[], period: number): number | null {
   if (closes.length < period) return null
@@ -68,4 +68,21 @@ export function computePriceChanges(closes: number[]): PriceChanges {
   result.avgChangePct5d = d5.pct
 
   return result
+}
+
+export function computePriceChangesAsOf(
+  datedCloses: DatedClose[],
+  asOfDate: string,
+): PriceChanges {
+  const asOfKey = asOfDate.slice(0, 10)
+  let lastIdx = -1
+  for (let i = 0; i < datedCloses.length; i++) {
+    if (datedCloses[i].date.slice(0, 10) <= asOfKey) lastIdx = i
+    else break
+  }
+  if (lastIdx < 1) {
+    return { avgChange50d: null, avgChangePct50d: null, avgChange5d: null, avgChangePct5d: null }
+  }
+  const sliced = datedCloses.slice(0, lastIdx + 1).map((r) => r.close)
+  return computePriceChanges(sliced)
 }

@@ -79,12 +79,16 @@ export class RadarStore {
             currentPrice: null,
             sma: { sma5: null, sma20: null, sma50: null, sma200: null, structure: null },
             priceChanges: { avgChange50d: null, avgChangePct50d: null, avgChange5d: null, avgChangePct5d: null },
+            datedCloses: [],
             error: errors[symbol],
           }
         }
 
         const rows = data[symbol] ?? []
-        const closes = rows.map((r) => r.close).filter((c): c is number => c !== null)
+        const datedCloses = rows
+          .filter((r): r is typeof r & { close: number } => r.close !== null)
+          .map((r) => ({ date: r.date, close: r.close }))
+        const closes = datedCloses.map((r) => r.close)
 
         if (closes.length === 0) {
           return {
@@ -93,6 +97,7 @@ export class RadarStore {
             currentPrice: null,
             sma: { sma5: null, sma20: null, sma50: null, sma200: null, structure: null },
             priceChanges: { avgChange50d: null, avgChangePct50d: null, avgChange5d: null, avgChangePct5d: null },
+            datedCloses: [],
             error: 'No price data available',
           }
         }
@@ -104,6 +109,7 @@ export class RadarStore {
           currentPrice,
           sma: computeSmaStructure(closes, currentPrice),
           priceChanges: computePriceChanges(closes),
+          datedCloses,
           error: null,
         }
       })

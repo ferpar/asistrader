@@ -13,11 +13,17 @@ export interface PriceChanges {
   avgChangePct5d: number | null
 }
 
+export interface DatedClose {
+  date: string
+  close: number
+}
+
 export interface TickerIndicators {
   symbol: string
   name: string | null
   currentPrice: number | null
   sma: SmaStructure
   priceChanges: PriceChanges
+  datedCloses: DatedClose[]
   error: string | null
 }

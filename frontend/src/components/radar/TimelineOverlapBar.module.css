@@ -1,0 +1,26 @@
+.bar {
+  display: block;
+  position: relative;
+  width: 80px;
+  height: 4px;
+  margin-top: 3px;
+  border-radius: 2px;
+  background-color: var(--color-border);
+}
+
+.projected {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background-color: var(--color-text-muted);
+  opacity: 0.45;
+  border-radius: 2px;
+}
+
+.dynamic {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background-color: var(--color-info);
+  border-radius: 2px;
+}
