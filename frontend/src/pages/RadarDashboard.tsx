@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { observer } from '@legendapp/state/react'
 import { useRadarStore, useTickerStore, useTradeStore, useLiveMetricsStore } from '../container/ContainerContext'
 import { TickerSearchInput } from '../components/TickerSearchInput'
+import { TradeCreationForm } from '../components/TradeCreationForm'
 import { RadarTickerCard } from '../components/radar/RadarTickerCard'
 import type { Ticker } from '../domain/ticker/types'
 import type { TradeWithMetrics } from '../domain/trade/types'
@@ -14,6 +15,7 @@ export const RadarDashboard = observer(function RadarDashboard() {
   const metricsStore = useLiveMetricsStore()
   const [tickers, setTickers] = useState<Ticker[]>([])
   const [selectedTicker, setSelectedTicker] = useState('')
+  const [newTradeTicker, setNewTradeTicker] = useState<string | null>(null)
 
   const tickerMap = useMemo(() => {
     const map: Record<string, Ticker> = {}
@@ -117,9 +119,17 @@ export const RadarDashboard = observer(function RadarDashboard() {
             liveMetrics={liveMetrics}
             removable={watchlistSet.has(ind.symbol)}
             onRemove={(symbol) => radarStore.removeSymbol(symbol)}
+            onNewTrade={(symbol) => setNewTradeTicker(symbol)}
           />
         ))}
       </div>
+
+      {newTradeTicker && (
+        <TradeCreationForm
+          initialTicker={newTradeTicker}
+          onClose={() => setNewTradeTicker(null)}
+        />
+      )}
     </section>
   )
 })

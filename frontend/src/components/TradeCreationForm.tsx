@@ -9,9 +9,10 @@ import styles from './TradeCreationForm.module.css'
 
 interface TradeCreationFormProps {
   onClose: () => void
+  initialTicker?: string
 }
 
-export function TradeCreationForm({ onClose }: TradeCreationFormProps) {
+export function TradeCreationForm({ onClose, initialTicker }: TradeCreationFormProps) {
   const {
     formData,
     layeredMode,
@@ -35,7 +36,7 @@ export function TradeCreationForm({ onClose }: TradeCreationFormProps) {
     addTicker,
     selectTicker,
     setAutoDetect,
-  } = useTradeCreation()
+  } = useTradeCreation(initialTicker)
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
