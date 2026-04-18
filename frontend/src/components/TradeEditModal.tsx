@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { TradeUpdateRequest, ExitType, ExitLevelCreateRequest, CancelReason, OrderType, TimeInEffect } from '../types/trade'
 import type { Strategy } from '../domain/strategy/types'
 import type { TradeWithMetrics } from '../domain/trade/types'
@@ -18,15 +18,23 @@ interface ExitLevelInput {
 interface TradeEditModalProps {
   trade: TradeWithMetrics
   mode: EditMode
+  currentPrice?: number | null
   onClose: () => void
 }
 
-export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
+export function TradeEditModal({ trade, mode, currentPrice, onClose }: TradeEditModalProps) {
   const store = useTradeStore()
   const strategyRepo = useStrategyRepo()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [strategies, setStrategies] = useState<Strategy[]>([])
+
+  const inferExitType = (price: number): ExitType => {
+    const entry = trade.entryPrice.toNumber()
+    const isLong = trade.takeProfit.toNumber() > trade.stopLoss.toNumber()
+    const isWin = isLong ? price >= entry : price <= entry
+    return isWin ? 'tp' : 'sl'
+  }
 
   const [formData, setFormData] = useState({
     entry_price: trade.entryPrice.toNumber().toString(),
@@ -34,8 +42,8 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
     take_profit: trade.takeProfit.toNumber().toString(),
     units: trade.units.toString(),
     date_actual: new Date().toISOString().split('T')[0],
-    exit_price: '',
-    exit_type: 'sl' as ExitType,
+    exit_price: currentPrice != null ? currentPrice.toString() : '',
+    exit_type: (currentPrice != null ? inferExitType(currentPrice) : 'sl') as ExitType,
     exit_date: new Date().toISOString().split('T')[0],
     strategy_id: trade.strategyId?.toString() || '',
     cancel_reason: '' as CancelReason | '',
@@ -43,6 +51,20 @@ export function TradeEditModal({ trade, mode, onClose }: TradeEditModalProps) {
     time_in_effect: (trade.timeInEffect || '') as TimeInEffect | '',
     gtd_date: trade.gtdDate ? trade.gtdDate.toISOString().split('T')[0] : '',
   })
+
+  // Prefill exit_price/exit_type when the live price arrives after the modal mounts.
+  // Only runs once, and only if the user hasn't edited those fields yet.
+  const hasPrefilledExitRef = useRef(currentPrice != null)
+  useEffect(() => {
+    if (mode !== 'close' || hasPrefilledExitRef.current || currentPrice == null) return
+    hasPrefilledExitRef.current = true
+    setFormData((prev) => ({
+      ...prev,
+      exit_price: prev.exit_price === '' ? currentPrice.toString() : prev.exit_price,
+      exit_type: prev.exit_price === '' ? inferExitType(currentPrice) : prev.exit_type,
+    }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPrice, mode])
 
   // Layered mode state
   const [layeredMode, setLayeredMode] = useState(trade.isLayered)

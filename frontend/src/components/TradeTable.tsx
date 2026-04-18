@@ -418,6 +418,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
       <TradeEditModal
         trade={editingTrade}
         mode={editMode}
+        currentPrice={liveMetrics[editingTrade.id]?.currentPrice?.toNumber() ?? null}
         onClose={handleCloseModal}
       />
     )}
