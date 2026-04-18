@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { TickerSearchInput } from './TickerSearchInput'
+import { PriceInput } from './PriceInput'
 import { useTradeCreation } from '../hooks/useTradeCreation'
 import { formatPrice } from '../utils/priceFormat'
 import formStyles from '../styles/forms.module.css'
@@ -176,20 +177,22 @@ export function TradeCreationForm({ onClose, initialTicker }: TradeCreationFormP
                     <span className={styles.currentPriceHint}>Current: {formatCurrency(currentPrice)}</span>
                   )}
                 </label>
-                <input
-                  type="number" id="entry_price" name="entry_price"
+                <PriceInput
+                  id="entry_price" name="entry_price"
                   className={getFieldError('entry_price') ? formStyles.inputError : ''}
-                  value={formData.entry_price} onChange={handleChange} step="0.01" min="0" required
+                  value={formData.entry_price} onChange={handleChange}
+                  priceHint={selectedTicker?.priceHint} required
                 />
                 {getFieldError('entry_price') && <span className={formStyles.fieldError}>{getFieldError('entry_price')}</span>}
               </div>
 
               <div className={formStyles.formGroup}>
                 <label htmlFor="stop_loss">Stop Loss</label>
-                <input
-                  type="number" id="stop_loss" name="stop_loss"
+                <PriceInput
+                  id="stop_loss" name="stop_loss"
                   className={getFieldError('stop_loss') ? formStyles.inputError : ''}
-                  value={formData.stop_loss} onChange={handleChange} step="0.01" min="0" required
+                  value={formData.stop_loss} onChange={handleChange}
+                  priceHint={selectedTicker?.priceHint} required
                 />
                 {getFieldError('stop_loss') && <span className={formStyles.fieldError}>{getFieldError('stop_loss')}</span>}
               </div>
@@ -197,10 +200,11 @@ export function TradeCreationForm({ onClose, initialTicker }: TradeCreationFormP
               {!layeredMode && (
                 <div className={formStyles.formGroup}>
                   <label htmlFor="take_profit">Take Profit</label>
-                  <input
-                    type="number" id="take_profit" name="take_profit"
+                  <PriceInput
+                    id="take_profit" name="take_profit"
                     className={getFieldError('take_profit') ? formStyles.inputError : ''}
-                    value={formData.take_profit} onChange={handleChange} step="0.01" min="0" required
+                    value={formData.take_profit} onChange={handleChange}
+                    priceHint={selectedTicker?.priceHint} required
                   />
                   {getFieldError('take_profit') && <span className={formStyles.fieldError}>{getFieldError('take_profit')}</span>}
                 </div>
@@ -239,9 +243,9 @@ export function TradeCreationForm({ onClose, initialTicker }: TradeCreationFormP
                   {tpLevels.map((level, index) => (
                     <div key={`tp-${index}`} className={layeredStyles.levelInputRow}>
                       <span className={layeredStyles.levelLabel}>TP{index + 1}</span>
-                      <input type="number" placeholder="Price" value={level.price}
+                      <PriceInput placeholder="Price" value={level.price}
                         onChange={(e) => { const n = [...tpLevels]; n[index] = { ...n[index], price: e.target.value }; setTpLevels(n) }}
-                        step="0.01" min="0" />
+                        priceHint={selectedTicker?.priceHint} />
                       <input type="number" placeholder="%" value={level.units_pct}
                         onChange={(e) => { const n = [...tpLevels]; n[index] = { ...n[index], units_pct: e.target.value }; setTpLevels(n) }}
                         min="0" max="100" className={layeredStyles.pctInput} />

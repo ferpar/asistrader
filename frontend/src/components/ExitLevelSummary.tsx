@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import type { ExitLevel } from '../domain/trade/types'
 import type { TradeStatus } from '../types/trade'
 import { formatPrice } from '../utils/priceFormat'
+import { PriceInput } from './PriceInput'
 import styles from './ExitLevelSummary.module.css'
 
 interface ExitLevelSummaryProps {
@@ -160,11 +161,10 @@ export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units, trade
                           </label>
                           <label>
                             Price:
-                            <input
-                              type="number"
-                              step="0.01"
+                            <PriceInput
                               value={hitPrice}
                               onChange={(e) => setHitPrice(e.target.value)}
+                              priceHint={priceHint}
                               placeholder="Actual price"
                             />
                           </label>

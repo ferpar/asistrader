@@ -3,6 +3,7 @@ import { TradeUpdateRequest, ExitType, ExitLevelCreateRequest, CancelReason, Ord
 import type { Strategy } from '../domain/strategy/types'
 import type { TradeWithMetrics } from '../domain/trade/types'
 import { useTradeStore, useStrategyRepo } from '../container/ContainerContext'
+import { PriceInput } from './PriceInput'
 import styles from './TradeEditModal.module.css'
 import formStyles from '../styles/forms.module.css'
 import layeredStyles from '../styles/layeredLevels.module.css'
@@ -253,14 +254,12 @@ export function TradeEditModal({ trade, mode, currentPrice, onClose }: TradeEdit
             <>
               <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
                 <label htmlFor="entry_price">Entry Price</label>
-                <input
-                  type="number"
+                <PriceInput
                   id="entry_price"
                   name="entry_price"
                   value={formData.entry_price}
                   onChange={handleChange}
-                  step="0.01"
-                  min="0"
+                  priceHint={trade.tickerPriceHint}
                   required
                   disabled={trade.status === 'close'}
                 />
@@ -283,14 +282,12 @@ export function TradeEditModal({ trade, mode, currentPrice, onClose }: TradeEdit
 
               <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
                 <label htmlFor="stop_loss">Stop Loss</label>
-                <input
-                  type="number"
+                <PriceInput
                   id="stop_loss"
                   name="stop_loss"
                   value={formData.stop_loss}
                   onChange={handleChange}
-                  step="0.01"
-                  min="0"
+                  priceHint={trade.tickerPriceHint}
                   required
                 />
               </div>
@@ -298,14 +295,12 @@ export function TradeEditModal({ trade, mode, currentPrice, onClose }: TradeEdit
               {!layeredMode && (
                 <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
                   <label htmlFor="take_profit">Take Profit</label>
-                  <input
-                    type="number"
+                  <PriceInput
                     id="take_profit"
                     name="take_profit"
                     value={formData.take_profit}
                     onChange={handleChange}
-                    step="0.01"
-                    min="0"
+                    priceHint={trade.tickerPriceHint}
                     required
                   />
                 </div>
@@ -324,8 +319,7 @@ export function TradeEditModal({ trade, mode, currentPrice, onClose }: TradeEdit
                     {tpLevels.map((level, index) => (
                       <div key={`tp-${index}`} className={layeredStyles.levelInputRow}>
                         <span className={layeredStyles.levelLabel}>TP{index + 1}</span>
-                        <input
-                          type="number"
+                        <PriceInput
                           placeholder="Price"
                           value={level.price}
                           onChange={(e) => {
@@ -333,8 +327,7 @@ export function TradeEditModal({ trade, mode, currentPrice, onClose }: TradeEdit
                             newLevels[index] = { ...newLevels[index], price: e.target.value }
                             setTpLevels(newLevels)
                           }}
-                          step="0.01"
-                          min="0"
+                          priceHint={trade.tickerPriceHint}
                           disabled={!canEditLayeredMode}
                         />
                         <input
@@ -507,14 +500,12 @@ export function TradeEditModal({ trade, mode, currentPrice, onClose }: TradeEdit
             <>
               <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
                 <label htmlFor="exit_price">Exit Price</label>
-                <input
-                  type="number"
+                <PriceInput
                   id="exit_price"
                   name="exit_price"
                   value={formData.exit_price}
                   onChange={handleChange}
-                  step="0.01"
-                  min="0"
+                  priceHint={trade.tickerPriceHint}
                   required
                   placeholder="Enter exit price"
                 />
