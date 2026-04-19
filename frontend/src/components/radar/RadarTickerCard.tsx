@@ -117,7 +117,7 @@ function guideRows(kind: TargetKind): GuideRow[] {
   if (kind === 'tp') {
     return [
       { name: 'new', desc: 'trade just opened', tone: null },
-      { name: '↘ proj', desc: 'baseline trend was away from TP', tone: 'bad' },
+      { name: '↘ proj', desc: 'baseline trend was away from TP', tone: null },
       { name: 'ahead', desc: 'reaching TP sooner than projected', tone: 'good' },
       { name: 'behind', desc: 'reaching TP later than projected', tone: 'bad' },
       { name: 'on pace', desc: 'dynamic tracks the baseline', tone: null },
@@ -126,7 +126,7 @@ function guideRows(kind: TargetKind): GuideRow[] {
   if (kind === 'sl') {
     return [
       { name: 'new', desc: 'trade just opened', tone: null },
-      { name: '↘ proj', desc: 'baseline trend was away from SL', tone: 'good' },
+      { name: '↘ proj', desc: 'baseline trend was away from SL', tone: null },
       { name: 'ahead', desc: 'reaching SL sooner than projected', tone: 'bad' },
       { name: 'behind', desc: 'reaching SL later than projected', tone: 'good' },
       { name: 'on pace', desc: 'dynamic tracks the baseline', tone: null },
