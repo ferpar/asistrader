@@ -13,6 +13,14 @@ export interface TimelineRange {
   text: string
 }
 
+export type DriftState = 'ahead' | 'behind' | 'on-pace'
+
+export interface DriftRange {
+  lo: number
+  hi: number
+  state: DriftState
+}
+
 export function computeDaysToTarget(
   current: Decimal,
   target: Decimal,
@@ -38,6 +46,37 @@ export function computeTimelineRange(
   const lo = nums.length ? Math.min(...nums) : null
   const hi = nums.length ? Math.max(...nums) : null
   return { a, b, lo, hi, text: formatTimelineCell(a, b) }
+}
+
+export function computeDrift(
+  dynamic: TimelineRange,
+  projected: TimelineRange,
+): DriftRange | null {
+  if (dynamic.lo === null || dynamic.hi === null) return null
+  if (projected.lo === null || projected.hi === null) return null
+  const lo = dynamic.lo - projected.hi
+  const hi = dynamic.hi - projected.lo
+  const state: DriftState = hi <= 0 ? 'ahead' : lo >= 0 ? 'behind' : 'on-pace'
+  return { lo, hi, state }
+}
+
+export function formatDriftText(drift: DriftRange): string {
+  const loAbs = Math.round(Math.abs(drift.lo))
+  const hiAbs = Math.round(Math.abs(drift.hi))
+  if (drift.state === 'ahead') {
+    const small = Math.min(loAbs, hiAbs)
+    const big = Math.max(loAbs, hiAbs)
+    return small === big ? `ahead ${big}d` : `ahead ${small}–${big}d`
+  }
+  if (drift.state === 'behind') {
+    const small = Math.min(loAbs, hiAbs)
+    const big = Math.max(loAbs, hiAbs)
+    return small === big ? `behind ${big}d` : `behind ${small}–${big}d`
+  }
+  const loR = Math.round(drift.lo)
+  const hiR = Math.round(drift.hi)
+  const sign = (n: number) => (n > 0 ? `+${n}` : `${n}`)
+  return `${sign(loR)}…${sign(hiR)}d (on pace)`
 }
 
 function formatDayNumber(days: number): string {

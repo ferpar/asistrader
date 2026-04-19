@@ -250,6 +250,22 @@
   line-height: 1.2;
 }
 
+.etaValueRow {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.etaBadge {
+  font-size: 0.625rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
 .tradeCellLabel {
   font-size: 0.625rem;
   text-transform: uppercase;

@@ -5,12 +5,13 @@ import type { TradeWithMetrics, LiveMetrics } from '../../domain/trade/types'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen } from '../../utils/trade'
 import { getPositionNum } from '../../utils/tradeLive'
 import { formatPrice } from '../../utils/priceFormat'
-import { computeTimelineRange } from '../../utils/timelineExpectations'
-import type { TimelineRange } from '../../utils/timelineExpectations'
+import { computeTimelineRange, computeDrift, formatDriftText } from '../../utils/timelineExpectations'
+import type { TimelineRange, DriftRange } from '../../utils/timelineExpectations'
 import type { PriceChanges } from '../../domain/radar/types'
 import { computePriceChangesAsOf } from '../../domain/radar/indicators'
 import { TimelineOverlapBar } from './TimelineOverlapBar'
 import styles from './RadarTickerCard.module.css'
+import tooltipStyles from '../../styles/tooltip.module.css'
 
 interface RadarTickerCardProps {
   indicators: TickerIndicators
@@ -75,10 +76,25 @@ function toIsoDay(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
 
+type ProjectedState = 'ok' | 'fresh' | 'receding' | 'none'
+
 interface EtaCellData {
   dynamic: TimelineRange
   projected: TimelineRange | null
-  title: string
+  drift: DriftRange | null
+  projectedState: ProjectedState
+  tooltip: string
+}
+
+function badgeText(state: ProjectedState, drift: DriftRange | null): string | null {
+  if (state === 'fresh') return 'new'
+  if (state === 'receding') return '↘ proj'
+  if (state === 'ok' && drift) {
+    if (drift.state === 'ahead') return 'ahead'
+    if (drift.state === 'behind') return 'behind'
+    return 'on pace'
+  }
+  return null
 }
 
 function TradeLine({ trade, metric, priceChanges, datedCloses, fmt }: TradeLineProps) {
@@ -101,8 +117,9 @@ function TradeLine({ trade, metric, priceChanges, datedCloses, fmt }: TradeLineP
   const baseline = baselineDate(trade)
   const today = toIsoDay(new Date())
   const baselineKey = baseline ? toIsoDay(baseline) : null
+  const isFresh = !!baselineKey && !(baselineKey < today)
   const projectedChanges: PriceChanges | null =
-    baselineKey && baselineKey < today
+    baselineKey && !isFresh
       ? computePriceChangesAsOf(datedCloses, baselineKey)
       : null
 
@@ -112,11 +129,27 @@ function TradeLine({ trade, metric, priceChanges, datedCloses, fmt }: TradeLineP
     const projected = projectedChanges
       ? computeTimelineRange(metric.currentPrice, target, projectedChanges)
       : null
-    const parts: string[] = [`now ${dynamic.text}`]
-    if (projected && (projected.lo !== null || typeof projected.a === 'string' || typeof projected.b === 'string')) {
-      parts.push(`proj ${projected.text}${baselineKey ? ` (from ${baselineKey})` : ''}`)
+
+    let projectedState: ProjectedState
+    if (isFresh) projectedState = 'fresh'
+    else if (!projected) projectedState = 'none'
+    else if (projected.lo === null && (projected.a === 'receding' || projected.b === 'receding')) projectedState = 'receding'
+    else if (projected.lo === null && projected.a === null && projected.b === null) projectedState = 'none'
+    else projectedState = 'ok'
+
+    const drift = projectedState === 'ok' && projected ? computeDrift(dynamic, projected) : null
+
+    const lines: string[] = [`now ${dynamic.text}`]
+    if (projectedState === 'fresh') {
+      lines.push('proj: trade just opened — no baseline drift yet')
+    } else if (projectedState === 'none') {
+      lines.push('proj: no projection available (insufficient history)')
+    } else if (projected) {
+      lines.push(`proj ${projected.text}${baselineKey ? ` (from ${baselineKey})` : ''}`)
+      if (drift) lines.push(`drift ${formatDriftText(drift)}`)
     }
-    return { dynamic, projected, title: parts.join(' · ') }
+
+    return { dynamic, projected, drift, projectedState, tooltip: lines.join('\n') }
   }
 
   const etaPe = showEtaPe ? etaFor(trade.entryPrice) : null
@@ -124,22 +157,32 @@ function TradeLine({ trade, metric, priceChanges, datedCloses, fmt }: TradeLineP
   const etaSl = showEtaTpSl ? etaFor(trade.stopLoss) : null
 
   const renderEta = (data: EtaCellData | null, enabled: boolean) => {
-    if (!enabled) return <span>-</span>
-    if (!data) return <span>-</span>
+    if (!enabled || !data) {
+      return {
+        tooltip: undefined as string | undefined,
+        body: <span>-</span>,
+      }
+    }
     const projectedForBar =
-      data.projected && (data.projected.a !== null || data.projected.b !== null)
+      data.projectedState === 'ok' && data.projected && (data.projected.a !== null || data.projected.b !== null)
         ? { a: data.projected.a, b: data.projected.b }
         : null
-    return (
-      <>
-        <span title={data.title}>{data.dynamic.text}</span>
-        <TimelineOverlapBar
-          dynamic={{ a: data.dynamic.a, b: data.dynamic.b }}
-          projected={projectedForBar}
-          title={data.title}
-        />
-      </>
-    )
+    const badge = badgeText(data.projectedState, data.drift)
+    return {
+      tooltip: data.tooltip,
+      body: (
+        <>
+          <span className={styles.etaValueRow}>
+            <span>{data.dynamic.text}</span>
+            {badge && <span className={styles.etaBadge}>· {badge}</span>}
+          </span>
+          <TimelineOverlapBar
+            dynamic={{ a: data.dynamic.a, b: data.dynamic.b }}
+            projected={projectedForBar}
+          />
+        </>
+      ),
+    }
   }
 
   return (
@@ -188,18 +231,27 @@ function TradeLine({ trade, metric, priceChanges, datedCloses, fmt }: TradeLineP
           {pnlText}
         </span>
       </span>
-      <span className={styles.tradeCell}>
-        <span className={styles.tradeCellLabel}>ETA→PE</span>
-        {renderEta(etaPe, showEtaPe)}
-      </span>
-      <span className={styles.tradeCell}>
-        <span className={styles.tradeCellLabel}>ETA→TP</span>
-        {renderEta(etaTp, showEtaTpSl)}
-      </span>
-      <span className={styles.tradeCell}>
-        <span className={styles.tradeCellLabel}>ETA→SL</span>
-        {renderEta(etaSl, showEtaTpSl)}
-      </span>
+      {(() => {
+        const pe = renderEta(etaPe, showEtaPe)
+        const tp = renderEta(etaTp, showEtaTpSl)
+        const sl = renderEta(etaSl, showEtaTpSl)
+        return (
+          <>
+            <span className={`${styles.tradeCell} ${tooltipStyles.tooltipHost}`} data-tooltip={pe.tooltip}>
+              <span className={styles.tradeCellLabel}>ETA→PE</span>
+              {pe.body}
+            </span>
+            <span className={`${styles.tradeCell} ${tooltipStyles.tooltipHost}`} data-tooltip={tp.tooltip}>
+              <span className={styles.tradeCellLabel}>ETA→TP</span>
+              {tp.body}
+            </span>
+            <span className={`${styles.tradeCell} ${tooltipStyles.tooltipHost}`} data-tooltip={sl.tooltip}>
+              <span className={styles.tradeCellLabel}>ETA→SL</span>
+              {sl.body}
+            </span>
+          </>
+        )
+      })()}
     </div>
   )
 }
