@@ -3,7 +3,7 @@ import type { TickerIndicators } from '../../domain/radar/types'
 import type { Ticker } from '../../domain/ticker/types'
 import type { TradeWithMetrics, LiveMetrics } from '../../domain/trade/types'
 import { formatPrice } from '../../utils/priceFormat'
-import { RadarTradeLine } from './RadarTradeLine'
+import { RadarTradeLine } from './tradeLine/RadarTradeLine'
 import styles from './RadarTickerCard.module.css'
 
 interface RadarTickerCardProps {

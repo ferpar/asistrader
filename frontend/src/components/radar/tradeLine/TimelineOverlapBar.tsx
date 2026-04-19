@@ -1,4 +1,4 @@
-import type { DayEstimate } from '../../utils/timelineExpectations'
+import type { DayEstimate } from '../../../utils/timelineExpectations'
 import styles from './TimelineOverlapBar.module.css'
 
 export interface TimelineSide {
