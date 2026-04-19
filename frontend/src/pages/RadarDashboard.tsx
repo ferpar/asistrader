@@ -12,6 +12,9 @@ import { BenchmarkSearchInput } from '../components/BenchmarkSearchInput'
 import { TradeCreationForm } from '../components/TradeCreationForm'
 import { RadarTickerCard } from '../components/radar/RadarTickerCard'
 import { RadarBenchmarkCard } from '../components/radar/RadarBenchmarkCard'
+import { RadarFilterBar } from '../components/radar/RadarFilterBar'
+import { RadarFlatTradeRow } from '../components/radar/RadarFlatTradeRow'
+import { applyGroupedView, applyFlatView } from '../domain/radar/filterSort'
 import type { Ticker } from '../domain/ticker/types'
 import type { Benchmark } from '../domain/benchmark/types'
 import type { TradeWithMetrics } from '../domain/trade/types'
@@ -41,6 +44,7 @@ export const RadarDashboard = observer(function RadarDashboard() {
   const watchlist = radarStore.symbols$.get()
   const trades = tradeStore.trades$.get()
   const liveMetrics = metricsStore.metrics$.get()
+  const view = radarStore.view$.get()
 
   const benchmarkMap = useMemo(() => {
     const map: Record<string, Benchmark> = {}
@@ -92,6 +96,26 @@ export const RadarDashboard = observer(function RadarDashboard() {
 
   const watchlistSet = useMemo(() => new Set(watchlist), [watchlist])
 
+  const totalActiveTrades = useMemo(() => {
+    let n = 0
+    for (const list of Object.values(tradesBySymbol)) {
+      for (const t of list) {
+        if (t.status === 'plan' || t.status === 'ordered' || t.status === 'open') n++
+      }
+    }
+    return n
+  }, [tradesBySymbol])
+
+  const groupedView = useMemo(
+    () => applyGroupedView(indicators, tradesBySymbol, liveMetrics, view),
+    [indicators, tradesBySymbol, liveMetrics, view],
+  )
+
+  const flatView = useMemo(
+    () => applyFlatView(indicators, tradesBySymbol, liveMetrics, view),
+    [indicators, tradesBySymbol, liveMetrics, view],
+  )
+
   const handleTickerSelect = (symbol: string) => {
     setSelectedTicker('')
     radarStore.addSymbol(symbol)
@@ -111,8 +135,73 @@ export const RadarDashboard = observer(function RadarDashboard() {
     try {
       await benchmarkStore.removeBenchmark(symbol)
     } catch {
-      // Non-fatal: the symbol is gone from the radar; backend row stays.
+      // Non-fatal
     }
+  }
+
+  const renderTickersSection = () => {
+    if (indicators.length === 0 && !loading) {
+      return <div className={styles.empty}>No tickers in your radar. Add one above to get started.</div>
+    }
+
+    if (view.flatView) {
+      const totalVisibleTrades = flatView.rows.length
+      return (
+        <>
+          <div className={styles.sectionHeadingRow}>
+            <h3 className={styles.sectionHeading}>Trades</h3>
+            <span className={styles.countBadge}>
+              {totalVisibleTrades} of {totalActiveTrades} active trades
+            </span>
+          </div>
+          {totalVisibleTrades === 0 ? (
+            <div className={styles.empty}>No trades match the current filters.</div>
+          ) : (
+            <div className={styles.flatList}>
+              {flatView.rows.map((row) => (
+                <RadarFlatTradeRow
+                  key={row.trade.id}
+                  indicator={row.indicator}
+                  ticker={tickerMap[row.indicator.symbol] ?? null}
+                  trade={row.trade}
+                  metric={liveMetrics[row.trade.id]}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )
+    }
+
+    const shownCards = groupedView.indicators.length
+    return (
+      <>
+        <div className={styles.sectionHeadingRow}>
+          <h3 className={styles.sectionHeading}>Tickers</h3>
+          <span className={styles.countBadge}>
+            {shownCards} of {indicators.length} cards
+          </span>
+        </div>
+        {shownCards === 0 ? (
+          <div className={styles.empty}>No tickers match the current filters.</div>
+        ) : (
+          <div className={styles.cardList}>
+            {groupedView.indicators.map((ind) => (
+              <RadarTickerCard
+                key={ind.symbol}
+                indicators={ind}
+                ticker={tickerMap[ind.symbol] ?? null}
+                trades={groupedView.tradesBySymbol[ind.symbol] ?? []}
+                liveMetrics={liveMetrics}
+                removable={watchlistSet.has(ind.symbol)}
+                onRemove={(symbol) => radarStore.removeSymbol(symbol)}
+                onNewTrade={(symbol) => setNewTradeTicker(symbol)}
+              />
+            ))}
+          </div>
+        )}
+      </>
+    )
   }
 
   return (
@@ -165,24 +254,12 @@ export const RadarDashboard = observer(function RadarDashboard() {
       </div>
 
       <div className={styles.section}>
-        <h3 className={styles.sectionHeading}>Tickers</h3>
-        {indicators.length === 0 && !loading && (
-          <div className={styles.empty}>No tickers in your radar. Add one above to get started.</div>
-        )}
-        <div className={styles.cardList}>
-          {indicators.map((ind) => (
-            <RadarTickerCard
-              key={ind.symbol}
-              indicators={ind}
-              ticker={tickerMap[ind.symbol] ?? null}
-              trades={tradesBySymbol[ind.symbol] ?? []}
-              liveMetrics={liveMetrics}
-              removable={watchlistSet.has(ind.symbol)}
-              onRemove={(symbol) => radarStore.removeSymbol(symbol)}
-              onNewTrade={(symbol) => setNewTradeTicker(symbol)}
-            />
-          ))}
-        </div>
+        <RadarFilterBar
+          value={view}
+          onChange={(next) => radarStore.setView(next)}
+          onReset={() => radarStore.resetView()}
+        />
+        {renderTickersSection()}
       </div>
 
       {newTradeTicker && (

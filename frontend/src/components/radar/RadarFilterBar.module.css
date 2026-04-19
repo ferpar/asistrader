@@ -1,0 +1,168 @@
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.scopeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.scopeLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  padding-right: 4px;
+  border-right: 2px solid var(--color-border);
+  margin-right: 4px;
+  min-width: 68px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.groupLabel {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
+.pills {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.pill {
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.pill:hover {
+  background-color: var(--color-surface);
+}
+
+.pill.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.search {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  min-width: 180px;
+}
+
+.search:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.proximity {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.proximityInput {
+  width: 60px;
+  padding: 4px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.8rem;
+}
+
+.proximitySelect {
+  padding: 4px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.8rem;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.toggle input {
+  cursor: pointer;
+}
+
+.sortArea {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.sortSelect {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.85rem;
+}
+
+.dirBtn {
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 0.85rem;
+  min-width: 44px;
+}
+
+.resetBtn {
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.resetBtn:hover {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+.divider {
+  border: none;
+  border-top: 1px dashed var(--color-border);
+  margin: 0;
+}

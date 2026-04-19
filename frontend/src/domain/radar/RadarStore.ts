@@ -10,12 +10,14 @@ import {
   computePriceChanges,
   computeLinearRegressionStructure,
 } from './indicators'
+import { DEFAULT_VIEW_STATE, type RadarViewState } from './filterSort'
 
 type TickerBulkResult = { data: Record<string, MarketDataRowDTO[]>; errors: Record<string, string> }
 type BenchmarkBulkResult = { data: Record<string, BenchmarkMarketDataRowDTO[]>; errors: Record<string, string> }
 
 const STORAGE_KEY = 'asistrader:radar:symbols'
 const BENCHMARK_STORAGE_KEY = 'asistrader:radar:benchmarks'
+const VIEW_STORAGE_KEY = 'asistrader:radar:view'
 
 function loadFromStorage(key: string): string[] {
   try {
@@ -28,6 +30,30 @@ function loadFromStorage(key: string): string[] {
 
 function saveToStorage(key: string, values: string[]) {
   localStorage.setItem(key, JSON.stringify(values))
+}
+
+function loadViewFromStorage(): RadarViewState {
+  try {
+    const raw = localStorage.getItem(VIEW_STORAGE_KEY)
+    if (!raw) return DEFAULT_VIEW_STATE
+    const parsed = JSON.parse(raw) as Partial<RadarViewState>
+    return {
+      ticker: { ...DEFAULT_VIEW_STATE.ticker, ...(parsed.ticker ?? {}) },
+      trade: { ...DEFAULT_VIEW_STATE.trade, ...(parsed.trade ?? {}) },
+      sort: { ...DEFAULT_VIEW_STATE.sort, ...(parsed.sort ?? {}) },
+      flatView: parsed.flatView ?? DEFAULT_VIEW_STATE.flatView,
+    }
+  } catch {
+    return DEFAULT_VIEW_STATE
+  }
+}
+
+function saveViewToStorage(state: RadarViewState) {
+  try {
+    localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(state))
+  } catch {
+    // non-fatal
+  }
 }
 
 function startDate(): string {
@@ -91,6 +117,7 @@ export class RadarStore {
   readonly benchmarkIndicators$ = observable<BenchmarkIndicators[]>([])
   readonly loading$ = observable(false)
   readonly error$ = observable<string | null>(null)
+  readonly view$ = observable<RadarViewState>(loadViewFromStorage())
   private lastSyncTime = 0
 
   constructor(
@@ -257,5 +284,19 @@ export class RadarStore {
     this.benchmarkIndicators$.set(
       this.benchmarkIndicators$.get().filter((i) => i.symbol !== symbol),
     )
+  }
+
+  setView(next: RadarViewState): void {
+    this.view$.set(next)
+    saveViewToStorage(next)
+  }
+
+  resetView(): void {
+    this.view$.set(DEFAULT_VIEW_STATE)
+    try {
+      localStorage.removeItem(VIEW_STORAGE_KEY)
+    } catch {
+      // non-fatal
+    }
   }
 }
