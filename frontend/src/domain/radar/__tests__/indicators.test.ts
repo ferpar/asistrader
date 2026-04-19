@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { computeSma, computeSmaStructure, computePriceChanges } from '../indicators'
+import {
+  computeSma,
+  computeSmaStructure,
+  computePriceChanges,
+  computeLinearRegression,
+  computeLinearRegressionStructure,
+} from '../indicators'
 
 describe('computeSma', () => {
   it('returns null when insufficient data', () => {
@@ -99,5 +105,90 @@ describe('computePriceChanges', () => {
     const result = computePriceChanges(closes)
     expect(result.avgChange5d).toBeCloseTo(-2, 5)
     expect(result.avgChangePct5d!).toBeLessThan(0)
+  })
+})
+
+describe('computeLinearRegression', () => {
+  it('returns all nulls when data is shorter than the period', () => {
+    const result = computeLinearRegression([1, 2, 3], 20)
+    expect(result.slope).toBeNull()
+    expect(result.slopePct).toBeNull()
+    expect(result.r2).toBeNull()
+  })
+
+  it('returns all nulls for invalid period', () => {
+    const result = computeLinearRegression([1, 2, 3, 4, 5], 1)
+    expect(result.slope).toBeNull()
+    expect(result.r2).toBeNull()
+  })
+
+  it('returns slope=1 and r2=1 for a perfectly rising line', () => {
+    const closes: number[] = []
+    for (let i = 1; i <= 50; i++) closes.push(i) // y = x
+    const result = computeLinearRegression(closes, 50)
+    expect(result.slope).toBeCloseTo(1, 8)
+    expect(result.r2).toBeCloseTo(1, 8)
+    // meanY = 25.5, slope = 1 → slopePct ≈ 1/25.5
+    expect(result.slopePct).toBeCloseTo(1 / 25.5, 6)
+  })
+
+  it('returns negative slope and r2=1 for a perfectly falling line', () => {
+    const closes: number[] = []
+    for (let i = 0; i < 50; i++) closes.push(100 - i)
+    const result = computeLinearRegression(closes, 50)
+    expect(result.slope).toBeCloseTo(-1, 8)
+    expect(result.r2).toBeCloseTo(1, 8)
+    expect(result.slopePct!).toBeLessThan(0)
+  })
+
+  it('returns slope=0 and r2=null for a flat series (degenerate SS_tot)', () => {
+    const closes = Array(50).fill(100)
+    const result = computeLinearRegression(closes, 50)
+    expect(result.slope).toBeCloseTo(0, 10)
+    expect(result.r2).toBeNull()
+    expect(result.slopePct).toBeCloseTo(0, 10)
+  })
+
+  it('produces correct sign and 0 < r2 < 1 for noisy upward trend', () => {
+    const closes: number[] = []
+    // y = i + alternating noise of ±2
+    for (let i = 0; i < 50; i++) closes.push(i + (i % 2 === 0 ? 2 : -2))
+    const result = computeLinearRegression(closes, 50)
+    expect(result.slope!).toBeGreaterThan(0)
+    expect(result.r2!).toBeGreaterThan(0)
+    expect(result.r2!).toBeLessThan(1)
+  })
+
+  it('uses only the last N closes when more data is available', () => {
+    // Long flat history then a sharp rise in the last 20 — slope should reflect only the last 20.
+    const closes: number[] = Array(180).fill(100)
+    for (let i = 0; i < 20; i++) closes.push(100 + i)
+    const result = computeLinearRegression(closes, 20)
+    expect(result.slope).toBeCloseTo(1, 8)
+    expect(result.r2).toBeCloseTo(1, 8)
+  })
+})
+
+describe('computeLinearRegressionStructure', () => {
+  it('populates lr20/lr50/lr200 when given 250 points', () => {
+    const closes: number[] = []
+    for (let i = 0; i < 250; i++) closes.push(50 + i * 0.5)
+    const result = computeLinearRegressionStructure(closes)
+    expect(result.lr20.slope).not.toBeNull()
+    expect(result.lr50.slope).not.toBeNull()
+    expect(result.lr200.slope).not.toBeNull()
+    expect(result.lr20.slope!).toBeGreaterThan(0)
+    expect(result.lr200.slope!).toBeGreaterThan(0)
+  })
+
+  it('lr200 is null while lr20 and lr50 populate when given 100 points', () => {
+    const closes: number[] = []
+    for (let i = 0; i < 100; i++) closes.push(50 + i * 0.5)
+    const result = computeLinearRegressionStructure(closes)
+    expect(result.lr20.slope).not.toBeNull()
+    expect(result.lr50.slope).not.toBeNull()
+    expect(result.lr200.slope).toBeNull()
+    expect(result.lr200.slopePct).toBeNull()
+    expect(result.lr200.r2).toBeNull()
   })
 })

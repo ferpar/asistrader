@@ -1,4 +1,12 @@
-import type { SmaStructure, PriceChanges, DatedClose } from './types'
+import type {
+  SmaStructure,
+  PriceChanges,
+  DatedClose,
+  LinearRegressionResult,
+  LinearRegressionStructure,
+} from './types'
+
+const EMPTY_LR_RESULT: LinearRegressionResult = { slope: null, slopePct: null, r2: null }
 
 export function computeSma(closes: number[], period: number): number | null {
   if (closes.length < period) return null
@@ -85,4 +93,48 @@ export function computePriceChangesAsOf(
   }
   const sliced = datedCloses.slice(0, lastIdx + 1).map((r) => r.close)
   return computePriceChanges(sliced)
+}
+
+export function computeLinearRegression(closes: number[], period: number): LinearRegressionResult {
+  if (period < 2 || closes.length < period) return { ...EMPTY_LR_RESULT }
+  const slice = closes.slice(-period)
+  const n = slice.length
+
+  let sumY = 0
+  for (const y of slice) sumY += y
+  const meanY = sumY / n
+  const meanX = (n - 1) / 2
+
+  let num = 0
+  let denX = 0
+  for (let i = 0; i < n; i++) {
+    const dx = i - meanX
+    num += dx * (slice[i] - meanY)
+    denX += dx * dx
+  }
+  if (denX === 0) return { ...EMPTY_LR_RESULT }
+
+  const slope = num / denX
+  const intercept = meanY - slope * meanX
+
+  let ssRes = 0
+  let ssTot = 0
+  for (let i = 0; i < n; i++) {
+    const yHat = intercept + slope * i
+    const dy = slice[i] - meanY
+    ssRes += (slice[i] - yHat) ** 2
+    ssTot += dy * dy
+  }
+
+  const slopePct = meanY === 0 ? null : slope / meanY
+  const r2 = ssTot === 0 ? null : 1 - ssRes / ssTot
+  return { slope, slopePct, r2 }
+}
+
+export function computeLinearRegressionStructure(closes: number[]): LinearRegressionStructure {
+  return {
+    lr20: computeLinearRegression(closes, 20),
+    lr50: computeLinearRegression(closes, 50),
+    lr200: computeLinearRegression(closes, 200),
+  }
 }

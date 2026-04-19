@@ -1,4 +1,4 @@
-import type { SmaStructure, PriceChanges } from '../radar/types'
+import type { SmaStructure, PriceChanges, LinearRegressionStructure } from '../radar/types'
 
 export interface Benchmark {
   symbol: string
@@ -12,5 +12,6 @@ export interface BenchmarkIndicators {
   currentPrice: number | null
   sma: SmaStructure
   priceChanges: PriceChanges
+  linearRegression: LinearRegressionStructure
   error: string | null
 }

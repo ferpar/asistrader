@@ -18,12 +18,25 @@ export interface DatedClose {
   close: number
 }
 
+export interface LinearRegressionResult {
+  slope: number | null
+  slopePct: number | null
+  r2: number | null
+}
+
+export interface LinearRegressionStructure {
+  lr20: LinearRegressionResult
+  lr50: LinearRegressionResult
+  lr200: LinearRegressionResult
+}
+
 export interface TickerIndicators {
   symbol: string
   name: string | null
   currentPrice: number | null
   sma: SmaStructure
   priceChanges: PriceChanges
+  linearRegression: LinearRegressionStructure
   datedCloses: DatedClose[]
   error: string | null
 }

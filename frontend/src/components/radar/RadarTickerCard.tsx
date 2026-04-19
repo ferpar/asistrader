@@ -28,6 +28,8 @@ interface RadarTickerCardProps {
 const formatPercent = (value: number) =>
   new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)
 
+const formatR2 = (value: number) => value.toFixed(2)
+
 const formatPercentShort = (value: number) =>
   new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value)
 
@@ -400,7 +402,7 @@ export const RadarTickerCard = observer(function RadarTickerCard({
   onRemove,
   onNewTrade,
 }: RadarTickerCardProps) {
-  const { symbol, currentPrice, sma, priceChanges, datedCloses, error } = indicators
+  const { symbol, currentPrice, sma, priceChanges, linearRegression, datedCloses, error } = indicators
   const fmt = (value: number) => formatPrice(value, ticker?.currency, ticker?.priceHint)
   const tickerName = ticker?.name ?? null
   const counts = countByStatus(trades)
@@ -501,6 +503,28 @@ export const RadarTickerCard = observer(function RadarTickerCard({
                 {priceChanges.avgChangePct5d !== null ? formatPercent(priceChanges.avgChangePct5d) : '-'}
               </span>
             </div>
+          </div>
+        </div>
+
+        <div className={styles.section}>
+          <div className={styles.sectionLabel}>Linear Regression</div>
+          <div className={styles.changeGrid}>
+            {([
+              ['20d', linearRegression.lr20],
+              ['50d', linearRegression.lr50],
+              ['200d', linearRegression.lr200],
+            ] as const).map(([label, lr]) => (
+              <div key={label} className={styles.changeItem}>
+                <span className={styles.changeLabel}>{label}</span>
+                <span className={lr.slope !== null && lr.slope >= 0 ? 'positive' : 'negative'}>
+                  {lr.slope !== null ? fmt(lr.slope) : '-'}
+                </span>
+                <span className={lr.slopePct !== null && lr.slopePct >= 0 ? 'positive' : 'negative'}>
+                  {lr.slopePct !== null ? formatPercent(lr.slopePct) : '-'}
+                </span>
+                <span>R² {lr.r2 !== null ? formatR2(lr.r2) : '-'}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>

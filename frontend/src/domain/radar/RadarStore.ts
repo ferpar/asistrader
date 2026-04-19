@@ -5,7 +5,11 @@ import type { MarketDataRowDTO } from '../../types/radar'
 import type { IBenchmarkRepository } from '../benchmark/IBenchmarkRepository'
 import type { BenchmarkIndicators } from '../benchmark/types'
 import type { BenchmarkMarketDataRowDTO } from '../../types/benchmark'
-import { computeSmaStructure, computePriceChanges } from './indicators'
+import {
+  computeSmaStructure,
+  computePriceChanges,
+  computeLinearRegressionStructure,
+} from './indicators'
 
 type TickerBulkResult = { data: Record<string, MarketDataRowDTO[]>; errors: Record<string, string> }
 type BenchmarkBulkResult = { data: Record<string, BenchmarkMarketDataRowDTO[]>; errors: Record<string, string> }
@@ -36,6 +40,8 @@ const SYNC_THROTTLE_MS = 5 * 60 * 1000
 
 const EMPTY_SMA = { sma5: null, sma20: null, sma50: null, sma200: null, structure: null }
 const EMPTY_CHANGES = { avgChange50d: null, avgChangePct50d: null, avgChange5d: null, avgChangePct5d: null }
+const EMPTY_LR_RESULT = { slope: null, slopePct: null, r2: null }
+const EMPTY_LR = { lr20: EMPTY_LR_RESULT, lr50: EMPTY_LR_RESULT, lr200: EMPTY_LR_RESULT }
 
 function buildBenchmarkIndicators(
   symbol: string,
@@ -43,7 +49,15 @@ function buildBenchmarkIndicators(
   error: string | null,
 ): BenchmarkIndicators {
   if (error) {
-    return { symbol, name: null, currentPrice: null, sma: EMPTY_SMA, priceChanges: EMPTY_CHANGES, error }
+    return {
+      symbol,
+      name: null,
+      currentPrice: null,
+      sma: EMPTY_SMA,
+      priceChanges: EMPTY_CHANGES,
+      linearRegression: EMPTY_LR,
+      error,
+    }
   }
   const closes = rows.map((r) => r.close).filter((c): c is number => c !== null)
   if (closes.length === 0) {
@@ -53,6 +67,7 @@ function buildBenchmarkIndicators(
       currentPrice: null,
       sma: EMPTY_SMA,
       priceChanges: EMPTY_CHANGES,
+      linearRegression: EMPTY_LR,
       error: 'No price data available',
     }
   }
@@ -63,6 +78,7 @@ function buildBenchmarkIndicators(
     currentPrice,
     sma: computeSmaStructure(closes, currentPrice),
     priceChanges: computePriceChanges(closes),
+    linearRegression: computeLinearRegressionStructure(closes),
     error: null,
   }
 }
@@ -150,6 +166,7 @@ export class RadarStore {
             currentPrice: null,
             sma: EMPTY_SMA,
             priceChanges: EMPTY_CHANGES,
+            linearRegression: EMPTY_LR,
             datedCloses: [],
             error: tickerResult.errors[symbol],
           }
@@ -168,6 +185,7 @@ export class RadarStore {
             currentPrice: null,
             sma: EMPTY_SMA,
             priceChanges: EMPTY_CHANGES,
+            linearRegression: EMPTY_LR,
             datedCloses: [],
             error: 'No price data available',
           }
@@ -180,6 +198,7 @@ export class RadarStore {
           currentPrice,
           sma: computeSmaStructure(closes, currentPrice),
           priceChanges: computePriceChanges(closes),
+          linearRegression: computeLinearRegressionStructure(closes),
           datedCloses,
           error: null,
         }
