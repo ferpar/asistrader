@@ -266,6 +266,35 @@
   white-space: nowrap;
 }
 
+.etaLabelRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.helpIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  cursor: help;
+  user-select: none;
+  line-height: 1;
+  padding: 0;
+  background: transparent;
+}
+
+.helpIcon:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
 .tradeCellLabel {
   font-size: 0.625rem;
   text-transform: uppercase;

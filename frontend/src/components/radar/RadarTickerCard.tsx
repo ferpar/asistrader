@@ -77,6 +77,7 @@ function toIsoDay(d: Date): string {
 }
 
 type ProjectedState = 'ok' | 'fresh' | 'receding' | 'none'
+type TargetKind = 'pe' | 'tp' | 'sl'
 
 interface EtaCellData {
   dynamic: TimelineRange
@@ -93,6 +94,82 @@ function badgeText(state: ProjectedState, drift: DriftRange | null): string | nu
     if (drift.state === 'ahead') return 'ahead'
     if (drift.state === 'behind') return 'behind'
     return 'on pace'
+  }
+  return null
+}
+
+function targetName(kind: TargetKind): string {
+  if (kind === 'tp') return 'take profit'
+  if (kind === 'sl') return 'stop loss'
+  return 'entry'
+}
+
+function badgeGuide(kind: TargetKind): string {
+  if (kind === 'tp') {
+    return [
+      'Badge guide — ETA→TP',
+      '',
+      'new      trade just opened',
+      '↘ proj   baseline trend moved away from TP (unfavorable)',
+      'ahead    reaching TP sooner than projected (favorable)',
+      'behind   reaching TP later than projected (unfavorable)',
+      'on pace  dynamic tracks the baseline estimate',
+    ].join('\n')
+  }
+  if (kind === 'sl') {
+    return [
+      'Badge guide — ETA→SL',
+      '',
+      'new      trade just opened',
+      '↘ proj   baseline trend moved away from SL (favorable)',
+      'ahead    reaching SL sooner than projected (unfavorable)',
+      'behind   reaching SL later than projected (favorable)',
+      'on pace  dynamic tracks the baseline estimate',
+    ].join('\n')
+  }
+  return [
+    'Badge guide — ETA→entry',
+    '',
+    'new      plan just created',
+    '↘ proj   baseline trend moved away from entry',
+    'ahead    reaching entry sooner than projected',
+    'behind   reaching entry later than projected',
+    'on pace  dynamic tracks the baseline estimate',
+  ].join('\n')
+}
+
+function interpretation(
+  state: ProjectedState,
+  drift: DriftRange | null,
+  kind: TargetKind,
+): string | null {
+  const name = targetName(kind)
+
+  if (state === 'fresh') {
+    return 'new: trade just opened — no baseline to compare against yet'
+  }
+  if (state === 'none') {
+    return 'no projection: insufficient history to compute baseline averages'
+  }
+  if (state === 'receding') {
+    if (kind === 'tp') return '↘ proj: at open, trend was moving away from TP — unfavorable baseline'
+    if (kind === 'sl') return '↘ proj: at open, trend was moving away from SL — favorable baseline'
+    return '↘ proj: at open, trend was moving away from entry'
+  }
+  if (state === 'ok' && drift) {
+    if (drift.state === 'on-pace') {
+      return `on pace: dynamic and projected ranges overlap — tracking the ${name} estimate from open`
+    }
+    if (drift.state === 'ahead') {
+      if (kind === 'tp') return 'ahead: reaching TP sooner than baseline projected — favorable'
+      if (kind === 'sl') return 'ahead: reaching SL sooner than baseline projected — unfavorable'
+      return 'ahead: reaching entry sooner than baseline projected'
+    }
+    if (drift.state === 'behind') {
+      if (kind === 'tp') return 'behind: reaching TP later than baseline projected — unfavorable'
+      if (kind === 'sl') return 'behind: reaching SL later than baseline projected — favorable'
+      return 'behind: reaching entry later than baseline projected'
+    }
   }
   return null
 }
@@ -123,7 +200,7 @@ function TradeLine({ trade, metric, priceChanges, datedCloses, fmt }: TradeLineP
       ? computePriceChangesAsOf(datedCloses, baselineKey)
       : null
 
-  const etaFor = (target: typeof trade.entryPrice): EtaCellData | null => {
+  const etaFor = (target: typeof trade.entryPrice, kind: TargetKind): EtaCellData | null => {
     if (!metric?.currentPrice) return null
     const dynamic = computeTimelineRange(metric.currentPrice, target, priceChanges)
     const projected = projectedChanges
@@ -141,20 +218,23 @@ function TradeLine({ trade, metric, priceChanges, datedCloses, fmt }: TradeLineP
 
     const lines: string[] = [`now ${dynamic.text}`]
     if (projectedState === 'fresh') {
-      lines.push('proj: trade just opened — no baseline drift yet')
+      // interpretation below covers the reason; skip redundant "proj: ..." line
     } else if (projectedState === 'none') {
-      lines.push('proj: no projection available (insufficient history)')
+      // interpretation below covers the reason
     } else if (projected) {
       lines.push(`proj ${projected.text}${baselineKey ? ` (from ${baselineKey})` : ''}`)
       if (drift) lines.push(`drift ${formatDriftText(drift)}`)
     }
 
+    const note = interpretation(projectedState, drift, kind)
+    if (note) lines.push('', note)
+
     return { dynamic, projected, drift, projectedState, tooltip: lines.join('\n') }
   }
 
-  const etaPe = showEtaPe ? etaFor(trade.entryPrice) : null
-  const etaTp = showEtaTpSl ? etaFor(trade.takeProfit) : null
-  const etaSl = showEtaTpSl ? etaFor(trade.stopLoss) : null
+  const etaPe = showEtaPe ? etaFor(trade.entryPrice, 'pe') : null
+  const etaTp = showEtaTpSl ? etaFor(trade.takeProfit, 'tp') : null
+  const etaSl = showEtaTpSl ? etaFor(trade.stopLoss, 'sl') : null
 
   const renderEta = (data: EtaCellData | null, enabled: boolean) => {
     if (!enabled || !data) {
@@ -235,18 +315,32 @@ function TradeLine({ trade, metric, priceChanges, datedCloses, fmt }: TradeLineP
         const pe = renderEta(etaPe, showEtaPe)
         const tp = renderEta(etaTp, showEtaTpSl)
         const sl = renderEta(etaSl, showEtaTpSl)
+        const renderLabel = (label: string, kind: TargetKind) => (
+          <span className={styles.etaLabelRow}>
+            <span className={styles.tradeCellLabel}>{label}</span>
+            <span
+              className={`${styles.helpIcon} ${tooltipStyles.tooltipHost}`}
+              data-tooltip={badgeGuide(kind)}
+              tabIndex={0}
+              role="img"
+              aria-label={`${label} badge guide`}
+            >
+              ?
+            </span>
+          </span>
+        )
         return (
           <>
             <span className={`${styles.tradeCell} ${tooltipStyles.tooltipHost}`} data-tooltip={pe.tooltip}>
-              <span className={styles.tradeCellLabel}>ETA→PE</span>
+              {renderLabel('ETA→PE', 'pe')}
               {pe.body}
             </span>
             <span className={`${styles.tradeCell} ${tooltipStyles.tooltipHost}`} data-tooltip={tp.tooltip}>
-              <span className={styles.tradeCellLabel}>ETA→TP</span>
+              {renderLabel('ETA→TP', 'tp')}
               {tp.body}
             </span>
             <span className={`${styles.tradeCell} ${tooltipStyles.tooltipHost}`} data-tooltip={sl.tooltip}>
-              <span className={styles.tradeCellLabel}>ETA→SL</span>
+              {renderLabel('ETA→SL', 'sl')}
               {sl.body}
             </span>
           </>
