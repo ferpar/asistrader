@@ -11,6 +11,7 @@ import type { TimelineRange, DriftRange } from '../../utils/timelineExpectations
 import type { PriceChanges } from '../../domain/radar/types'
 import { computePriceChangesAsOf } from '../../domain/radar/indicators'
 import { TimelineOverlapBar } from './TimelineOverlapBar'
+import { TradeActions } from '../TradeActions'
 import styles from './RadarTickerCard.module.css'
 import tooltipStyles from '../../styles/tooltip.module.css'
 
@@ -308,6 +309,8 @@ function TradeLine({ trade, metric, priceChanges, datedCloses, fmt }: TradeLineP
     }
   }
 
+  const currentPriceNum = metric?.currentPrice?.toNumber() ?? null
+
   return (
     <div className={styles.tradeRow}>
       <span className={styles.tradeId}>#{trade.number ?? trade.id}</span>
@@ -381,6 +384,9 @@ function TradeLine({ trade, metric, priceChanges, datedCloses, fmt }: TradeLineP
           </>
         )
       })()}
+      <span className={styles.tradeActionsCell}>
+        <TradeActions trade={trade} currentPrice={currentPriceNum} />
+      </span>
     </div>
   )
 }

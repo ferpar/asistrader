@@ -250,6 +250,11 @@
   line-height: 1.2;
 }
 
+.tradeActionsCell {
+  display: inline-flex;
+  margin-left: auto;
+}
+
 .etaValueRow {
   display: inline-flex;
   align-items: baseline;

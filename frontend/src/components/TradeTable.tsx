@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { observer } from '@legendapp/state/react'
 import type { TradeWithMetrics, LiveMetrics } from '../domain/trade/types'
-import { TradeEditModal, EditMode } from './TradeEditModal'
 import { ExitLevelSummary } from './ExitLevelSummary'
-import { useLiveMetricsStore, useTradeStore, useFundStore } from '../container/ContainerContext'
+import { TradeActions } from './TradeActions'
+import { useLiveMetricsStore, useTradeStore } from '../container/ContainerContext'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen, formatOpenToClose } from '../utils/trade'
 import { getPositionNum } from '../utils/tradeLive'
 import { formatPrice } from '../utils/priceFormat'
@@ -19,8 +19,6 @@ type SortKey = 'tickerName' | null
 type SortDir = 'asc' | 'desc'
 
 export const TradeTable = observer(function TradeTable({ trades, loading, error }: TradeTableProps) {
-  const [editingTrade, setEditingTrade] = useState<TradeWithMetrics | null>(null)
-  const [editMode, setEditMode] = useState<EditMode>('edit')
   const [expandedTradeId, setExpandedTradeId] = useState<number | null>(null)
   const [selectedTradeId, setSelectedTradeId] = useState<number | null>(null)
   const [docked, setDocked] = useState(true)
@@ -40,52 +38,12 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
   }
   const metricsStore = useLiveMetricsStore()
   const tradeStore = useTradeStore()
-  const fundStore = useFundStore()
 
   useEffect(() => {
     metricsStore.refreshPrices()
   }, [trades, metricsStore])
 
   const liveMetrics = metricsStore.metrics$.get()
-
-  const handleOpenModal = (trade: TradeWithMetrics, mode: EditMode) => {
-    setEditingTrade(trade)
-    setEditMode(mode)
-  }
-
-  const handleCloseModal = () => {
-    setEditingTrade(null)
-    fundStore.loadEvents()
-  }
-
-  const checkFundsAndOrder = async (trade: TradeWithMetrics) => {
-    const balance = fundStore.balance$.get()
-    const amount = trade.amount.toNumber()
-    if (amount > balance.maxPerTrade.toNumber()) {
-      alert(`Trade amount $${amount.toFixed(2)} exceeds max per trade $${balance.maxPerTrade.toFixed(2)}`)
-      return
-    }
-    if (amount > balance.available.toNumber()) {
-      alert(`Trade amount $${amount.toFixed(2)} exceeds available funds $${balance.available.toFixed(2)}`)
-      return
-    }
-    await tradeStore.updateTrade(trade.id, { status: 'ordered' })
-    await fundStore.loadEvents()
-  }
-
-  const checkFundsAndOpen = async (trade: TradeWithMetrics) => {
-    const balance = fundStore.balance$.get()
-    const amount = trade.amount.toNumber()
-    if (amount > balance.maxPerTrade.toNumber()) {
-      alert(`Trade amount $${amount.toFixed(2)} exceeds max per trade $${balance.maxPerTrade.toFixed(2)}`)
-      return
-    }
-    if (amount > balance.available.toNumber()) {
-      alert(`Trade amount $${amount.toFixed(2)} exceeds available funds $${balance.available.toFixed(2)}`)
-      return
-    }
-    handleOpenModal(trade, 'open')
-  }
 
   if (loading) {
     return <div data-testid="loading">Loading trades...</div>
@@ -305,105 +263,10 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
                 : '-'}
             </td>
             <td className={styles.tradeActions}>
-              {trade.status === 'plan' && (
-                <>
-                  <button
-                      className={`${styles.btnAction} ${styles.btnOrder}`}
-                      onClick={() => checkFundsAndOrder(trade)}
-                    >
-                      Order
-                    </button>
-                  <button
-                    className={`${styles.btnAction} ${styles.btnOpen}`}
-                    onClick={() => checkFundsAndOpen(trade)}
-                  >
-                    Open
-                  </button>
-                  <button
-                    className={`${styles.btnAction} ${styles.btnCancel}`}
-                    onClick={() => handleOpenModal(trade, 'cancel')}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className={`${styles.btnAction} ${styles.btnEdit}`}
-                    onClick={() => handleOpenModal(trade, 'edit')}
-                  >
-                    Edit
-                  </button>
-                </>
-              )}
-              {trade.status === 'ordered' && (
-                <>
-                  <button
-                    className={`${styles.btnAction} ${styles.btnOpen}`}
-                    onClick={() => handleOpenModal(trade, 'open')}
-                  >
-                    Open
-                  </button>
-                  <button
-                    className={`${styles.btnAction} ${styles.btnRetract}`}
-                    onClick={async () => { await tradeStore.updateTrade(trade.id, { status: 'plan' }); await fundStore.loadEvents() }}
-                  >
-                    Retract
-                  </button>
-                  <button
-                    className={`${styles.btnAction} ${styles.btnCancel}`}
-                    onClick={() => handleOpenModal(trade, 'cancel')}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className={`${styles.btnAction} ${styles.btnEdit}`}
-                    onClick={() => handleOpenModal(trade, 'edit')}
-                  >
-                    Edit
-                  </button>
-                </>
-              )}
-              {trade.status === 'open' && (
-                <>
-                  <button
-                    className={`${styles.btnAction} ${styles.btnClose}`}
-                    onClick={() => handleOpenModal(trade, 'close')}
-                  >
-                    Close
-                  </button>
-                  <button
-                    className={`${styles.btnAction} ${styles.btnEdit}`}
-                    onClick={() => handleOpenModal(trade, 'edit')}
-                  >
-                    Edit
-                  </button>
-                </>
-              )}
-              {trade.status === 'close' && (
-                <>
-                  <button
-                    className={`${styles.btnAction} ${styles.btnOpen}`}
-                    onClick={async () => {
-                      const confirmed = window.confirm(
-                        `Reopen trade #${trade.number ?? trade.id} (${trade.ticker})? This will undo the close — exit fields are cleared and the close's benefit/loss fund event is voided.`
-                      )
-                      if (!confirmed) return
-                      try {
-                        await tradeStore.reopenTrade(trade.id)
-                        await fundStore.loadEvents()
-                      } catch (err) {
-                        alert(err instanceof Error ? err.message : 'Failed to reopen trade')
-                      }
-                    }}
-                  >
-                    Reopen
-                  </button>
-                  <button
-                    className={`${styles.btnAction} ${styles.btnEdit}`}
-                    onClick={() => handleOpenModal(trade, 'edit')}
-                  >
-                    Edit
-                  </button>
-                </>
-              )}
+              <TradeActions
+                trade={trade}
+                currentPrice={liveMetrics[trade.id]?.currentPrice?.toNumber() ?? null}
+              />
             </td>
           </tr>
           {trade.isLayered && expandedTradeId === trade.id && (
@@ -432,15 +295,6 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
       </tbody>
     </table>
     </div>
-
-    {editingTrade && (
-      <TradeEditModal
-        trade={editingTrade}
-        mode={editMode}
-        currentPrice={liveMetrics[editingTrade.id]?.currentPrice?.toNumber() ?? null}
-        onClose={handleCloseModal}
-      />
-    )}
   </>
   )
 })

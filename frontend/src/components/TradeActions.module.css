@@ -1,0 +1,68 @@
+.tradeActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btnAction {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnOpen {
+  background-color: var(--color-info);
+  color: white;
+}
+
+.btnOpen:hover {
+  background-color: var(--color-info-dark);
+}
+
+.btnClose {
+  background-color: var(--color-success);
+  color: white;
+}
+
+.btnClose:hover {
+  background-color: var(--color-success-dark);
+}
+
+.btnOrder {
+  background-color: var(--color-warning);
+  color: white;
+}
+
+.btnOrder:hover {
+  background-color: var(--color-warning-dark);
+}
+
+.btnRetract {
+  background-color: var(--color-text-muted);
+  color: white;
+}
+
+.btnRetract:hover {
+  opacity: 0.8;
+}
+
+.btnCancel {
+  background-color: var(--color-error, #dc3545);
+  color: white;
+}
+
+.btnCancel:hover {
+  opacity: 0.8;
+}
+
+.btnEdit {
+  background-color: var(--color-secondary, #6c757d);
+  color: white;
+}
+
+.btnEdit:hover {
+  opacity: 0.8;
+}
