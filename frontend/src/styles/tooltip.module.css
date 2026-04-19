@@ -32,3 +32,9 @@
   opacity: 1;
   visibility: visible;
 }
+
+.tooltipHost[data-tooltip]:has(.tooltipHost[data-tooltip]:hover)::after,
+.tooltipHost[data-tooltip]:has(.tooltipHost[data-tooltip]:focus-within)::after {
+  opacity: 0;
+  visibility: hidden;
+}
