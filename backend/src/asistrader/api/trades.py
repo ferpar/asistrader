@@ -23,6 +23,7 @@ from asistrader.services.trade_service import (
     create_trade,
     get_all_trades,
     get_trade_by_id,
+    reopen_trade,
     update_trade,
 )
 
@@ -172,6 +173,25 @@ def update_existing_trade(
         raise HTTPException(status_code=400, detail=str(e))
 
     return TradeResponse(trade=_trade_to_schema(trade), message="Trade updated successfully")
+
+
+@router.post("/{trade_id}/reopen", response_model=TradeResponse)
+def reopen_closed_trade(
+    trade_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TradeResponse:
+    """Reopen a closed trade, reversing exit fields and fund events."""
+    existing_trade = get_trade_by_id(db, trade_id, user_id=current_user.id)
+    if not existing_trade:
+        raise HTTPException(status_code=404, detail=f"Trade with id {trade_id} not found")
+
+    try:
+        trade = reopen_trade(db, trade_id)
+    except TradeUpdateError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return TradeResponse(trade=_trade_to_schema(trade), message="Trade reopened successfully")
 
 
 @router.post("/detect-hits", response_model=TradeDetectionResponse)

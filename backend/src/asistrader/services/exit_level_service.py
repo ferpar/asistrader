@@ -158,6 +158,24 @@ def cancel_remaining_levels(db: Session, trade_id: int) -> list[ExitLevel]:
     return levels
 
 
+def restore_cancelled_levels(db: Session, trade_id: int) -> list[ExitLevel]:
+    """Flip all CANCELLED exit levels back to PENDING. Used when reopening a closed trade."""
+    levels = (
+        db.query(ExitLevel)
+        .filter(
+            ExitLevel.trade_id == trade_id,
+            ExitLevel.status == ExitLevelStatus.CANCELLED,
+        )
+        .all()
+    )
+
+    for level in levels:
+        level.status = ExitLevelStatus.PENDING
+
+    db.commit()
+    return levels
+
+
 def get_pending_levels(
     db: Session,
     trade_id: int,

@@ -61,6 +61,11 @@ export class TradeStore {
     await this.loadTrades()
   }
 
+  async reopenTrade(id: number): Promise<void> {
+    await this.repo.reopenTrade(id)
+    await this.loadTrades()
+  }
+
   async detectTradeHits(): Promise<DetectionResponse> {
     this.detecting$.set(true)
     try {

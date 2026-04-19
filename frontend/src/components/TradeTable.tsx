@@ -378,12 +378,31 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
                 </>
               )}
               {trade.status === 'close' && (
-                <button
-                  className={`${styles.btnAction} ${styles.btnEdit}`}
-                  onClick={() => handleOpenModal(trade, 'edit')}
-                >
-                  Edit
-                </button>
+                <>
+                  <button
+                    className={`${styles.btnAction} ${styles.btnOpen}`}
+                    onClick={async () => {
+                      const confirmed = window.confirm(
+                        `Reopen trade #${trade.number ?? trade.id} (${trade.ticker})? This will undo the close — exit fields are cleared and the close's benefit/loss fund event is voided.`
+                      )
+                      if (!confirmed) return
+                      try {
+                        await tradeStore.reopenTrade(trade.id)
+                        await fundStore.loadEvents()
+                      } catch (err) {
+                        alert(err instanceof Error ? err.message : 'Failed to reopen trade')
+                      }
+                    }}
+                  >
+                    Reopen
+                  </button>
+                  <button
+                    className={`${styles.btnAction} ${styles.btnEdit}`}
+                    onClick={() => handleOpenModal(trade, 'edit')}
+                  >
+                    Edit
+                  </button>
+                </>
               )}
             </td>
           </tr>

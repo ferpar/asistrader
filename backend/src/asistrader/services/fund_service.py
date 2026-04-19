@@ -400,3 +400,43 @@ def handle_trade_close(db: Session, trade) -> None:
             db, trade.user_id, abs(pnl),
             trade_id=trade.id, auto_detect=trade.auto_detect,
         )
+
+
+def handle_trade_reopen(db: Session, trade) -> None:
+    """Reverse handle_trade_close: un-void the reserve and void the benefit/loss."""
+    if trade.user_id is None:
+        return
+
+    # Un-void the reserve that was voided on close (most recent voided one for this trade).
+    reserve = (
+        db.query(FundEvent)
+        .filter(
+            FundEvent.user_id == trade.user_id,
+            FundEvent.trade_id == trade.id,
+            FundEvent.event_type == FundEventType.RESERVE,
+            FundEvent.voided == True,  # noqa: E712
+        )
+        .order_by(FundEvent.voided_at.desc())
+        .first()
+    )
+    if reserve is not None:
+        reserve.voided = False
+        reserve.voided_at = None
+
+    # Void the non-voided benefit/loss events created on close for this trade.
+    pnl_events = (
+        db.query(FundEvent)
+        .filter(
+            FundEvent.user_id == trade.user_id,
+            FundEvent.trade_id == trade.id,
+            FundEvent.event_type.in_([FundEventType.BENEFIT, FundEventType.LOSS]),
+            FundEvent.voided == False,  # noqa: E712
+        )
+        .all()
+    )
+    now = datetime.now(timezone.utc)
+    for event in pnl_events:
+        event.voided = True
+        event.voided_at = now
+
+    db.commit()

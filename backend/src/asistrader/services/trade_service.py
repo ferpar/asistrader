@@ -4,7 +4,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session, joinedload
 
-from asistrader.models.db import Trade, TradeStatus
+from asistrader.models.db import ExitLevelStatus, Trade, TradeStatus
 
 
 def get_all_trades(db: Session, user_id: int | None = None) -> list[Trade]:
@@ -233,4 +233,47 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
         elif new_status == TradeStatus.CLOSE:
             handle_trade_close(db, trade)
 
+    return trade
+
+
+def reopen_trade(db: Session, trade_id: int) -> Trade:
+    """Reopen a closed trade — reverses everything handle_trade_close did.
+
+    - Flips status close → open.
+    - Clears exit_date, exit_price, exit_type.
+    - Recomputes remaining_units as units minus sum of HIT levels' units_closed
+      (so partial level hits that happened before close stay intact).
+    - Restores all CANCELLED exit levels back to PENDING.
+    - Un-voids the reserve, voids the benefit/loss fund events.
+
+    Raises TradeUpdateError if the trade is not in CLOSE state.
+    """
+    from asistrader.services.exit_level_service import restore_cancelled_levels
+    from asistrader.services.fund_service import handle_trade_reopen
+
+    trade = get_trade_by_id(db, trade_id)
+    if not trade:
+        raise TradeUpdateError(f"Trade with id {trade_id} not found")
+    if trade.status != TradeStatus.CLOSE:
+        raise TradeUpdateError(
+            f"Only closed trades can be reopened (current status: {trade.status.value})"
+        )
+
+    hit_units = sum(
+        level.units_closed or 0
+        for level in trade.exit_levels
+        if level.status == ExitLevelStatus.HIT
+    )
+    trade.remaining_units = max(trade.units - hit_units, 0)
+    trade.status = TradeStatus.OPEN
+    trade.exit_date = None
+    trade.exit_price = None
+    trade.exit_type = None
+
+    db.commit()
+
+    restore_cancelled_levels(db, trade_id)
+    handle_trade_reopen(db, trade)
+
+    db.refresh(trade)
     return trade
