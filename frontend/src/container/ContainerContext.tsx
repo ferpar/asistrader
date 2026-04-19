@@ -51,3 +51,7 @@ export function useFundStore() {
 export function useRadarStore() {
   return useContainer().radarStore
 }
+
+export function useBenchmarkStore() {
+  return useContainer().benchmarkStore
+}

@@ -304,6 +304,45 @@ class MarketData(Base):
     ticker_rel = relationship("Ticker", back_populates="market_data")
 
 
+class Benchmark(Base):
+    """Benchmark model representing a non-tradable reference index (e.g. ^GSPC)."""
+
+    __tablename__ = "benchmarks"
+
+    symbol = Column(String, primary_key=True)
+    name = Column(String, nullable=True)
+    currency = Column(String, nullable=True)
+
+    market_data = relationship(
+        "BenchmarkMarketData",
+        back_populates="benchmark_rel",
+        order_by="BenchmarkMarketData.date",
+        cascade="all, delete-orphan",
+    )
+
+
+class BenchmarkMarketData(Base):
+    """Market data model for benchmark OHLCV (mirrors MarketData for tickers)."""
+
+    __tablename__ = "benchmark_market_data"
+
+    id = Column(Integer, primary_key=True)
+    benchmark = Column(String, ForeignKey("benchmarks.symbol"), nullable=False)
+    date = Column(Date, nullable=False)
+    open = Column(Float, nullable=True)
+    high = Column(Float, nullable=True)
+    low = Column(Float, nullable=True)
+    close = Column(Float, nullable=True)
+    volume = Column(Float, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("benchmark", "date", name="uq_benchmark_market_data_benchmark_date"),
+        Index("ix_benchmark_market_data_benchmark_date", "benchmark", "date"),
+    )
+
+    benchmark_rel = relationship("Benchmark", back_populates="market_data")
+
+
 class ExitLevel(Base):
     """Exit level model for layered SL/TP support."""
 

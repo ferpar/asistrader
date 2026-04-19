@@ -5,6 +5,7 @@ import type { IMarketDataRepository } from '../domain/marketData/IMarketDataRepo
 import { TickerStore } from '../domain/ticker/TickerStore'
 import { FundStore } from '../domain/fund/FundStore'
 import { RadarStore } from '../domain/radar/RadarStore'
+import { BenchmarkStore } from '../domain/benchmark/BenchmarkStore'
 
 export interface AppContainer {
   tradeStore: TradeStore
@@ -14,4 +15,5 @@ export interface AppContainer {
   tickerStore: TickerStore
   fundStore: FundStore
   radarStore: RadarStore
+  benchmarkStore: BenchmarkStore
 }

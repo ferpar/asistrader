@@ -5,12 +5,21 @@ import httpx
 YAHOO_SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search"
 
 
-def search_yahoo_tickers(query: str, max_results: int = 10) -> list[dict]:
+DEFAULT_ALLOWED_TYPES: tuple[str, ...] = ("equity", "etf")
+
+
+def search_yahoo_tickers(
+    query: str,
+    max_results: int = 10,
+    allowed_types: tuple[str, ...] = DEFAULT_ALLOWED_TYPES,
+) -> list[dict]:
     """Search Yahoo Finance for ticker suggestions.
 
     Args:
         query: The search query (ticker symbol or company name)
         max_results: Maximum number of results to return
+        allowed_types: Yahoo quoteType values to keep (e.g. ("equity", "etf")
+            for tradable tickers, ("index",) for benchmark indexes).
 
     Returns:
         List of ticker suggestions: [{symbol, name, exchange, type}, ...]
@@ -43,8 +52,7 @@ def search_yahoo_tickers(query: str, max_results: int = 10) -> list[dict]:
 
     for quote in quotes:
         quote_type = quote.get("quoteType", "").lower()
-        # Filter to equity and ETF types
-        if quote_type not in ("equity", "etf"):
+        if quote_type not in allowed_types:
             continue
 
         suggestions.append(

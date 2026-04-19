@@ -435,6 +435,88 @@ class SyncResponse(BaseModel):
     errors: dict[str, str]
 
 
+class BenchmarkSchema(BaseModel):
+    """Schema for benchmark (non-tradable index) data."""
+
+    symbol: str
+    name: str | None = None
+    currency: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class BenchmarkListResponse(BaseModel):
+    """Response schema for benchmark list endpoint."""
+
+    benchmarks: list[BenchmarkSchema]
+    count: int
+
+
+class BenchmarkCreateRequest(BaseModel):
+    """Request schema for creating a benchmark."""
+
+    symbol: str
+
+
+class BenchmarkCreateResponse(BaseModel):
+    """Response schema for benchmark creation."""
+
+    benchmark: BenchmarkSchema
+    message: str
+
+
+class BenchmarkSearchResponse(BaseModel):
+    """Response schema for benchmark (index) search."""
+
+    suggestions: list[TickerSuggestion]
+    query: str
+
+
+class BenchmarkMarketDataSchema(BaseModel):
+    """Schema for benchmark OHLCV row."""
+
+    id: int
+    benchmark: str
+    date: date
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    close: float | None = None
+    volume: float | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class BulkBenchmarkDataRequest(BaseModel):
+    """Request schema for bulk benchmark OHLCV retrieval."""
+
+    symbols: list[str]
+    start_date: date
+
+
+class BulkBenchmarkDataResponse(BaseModel):
+    """Response schema for bulk benchmark OHLCV retrieval."""
+
+    data: dict[str, list[BenchmarkMarketDataSchema]]
+    errors: dict[str, str]
+
+
+class BenchmarkSyncRequest(BaseModel):
+    """Request schema for syncing benchmark market data."""
+
+    start_date: date
+    symbols: list[str] | None = None  # None = all benchmarks
+
+
+class BenchmarkSyncResponse(BaseModel):
+    """Response schema for benchmark sync operation."""
+
+    results: dict[str, int]
+    total_rows: int
+    skipped: list[str]
+    errors: dict[str, str]
+
+
 class BatchPriceRequest(BaseModel):
     """Request schema for batch price lookup."""
 

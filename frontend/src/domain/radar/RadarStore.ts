@@ -1,21 +1,29 @@
 import { observable } from '@legendapp/state'
 import type { IRadarRepository } from './IRadarRepository'
 import type { TickerIndicators } from './types'
+import type { MarketDataRowDTO } from '../../types/radar'
+import type { IBenchmarkRepository } from '../benchmark/IBenchmarkRepository'
+import type { BenchmarkIndicators } from '../benchmark/types'
+import type { BenchmarkMarketDataRowDTO } from '../../types/benchmark'
 import { computeSmaStructure, computePriceChanges } from './indicators'
 
-const STORAGE_KEY = 'asistrader:radar:symbols'
+type TickerBulkResult = { data: Record<string, MarketDataRowDTO[]>; errors: Record<string, string> }
+type BenchmarkBulkResult = { data: Record<string, BenchmarkMarketDataRowDTO[]>; errors: Record<string, string> }
 
-function loadSymbols(): string[] {
+const STORAGE_KEY = 'asistrader:radar:symbols'
+const BENCHMARK_STORAGE_KEY = 'asistrader:radar:benchmarks'
+
+function loadFromStorage(key: string): string[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(key)
     return raw ? JSON.parse(raw) : []
   } catch {
     return []
   }
 }
 
-function saveSymbols(symbols: string[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(symbols))
+function saveToStorage(key: string, values: string[]) {
+  localStorage.setItem(key, JSON.stringify(values))
 }
 
 function startDate(): string {
@@ -26,15 +34,53 @@ function startDate(): string {
 
 const SYNC_THROTTLE_MS = 5 * 60 * 1000
 
+const EMPTY_SMA = { sma5: null, sma20: null, sma50: null, sma200: null, structure: null }
+const EMPTY_CHANGES = { avgChange50d: null, avgChangePct50d: null, avgChange5d: null, avgChangePct5d: null }
+
+function buildBenchmarkIndicators(
+  symbol: string,
+  rows: { date: string; close: number | null }[],
+  error: string | null,
+): BenchmarkIndicators {
+  if (error) {
+    return { symbol, name: null, currentPrice: null, sma: EMPTY_SMA, priceChanges: EMPTY_CHANGES, error }
+  }
+  const closes = rows.map((r) => r.close).filter((c): c is number => c !== null)
+  if (closes.length === 0) {
+    return {
+      symbol,
+      name: null,
+      currentPrice: null,
+      sma: EMPTY_SMA,
+      priceChanges: EMPTY_CHANGES,
+      error: 'No price data available',
+    }
+  }
+  const currentPrice = closes[closes.length - 1]
+  return {
+    symbol,
+    name: null,
+    currentPrice,
+    sma: computeSmaStructure(closes, currentPrice),
+    priceChanges: computePriceChanges(closes),
+    error: null,
+  }
+}
+
 export class RadarStore {
-  readonly symbols$ = observable<string[]>(loadSymbols())
+  readonly symbols$ = observable<string[]>(loadFromStorage(STORAGE_KEY))
   readonly derivedSymbols$ = observable<string[]>([])
   readonly indicators$ = observable<TickerIndicators[]>([])
+  readonly benchmarkSymbols$ = observable<string[]>(loadFromStorage(BENCHMARK_STORAGE_KEY))
+  readonly benchmarkIndicators$ = observable<BenchmarkIndicators[]>([])
   readonly loading$ = observable(false)
   readonly error$ = observable<string | null>(null)
   private lastSyncTime = 0
 
-  constructor(private readonly repo: IRadarRepository) {}
+  constructor(
+    private readonly repo: IRadarRepository,
+    private readonly benchmarkRepo: IBenchmarkRepository,
+  ) {}
 
   private allSymbols(): string[] {
     const watchlist = this.symbols$.get()
@@ -54,9 +100,11 @@ export class RadarStore {
   }
 
   async loadIndicators(force = false): Promise<void> {
-    const symbols = this.allSymbols()
-    if (symbols.length === 0) {
+    const tickerSymbols = this.allSymbols()
+    const benchmarkSymbols = this.benchmarkSymbols$.get()
+    if (tickerSymbols.length === 0 && benchmarkSymbols.length === 0) {
       this.indicators$.set([])
+      this.benchmarkIndicators$.set([])
       return
     }
 
@@ -65,26 +113,49 @@ export class RadarStore {
     try {
       const start = startDate()
       const now = Date.now()
-      if (force || now - this.lastSyncTime > SYNC_THROTTLE_MS) {
-        await this.repo.syncMarketData(symbols, start)
+      const shouldSync = force || now - this.lastSyncTime > SYNC_THROTTLE_MS
+
+      const syncPromises: Promise<unknown>[] = []
+      if (shouldSync && tickerSymbols.length > 0) {
+        syncPromises.push(this.repo.syncMarketData(tickerSymbols, start))
+      }
+      if (shouldSync && benchmarkSymbols.length > 0) {
+        syncPromises.push(this.benchmarkRepo.syncBenchmarkData(benchmarkSymbols, start))
+      }
+      if (syncPromises.length > 0) {
+        await Promise.all(syncPromises)
         this.lastSyncTime = Date.now()
       }
-      const { data, errors } = await this.repo.fetchBulkMarketData(symbols, start)
 
-      const indicators: TickerIndicators[] = symbols.map((symbol) => {
-        if (errors[symbol]) {
+      const emptyTicker: TickerBulkResult = { data: {}, errors: {} }
+      const emptyBenchmark: BenchmarkBulkResult = { data: {}, errors: {} }
+      const tickerPromise: Promise<TickerBulkResult> =
+        tickerSymbols.length > 0
+          ? this.repo.fetchBulkMarketData(tickerSymbols, start)
+          : Promise.resolve(emptyTicker)
+      const benchmarkPromise: Promise<BenchmarkBulkResult> =
+        benchmarkSymbols.length > 0
+          ? this.benchmarkRepo.fetchBulkBenchmarkData(benchmarkSymbols, start)
+          : Promise.resolve(emptyBenchmark)
+      const [tickerResult, benchmarkResult] = await Promise.all([
+        tickerPromise,
+        benchmarkPromise,
+      ])
+
+      const indicators: TickerIndicators[] = tickerSymbols.map((symbol) => {
+        if (tickerResult.errors[symbol]) {
           return {
             symbol,
             name: null,
             currentPrice: null,
-            sma: { sma5: null, sma20: null, sma50: null, sma200: null, structure: null },
-            priceChanges: { avgChange50d: null, avgChangePct50d: null, avgChange5d: null, avgChangePct5d: null },
+            sma: EMPTY_SMA,
+            priceChanges: EMPTY_CHANGES,
             datedCloses: [],
-            error: errors[symbol],
+            error: tickerResult.errors[symbol],
           }
         }
 
-        const rows = data[symbol] ?? []
+        const rows = tickerResult.data[symbol] ?? []
         const datedCloses = rows
           .filter((r): r is typeof r & { close: number } => r.close !== null)
           .map((r) => ({ date: r.date, close: r.close }))
@@ -95,8 +166,8 @@ export class RadarStore {
             symbol,
             name: null,
             currentPrice: null,
-            sma: { sma5: null, sma20: null, sma50: null, sma200: null, structure: null },
-            priceChanges: { avgChange50d: null, avgChangePct50d: null, avgChange5d: null, avgChangePct5d: null },
+            sma: EMPTY_SMA,
+            priceChanges: EMPTY_CHANGES,
             datedCloses: [],
             error: 'No price data available',
           }
@@ -114,7 +185,16 @@ export class RadarStore {
         }
       })
 
+      const benchmarkIndicators: BenchmarkIndicators[] = benchmarkSymbols.map((symbol) =>
+        buildBenchmarkIndicators(
+          symbol,
+          benchmarkResult.data[symbol] ?? [],
+          benchmarkResult.errors[symbol] ?? null,
+        ),
+      )
+
       this.indicators$.set(indicators)
+      this.benchmarkIndicators$.set(benchmarkIndicators)
     } catch (err) {
       this.error$.set(err instanceof Error ? err.message : 'Failed to load indicators')
     } finally {
@@ -128,16 +208,35 @@ export class RadarStore {
     if (symbols.includes(upper)) return
     const updated = [...symbols, upper]
     this.symbols$.set(updated)
-    saveSymbols(updated)
+    saveToStorage(STORAGE_KEY, updated)
     this.loadIndicators()
   }
 
   removeSymbol(symbol: string): void {
     const updated = this.symbols$.get().filter((s) => s !== symbol)
     this.symbols$.set(updated)
-    saveSymbols(updated)
+    saveToStorage(STORAGE_KEY, updated)
     if (!this.derivedSymbols$.get().includes(symbol)) {
       this.indicators$.set(this.indicators$.get().filter((i) => i.symbol !== symbol))
     }
+  }
+
+  addBenchmark(symbol: string): void {
+    const current = this.benchmarkSymbols$.get()
+    const upper = symbol.toUpperCase()
+    if (current.includes(upper)) return
+    const updated = [...current, upper]
+    this.benchmarkSymbols$.set(updated)
+    saveToStorage(BENCHMARK_STORAGE_KEY, updated)
+    this.loadIndicators()
+  }
+
+  removeBenchmark(symbol: string): void {
+    const updated = this.benchmarkSymbols$.get().filter((s) => s !== symbol)
+    this.benchmarkSymbols$.set(updated)
+    saveToStorage(BENCHMARK_STORAGE_KEY, updated)
+    this.benchmarkIndicators$.set(
+      this.benchmarkIndicators$.get().filter((i) => i.symbol !== symbol),
+    )
   }
 }

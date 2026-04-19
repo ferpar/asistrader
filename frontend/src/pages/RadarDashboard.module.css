@@ -62,3 +62,15 @@
   flex-direction: column;
   gap: 12px;
 }
+
+.section {
+  margin-bottom: 28px;
+}
+
+.sectionHeading {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 12px 0;
+  letter-spacing: 0.02em;
+}
