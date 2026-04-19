@@ -15,7 +15,7 @@
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
   padding: 6px 8px;
   font-size: 0.75rem;
-  line-height: 1.35;
+  line-height: 1.4;
   white-space: pre-line;
   text-align: left;
   pointer-events: none;
@@ -24,7 +24,7 @@
   transition: opacity 60ms ease-out;
   z-index: 10;
   min-width: max-content;
-  max-width: 260px;
+  max-width: 320px;
 }
 
 .tooltipHost[data-tooltip]:hover::after,
@@ -34,7 +34,42 @@
 }
 
 .tooltipHost[data-tooltip]:has(.tooltipHost[data-tooltip]:hover)::after,
-.tooltipHost[data-tooltip]:has(.tooltipHost[data-tooltip]:focus-within)::after {
+.tooltipHost[data-tooltip]:has(.tooltipHost[data-tooltip]:focus-within)::after,
+.tooltipHost[data-tooltip]:has(.richTooltipHost:hover)::after,
+.tooltipHost[data-tooltip]:has(.richTooltipHost:focus-within)::after {
   opacity: 0;
   visibility: hidden;
+}
+
+.richTooltipHost {
+  position: relative;
+}
+
+.richTooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 60ms ease-out;
+  z-index: 11;
+  min-width: max-content;
+  max-width: 400px;
+  text-align: left;
+}
+
+.richTooltipHost:hover > .richTooltip,
+.richTooltipHost:focus-within > .richTooltip {
+  opacity: 1;
+  visibility: visible;
 }

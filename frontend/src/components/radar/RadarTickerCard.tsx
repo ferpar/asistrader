@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { observer } from '@legendapp/state/react'
 import type { TickerIndicators, DatedClose } from '../../domain/radar/types'
 import type { Ticker } from '../../domain/ticker/types'
@@ -104,38 +105,80 @@ function targetName(kind: TargetKind): string {
   return 'entry'
 }
 
-function badgeGuide(kind: TargetKind): string {
+type GuideTone = 'good' | 'bad' | null
+
+interface GuideRow {
+  name: string
+  desc: string
+  tone: GuideTone
+}
+
+function guideRows(kind: TargetKind): GuideRow[] {
   if (kind === 'tp') {
     return [
-      'Badge guide — ETA→TP',
-      '',
-      'new      trade just opened',
-      '↘ proj   baseline trend moved away from TP (unfavorable)',
-      'ahead    reaching TP sooner than projected (favorable)',
-      'behind   reaching TP later than projected (unfavorable)',
-      'on pace  dynamic tracks the baseline estimate',
-    ].join('\n')
+      { name: 'new', desc: 'trade just opened', tone: null },
+      { name: '↘ proj', desc: 'baseline trend was away from TP', tone: 'bad' },
+      { name: 'ahead', desc: 'reaching TP sooner than projected', tone: 'good' },
+      { name: 'behind', desc: 'reaching TP later than projected', tone: 'bad' },
+      { name: 'on pace', desc: 'dynamic tracks the baseline', tone: null },
+    ]
   }
   if (kind === 'sl') {
     return [
-      'Badge guide — ETA→SL',
-      '',
-      'new      trade just opened',
-      '↘ proj   baseline trend moved away from SL (favorable)',
-      'ahead    reaching SL sooner than projected (unfavorable)',
-      'behind   reaching SL later than projected (favorable)',
-      'on pace  dynamic tracks the baseline estimate',
-    ].join('\n')
+      { name: 'new', desc: 'trade just opened', tone: null },
+      { name: '↘ proj', desc: 'baseline trend was away from SL', tone: 'good' },
+      { name: 'ahead', desc: 'reaching SL sooner than projected', tone: 'bad' },
+      { name: 'behind', desc: 'reaching SL later than projected', tone: 'good' },
+      { name: 'on pace', desc: 'dynamic tracks the baseline', tone: null },
+    ]
   }
   return [
-    'Badge guide — ETA→entry',
-    '',
-    'new      plan just created',
-    '↘ proj   baseline trend moved away from entry',
-    'ahead    reaching entry sooner than projected',
-    'behind   reaching entry later than projected',
-    'on pace  dynamic tracks the baseline estimate',
-  ].join('\n')
+    { name: 'new', desc: 'plan just created', tone: null },
+    { name: '↘ proj', desc: 'baseline trend was away from entry', tone: null },
+    { name: 'ahead', desc: 'reaching entry sooner than projected', tone: null },
+    { name: 'behind', desc: 'reaching entry later than projected', tone: null },
+    { name: 'on pace', desc: 'dynamic tracks the baseline', tone: null },
+  ]
+}
+
+function guideHeading(kind: TargetKind): string {
+  if (kind === 'tp') return 'Badge guide — ETA→TP'
+  if (kind === 'sl') return 'Badge guide — ETA→SL'
+  return 'Badge guide — ETA→entry'
+}
+
+function toneClass(tone: GuideTone): string {
+  if (tone === 'good') return styles.guideToneGood
+  if (tone === 'bad') return styles.guideToneBad
+  return styles.guideToneNeutral
+}
+
+function BadgeGuideIcon({ label, kind }: { label: string; kind: TargetKind }) {
+  const rows = guideRows(kind)
+  return (
+    <span
+      className={`${styles.helpIcon} ${tooltipStyles.richTooltipHost}`}
+      tabIndex={0}
+      role="img"
+      aria-label={`${label} badge guide`}
+    >
+      ?
+      <span className={tooltipStyles.richTooltip} role="tooltip">
+        <span className={styles.guideHeading}>{guideHeading(kind)}</span>
+        <span className={styles.guideGrid}>
+          {rows.map((r) => (
+            <Fragment key={r.name}>
+              <span className={styles.guideName}>{r.name}</span>
+              <span className={styles.guideDesc}>{r.desc}</span>
+              <span className={`${styles.guideTone} ${toneClass(r.tone)}`}>
+                {r.tone ?? '—'}
+              </span>
+            </Fragment>
+          ))}
+        </span>
+      </span>
+    </span>
+  )
 }
 
 function interpretation(
@@ -318,15 +361,7 @@ function TradeLine({ trade, metric, priceChanges, datedCloses, fmt }: TradeLineP
         const renderLabel = (label: string, kind: TargetKind) => (
           <span className={styles.etaLabelRow}>
             <span className={styles.tradeCellLabel}>{label}</span>
-            <span
-              className={`${styles.helpIcon} ${tooltipStyles.tooltipHost}`}
-              data-tooltip={badgeGuide(kind)}
-              tabIndex={0}
-              role="img"
-              aria-label={`${label} badge guide`}
-            >
-              ?
-            </span>
+            <BadgeGuideIcon label={label} kind={kind} />
           </span>
         )
         return (

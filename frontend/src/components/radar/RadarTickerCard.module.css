@@ -295,6 +295,60 @@
   border-color: var(--color-text-muted);
 }
 
+.guideHeading {
+  display: block;
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 6px;
+  white-space: nowrap;
+}
+
+.guideGrid {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  column-gap: 10px;
+  row-gap: 4px;
+  align-items: baseline;
+}
+
+.guideName {
+  font-weight: 600;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+}
+
+.guideDesc {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+
+.guideTone {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.guideToneGood {
+  background-color: color-mix(in srgb, var(--color-success) 18%, transparent);
+  color: var(--color-success);
+}
+
+.guideToneBad {
+  background-color: color-mix(in srgb, var(--color-error) 18%, transparent);
+  color: var(--color-error);
+}
+
+.guideToneNeutral {
+  color: var(--color-text-muted);
+}
+
 .tradeCellLabel {
   font-size: 0.625rem;
   text-transform: uppercase;
