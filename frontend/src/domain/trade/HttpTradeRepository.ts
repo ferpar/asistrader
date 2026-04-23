@@ -63,6 +63,19 @@ export class HttpTradeRepository implements ITradeRepository {
     return mapTrade(data.trade)
   }
 
+  async revertOpenToOrdered(id: number): Promise<TradeWithMetrics> {
+    const response = await fetch(`${this.baseUrl}/api/trades/${id}/revert-to-ordered`, {
+      method: 'POST',
+      headers: buildHeaders(this.getToken),
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.detail || `Failed to revert trade: ${response.statusText}`)
+    }
+    const data: TradeResponse = await response.json()
+    return mapTrade(data.trade)
+  }
+
   async detectTradeHits(): Promise<DetectionResponse> {
     const response = await fetch(`${this.baseUrl}/api/trades/detect-hits`, {
       method: 'POST',

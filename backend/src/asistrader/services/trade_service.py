@@ -277,3 +277,38 @@ def reopen_trade(db: Session, trade_id: int) -> Trade:
 
     db.refresh(trade)
     return trade
+
+
+def revert_open_to_ordered(db: Session, trade_id: int) -> Trade:
+    """Revert an open trade back to ordered status.
+
+    Recovery action for auto-trading failures. Reverses the ORDERED → OPEN transition:
+    - Flips status open → ordered.
+    - Clears date_actual.
+    - Resets all HIT exit levels back to PENDING (clears hit_date, units_closed).
+    - Resets remaining_units to units.
+    - Reserve is left as-is (still valid for an ORDERED trade).
+
+    Raises TradeUpdateError if the trade is not in OPEN state.
+    """
+    trade = get_trade_by_id(db, trade_id)
+    if not trade:
+        raise TradeUpdateError(f"Trade with id {trade_id} not found")
+    if trade.status != TradeStatus.OPEN:
+        raise TradeUpdateError(
+            f"Only open trades can be reverted to ordered (current status: {trade.status.value})"
+        )
+
+    for level in trade.exit_levels:
+        if level.status == ExitLevelStatus.HIT:
+            level.status = ExitLevelStatus.PENDING
+            level.hit_date = None
+            level.units_closed = None
+
+    trade.remaining_units = trade.units
+    trade.status = TradeStatus.ORDERED
+    trade.date_actual = None
+
+    db.commit()
+    db.refresh(trade)
+    return trade

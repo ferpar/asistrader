@@ -1,24 +1,29 @@
-update price input to consider the number of decimals in the ticker
 
-create trade from the radar
+add option to unopen trades
 
-add timeline expectations 
-		- entry
-		- take profit
-		- stop loss
-
-	given 50 and 5 days 
-	- explore possibility of using initial point estimations as well as comparing 50 and 5 of today	
+fix auto trading
+	- disable temporarily
+	- build test harness
+		- first iteration: alerts only
+			- consider the first day data cannot be used to auto-trade
+				the low / high might have happenned before opening the trade
 
 
-check what to do with stocks that have 4 decimals
+auto trading complete version
+	- final iteration: auto open, and close
+
+Exchange rates
+	aggregate realized and unrealized, and update fund management to handle rate changes
+	on order as we 
 
 add name under the ticker symbol on edit open close etc... modals
 
+
+Una vez que una orden está "Close" podemos calcular el IRR/TIR de la siguiente forma: retorno €/Inversión € dividido entre los días entre Open y Close, multiplicado por 365... eso para cada ticker en cada operación, para un ticker con todas sus operaciones, y para toda la cartera...
+
+
 radar screen with 
- DONE - automatically pick up tickers that already have trades
- - regression
- - macro indicators
+ macro indicators
 	
 check currency being used in data coming from the yfinance api
 
@@ -123,7 +128,29 @@ DONE - dates and ages at trades table should also be visible at the radar list
 
 DONE - fix PE dist in white instead of red when its negative
 
+DONE - Radar - automatically pick up tickers that already have trades
+
 DONE - tickers with open trades should be distinguishable in the radar
 
 DONE - prefill exit price with current when closing and autocalculate whether its take profit or stop loss for the default option when closing
+
+DONE - create trade from the radar
+
+DONE - update price input to consider the number of decimals in the ticket and check what to do with stocks that have 4 decimals
+
+DONE - add timeline expectations 
+		- entry
+		- take profit
+		- stop loss
+	given 50 and 5 days 
+	- explore possibility of using initial point estimations as well as comparing 50 and 5 of today	
+	projected vs dynamic
+
+DONE - allow to undo a trade close
+
+DONE = add actions to the trades on the radar
+
+DONE - find out how to get market data for INDEXES
+
+DONE - add regression coefficient and slope as part of the tiker card on the radar
 

@@ -6,6 +6,7 @@ export function createStubTradeRepository(overrides?: Partial<ITradeRepository>)
     createTrade: async () => { throw new Error('not implemented') },
     updateTrade: async () => { throw new Error('not implemented') },
     reopenTrade: async () => { throw new Error('not implemented') },
+    revertOpenToOrdered: async () => { throw new Error('not implemented') },
     detectTradeHits: async (): Promise<DetectionResponse> => ({
       entryAlerts: [],
       sltpAlerts: [],

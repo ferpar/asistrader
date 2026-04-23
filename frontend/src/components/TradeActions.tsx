@@ -63,6 +63,19 @@ export const TradeActions = observer(function TradeActions({ trade, currentPrice
     }
   }
 
+  const handleRevertToOrdered = async () => {
+    const confirmed = window.confirm(
+      `Revert trade #${trade.number ?? trade.id} (${trade.ticker}) back to ordered? This will undo the open — date_actual is cleared, and any HIT exit levels are reset to pending. The reserve stays in place.`
+    )
+    if (!confirmed) return
+    try {
+      await tradeStore.revertOpenToOrdered(trade.id)
+      await fundStore.loadEvents()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to revert trade')
+    }
+  }
+
   return (
     <>
       <div className={styles.tradeActions} onClick={(e) => e.stopPropagation()}>
@@ -90,6 +103,7 @@ export const TradeActions = observer(function TradeActions({ trade, currentPrice
         {trade.status === 'open' && (
           <>
             <button className={`${styles.btnAction} ${styles.btnClose}`} onClick={() => openModal('close')}>Close</button>
+            <button className={`${styles.btnAction} ${styles.btnRetract}`} onClick={handleRevertToOrdered}>Revert</button>
             <button className={`${styles.btnAction} ${styles.btnEdit}`} onClick={() => openModal('edit')}>Edit</button>
           </>
         )}

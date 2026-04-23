@@ -5,9 +5,25 @@ from datetime import date
 import pytest
 from sqlalchemy.orm import Session
 
-from asistrader.models.db import CancelReason, Ticker, Trade, TradeStatus, User
+from asistrader.models.db import (
+    CancelReason,
+    ExitLevelStatus,
+    FundEvent,
+    FundEventType,
+    Ticker,
+    Trade,
+    TradeStatus,
+    User,
+)
+from asistrader.services.exit_level_service import apply_manual_level_hit
 from asistrader.services.fund_service import create_deposit, update_risk_pct
-from asistrader.services.trade_service import get_all_trades, get_trade_by_id, update_trade, TradeUpdateError
+from asistrader.services.trade_service import (
+    get_all_trades,
+    get_trade_by_id,
+    revert_open_to_ordered,
+    update_trade,
+    TradeUpdateError,
+)
 
 
 def _setup_funds(db_session: Session, user: User) -> None:
@@ -214,3 +230,80 @@ def test_transition_canceled_is_terminal(
     )
     with pytest.raises(TradeUpdateError, match="Cannot change status of a canceled trade"):
         update_trade(db_session, trade.id, status=TradeStatus.PLAN)
+
+
+# --- Revert open → ordered (recovery) tests ---
+
+
+def _active_reserve(db_session: Session, trade_id: int) -> FundEvent | None:
+    return (
+        db_session.query(FundEvent)
+        .filter(
+            FundEvent.trade_id == trade_id,
+            FundEvent.event_type == FundEventType.RESERVE,
+            FundEvent.voided == False,  # noqa: E712
+        )
+        .first()
+    )
+
+
+def test_revert_open_to_ordered_basic(
+    db_session: Session, sample_ticker: Ticker, sample_user: User
+) -> None:
+    """Revert open → ordered clears date_actual, keeps reserve, resets remaining_units."""
+    _setup_funds(db_session, sample_user)
+    trade = _create_plan_trade(db_session, sample_ticker, sample_user)
+    update_trade(db_session, trade.id, status=TradeStatus.ORDERED)
+    update_trade(db_session, trade.id, status=TradeStatus.OPEN)
+    assert _active_reserve(db_session, trade.id) is not None
+
+    reverted = revert_open_to_ordered(db_session, trade.id)
+
+    assert reverted.status == TradeStatus.ORDERED
+    assert reverted.date_actual is None
+    assert reverted.remaining_units == reverted.units
+    # Reserve survives the revert.
+    assert _active_reserve(db_session, trade.id) is not None
+
+
+def test_revert_open_to_ordered_resets_hit_levels(
+    db_session: Session, sample_layered_trade_with_levels: Trade
+) -> None:
+    """Hit exit levels are reset to PENDING and remaining_units is restored."""
+    trade = sample_layered_trade_with_levels
+    tp1 = next(level for level in trade.exit_levels if level.price == 110.0)
+
+    apply_manual_level_hit(db_session, trade, tp1, hit_date=date(2025, 1, 18))
+    db_session.refresh(trade)
+    assert trade.remaining_units < trade.units
+    assert any(level.status == ExitLevelStatus.HIT for level in trade.exit_levels)
+
+    reverted = revert_open_to_ordered(db_session, trade.id)
+
+    assert reverted.status == TradeStatus.ORDERED
+    assert reverted.remaining_units == reverted.units
+    for level in reverted.exit_levels:
+        assert level.status == ExitLevelStatus.PENDING
+        assert level.hit_date is None
+        assert level.units_closed is None
+
+
+def test_revert_open_to_ordered_blocked_for_non_open(
+    db_session: Session, sample_ticker: Ticker, sample_user: User
+) -> None:
+    """Only OPEN trades can be reverted."""
+    _setup_funds(db_session, sample_user)
+    plan_trade = _create_plan_trade(db_session, sample_ticker, sample_user)
+    with pytest.raises(TradeUpdateError, match="Only open trades can be reverted"):
+        revert_open_to_ordered(db_session, plan_trade.id)
+
+    ordered_trade = _create_plan_trade(db_session, sample_ticker, sample_user)
+    update_trade(db_session, ordered_trade.id, status=TradeStatus.ORDERED)
+    with pytest.raises(TradeUpdateError, match="Only open trades can be reverted"):
+        revert_open_to_ordered(db_session, ordered_trade.id)
+
+
+def test_revert_open_to_ordered_missing(db_session: Session) -> None:
+    """Reverting a non-existent trade raises."""
+    with pytest.raises(TradeUpdateError, match="not found"):
+        revert_open_to_ordered(db_session, 999)

@@ -24,6 +24,7 @@ from asistrader.services.trade_service import (
     get_all_trades,
     get_trade_by_id,
     reopen_trade,
+    revert_open_to_ordered,
     update_trade,
 )
 
@@ -192,6 +193,25 @@ def reopen_closed_trade(
         raise HTTPException(status_code=400, detail=str(e))
 
     return TradeResponse(trade=_trade_to_schema(trade), message="Trade reopened successfully")
+
+
+@router.post("/{trade_id}/revert-to-ordered", response_model=TradeResponse)
+def revert_trade_to_ordered(
+    trade_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TradeResponse:
+    """Revert an open trade back to ordered status (recovery for auto-trading failures)."""
+    existing_trade = get_trade_by_id(db, trade_id, user_id=current_user.id)
+    if not existing_trade:
+        raise HTTPException(status_code=404, detail=f"Trade with id {trade_id} not found")
+
+    try:
+        trade = revert_open_to_ordered(db, trade_id)
+    except TradeUpdateError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return TradeResponse(trade=_trade_to_schema(trade), message="Trade reverted to ordered")
 
 
 @router.post("/detect-hits", response_model=TradeDetectionResponse)

@@ -171,3 +171,61 @@ def test_order_trade_insufficient_funds_returns_400(
     )
     assert response.status_code == 400
     assert "funds" in response.json()["detail"].lower()
+
+
+def test_revert_to_ordered_endpoint(
+    client: TestClient,
+    sample_trade: Trade,
+    auth_headers: dict[str, str],
+) -> None:
+    """POST /revert-to-ordered flips an open trade back to ordered."""
+    response = client.post(
+        f"/api/trades/{sample_trade.id}/revert-to-ordered",
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["trade"]["status"] == "ordered"
+    assert body["trade"]["date_actual"] is None
+
+
+def test_revert_to_ordered_blocks_non_open(
+    client: TestClient,
+    db_session: Session,
+    sample_ticker: Ticker,
+    sample_user: User,
+    auth_headers: dict[str, str],
+) -> None:
+    """Reverting a non-open trade returns 400."""
+    trade = Trade(
+        ticker=sample_ticker.symbol,
+        status=TradeStatus.PLAN,
+        amount=1000.0,
+        units=10,
+        entry_price=100.0,
+        date_planned=date(2025, 1, 15),
+        user_id=sample_user.id,
+        remaining_units=10,
+    )
+    db_session.add(trade)
+    db_session.commit()
+
+    response = client.post(
+        f"/api/trades/{trade.id}/revert-to-ordered",
+        headers=auth_headers,
+    )
+    assert response.status_code == 400
+    assert "open" in response.json()["detail"].lower()
+
+
+def test_revert_to_ordered_missing_returns_404(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    sample_user: User,
+) -> None:
+    """Reverting a non-existent trade returns 404."""
+    response = client.post(
+        "/api/trades/9999/revert-to-ordered",
+        headers=auth_headers,
+    )
+    assert response.status_code == 404

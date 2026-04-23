@@ -13,6 +13,7 @@ export interface ITradeRepository {
   createTrade(request: TradeCreateRequest): Promise<TradeWithMetrics>
   updateTrade(id: number, request: TradeUpdateRequest): Promise<TradeWithMetrics>
   reopenTrade(id: number): Promise<TradeWithMetrics>
+  revertOpenToOrdered(id: number): Promise<TradeWithMetrics>
   detectTradeHits(): Promise<DetectionResponse>
   markExitLevelHit(tradeId: number, levelId: number, request: MarkLevelHitRequest): Promise<TradeWithMetrics>
   revertExitLevelHit(tradeId: number, levelId: number): Promise<TradeWithMetrics>
