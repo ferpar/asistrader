@@ -17,6 +17,12 @@ from asistrader.models.db import (
 from asistrader.models.schemas import EntryAlert, EntryHitType, SLTPAlert, SLTPHitType, LayeredAlert
 
 
+# Kill switch: flip to True to re-enable automatic trade open/close.
+# While False, alerts still fire but auto_open_trade / auto_close_trade
+# side effects are skipped.
+AUTO_TRADE_ENABLED = False
+
+
 @dataclass
 class SLTPHit:
     """Represents an SL/TP hit detection result."""
@@ -249,7 +255,7 @@ def process_ordered_trades(
 
         auto_opened = False
 
-        if trade.auto_detect:
+        if AUTO_TRADE_ENABLED and trade.auto_detect:
             auto_open_trade(db, trade, hit)
             auto_opened = True
             auto_opened_count += 1
@@ -523,7 +529,7 @@ def process_open_trades(
             if hit.hit_type == SLTPHitType.BOTH:
                 conflict_count += 1
                 message = f"{trade.ticker}: Both SL and TP hit on {hit.hit_date}. Manual resolution required."
-            elif trade.auto_detect:
+            elif AUTO_TRADE_ENABLED and trade.auto_detect:
                 auto_close_trade(db, trade, hit)
                 auto_closed = True
                 auto_closed_count += 1
