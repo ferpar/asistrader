@@ -30,14 +30,14 @@ export function useTradeAlerts() {
   }
 
   const getEntryAlertIcon = (alert: EntryAlert): string => {
-    return alert.autoOpened ? 'check' : 'arrow-right'
+    return alert.autoOpened ? '✓' : '→'
   }
 
   const getSltpAlertIcon = (alert: SLTPAlert): string => {
-    if (alert.autoClosed) return 'check'
-    if (alert.hitType === 'both') return 'warning'
-    if (alert.hitType === 'sl') return 'X'
-    return 'check'
+    if (alert.autoClosed) return '✓'
+    if (alert.hitType === 'both') return '⚠'
+    if (alert.hitType === 'sl') return '✕'
+    return '✓'
   }
 
   return {

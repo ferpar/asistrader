@@ -28,15 +28,15 @@ export const TradeAlertBanner = observer(function TradeAlertBanner() {
   }
 
   const getEntryAlertIcon = (alert: EntryAlert): string => {
-    if (alert.autoOpened) return 'check'
-    return 'arrow-right'
+    if (alert.autoOpened) return '✓'
+    return '→'
   }
 
   const getSltpAlertIcon = (alert: SLTPAlert): string => {
-    if (alert.autoClosed) return 'check'
-    if (alert.hitType === 'both') return 'warning'
-    if (alert.hitType === 'sl') return 'X'
-    return 'check'
+    if (alert.autoClosed) return '✓'
+    if (alert.hitType === 'both') return '⚠'
+    if (alert.hitType === 'sl') return '✕'
+    return '✓'
   }
 
   const hasAlerts = entryAlerts.length > 0 || sltpAlerts.length > 0
