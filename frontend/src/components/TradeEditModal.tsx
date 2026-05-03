@@ -246,7 +246,12 @@ export function TradeEditModal({ trade, mode, currentPrice, onClose }: TradeEdit
           {error && <div className={formStyles.formError}>{error}</div>}
 
           <div className={styles.modalInfo}>
-            <span className={styles.modalTicker}>{trade.ticker}</span>
+            <div className={styles.modalTickerBlock}>
+              <span className={styles.modalTicker}>{trade.ticker}</span>
+              {trade.tickerName && (
+                <span className={styles.modalTickerName}>{trade.tickerName}</span>
+              )}
+            </div>
             <span className={styles.modalStatus}>{trade.status}</span>
           </div>
 
