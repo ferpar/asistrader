@@ -102,7 +102,11 @@ def check_sltp_hit_for_day(
 
 def detect_sltp_hit(db: Session, trade: Trade) -> SLTPHit | None:
     """
-    Scan market data from trade's date_actual to find first SL/TP hit.
+    Scan market data strictly after trade's date_actual to find first SL/TP hit.
+
+    The open day itself is skipped: with daily candles we can't tell at what
+    point of the day the position was opened, so a same-day low/high may
+    have occurred before the entry.
 
     Returns the first hit found, or None if no hit detected.
     """
@@ -113,7 +117,7 @@ def detect_sltp_hit(db: Session, trade: Trade) -> SLTPHit | None:
         db.query(MarketData)
         .filter(
             MarketData.ticker == trade.ticker,
-            MarketData.date >= trade.date_actual,
+            MarketData.date > trade.date_actual,
         )
         .order_by(MarketData.date)
         .all()
@@ -187,10 +191,15 @@ def check_entry_hit_for_day(trade: Trade, market_day: MarketData) -> bool:
 
 def detect_entry_hit(db: Session, trade: Trade) -> EntryHit | None:
     """
-    Scan market data from trade's date_planned to find first entry price hit.
+    Scan market data strictly after trade's date_planned to find first entry hit.
+
+    The order day itself is skipped: with daily candles we can't tell at what
+    point of the day the order was placed, so a same-day touch of the entry
+    price may have occurred before the order was live.
+
+    Only checks ORDERED trades (orders placed with a broker, waiting to be filled).
 
     Returns the first hit found, or None if no hit detected.
-    Only checks ORDERED trades (orders placed with a broker, waiting to be filled).
     """
     if trade.status != TradeStatus.ORDERED or trade.date_planned is None:
         return None
@@ -199,7 +208,7 @@ def detect_entry_hit(db: Session, trade: Trade) -> EntryHit | None:
         db.query(MarketData)
         .filter(
             MarketData.ticker == trade.ticker,
-            MarketData.date >= trade.date_planned,
+            MarketData.date > trade.date_planned,
         )
         .order_by(MarketData.date)
         .all()
@@ -343,12 +352,15 @@ def detect_layered_hits(
     if not pending_levels:
         return []
 
-    # Get market data from trade open date
+    # Get market data strictly after the trade open date.
+    # The open day itself is skipped: with daily candles we can't tell at what
+    # point of the day the position was opened, so a same-day low/high may
+    # have occurred before the entry.
     market_data = (
         db.query(MarketData)
         .filter(
             MarketData.ticker == trade.ticker,
-            MarketData.date >= trade.date_actual,
+            MarketData.date > trade.date_actual,
         )
         .order_by(MarketData.date)
         .all()

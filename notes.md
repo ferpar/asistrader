@@ -1,5 +1,34 @@
+Radar Presets
+	Ex: Flat View Clsest to TP and Drift Behing
 
-add option to unopen trades
+
+TIR/IRR:
+	- new tab
+	- two similar sections: realized and un-realized 
+	- goal is to measure cash making drivers
+		- so by modifying them we optimize the available cash
+
+	- TIR of each transaction 
+		measuring benefit from plan to close
+			- return %: benefit over invested amount
+			- return per day:  
+				(return %) / number of days from ordered to close
+			- annualized return:
+				return per day * (days in the year = 365)
+	- Daily
+		- annualized daily: derive daily annualized return for each day of the calendar
+			we may ponder-average the elapsed times
+		- enhanced**:
+			it attempts to cover for the fact that there's a lot more immobilized than what was resolved in the closed trades. So, it takes the total invested amount (the full immovilized) divides it between the number of ordered and open trades, this quantity is then multiplied by the number of closed trades in the day and added to the invested amount in those closed trades of the day.
+
+		- it is wanted to have a view for the winners, losers and mixed for the annualized daily, not the enhanced
+
+
+SMA - improvements:
+	- combinatory score (how many averages below bullish for each of the averages)
+	- linear proportional indicator that displays all values aligned and at proportional distances
+	- pondered average rating to measure how close the averages are to the price
+		(i.e. shortest is 2 points and each furthest one has half the porints) 
 
 fix auto trading
 	- disable temporarily
@@ -7,14 +36,14 @@ fix auto trading
 		- first iteration: alerts only
 			- consider the first day data cannot be used to auto-trade
 				the low / high might have happenned before opening the trade
-
-
+		- alert and offer one-click action
 auto trading complete version
 	- final iteration: auto open, and close
 
 Exchange rates
 	aggregate realized and unrealized, and update fund management to handle rate changes
 	on order as we 
+
 
 add name under the ticker symbol on edit open close etc... modals
 
@@ -25,11 +54,6 @@ Una vez que una orden está "Close" podemos calcular el IRR/TIR de la siguiente 
 radar screen with 
  macro indicators
 	
-check currency being used in data coming from the yfinance api
-
-check what to do with currencies
-	- are they coming via yfinance?
-
 find a way to automatically update the tickers data
 	- send request on every frontend run?
 
@@ -154,3 +178,4 @@ DONE - find out how to get market data for INDEXES
 
 DONE - add regression coefficient and slope as part of the tiker card on the radar
 
+DONE - add option to unopen trades
