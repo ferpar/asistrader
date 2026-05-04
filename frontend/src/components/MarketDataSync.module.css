@@ -44,6 +44,21 @@
   cursor: not-allowed;
 }
 
+.forceRefreshLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.forceRefreshLabel input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
 .syncResult {
   margin-top: 15px;
   padding: 10px 15px;

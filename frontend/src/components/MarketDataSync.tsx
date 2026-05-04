@@ -1,29 +1,8 @@
-import { useState } from 'react'
-import { useMarketDataRepo } from '../container/ContainerContext'
-import type { SyncResult } from '../domain/marketData/types'
+import { useMarketDataSync } from '../hooks/useMarketDataSync'
 import styles from './MarketDataSync.module.css'
 
 export function MarketDataSync() {
-  const marketDataRepo = useMarketDataRepo()
-  const [startDate, setStartDate] = useState('2024-01-01')
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<SyncResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const handleSync = async () => {
-    setLoading(true)
-    setError(null)
-    setResult(null)
-
-    try {
-      const response = await marketDataRepo.syncMarketData({ start_date: startDate })
-      setResult(response)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to sync market data')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const sync = useMarketDataSync()
 
   return (
     <section className={styles.marketDataSync}>
@@ -31,21 +10,33 @@ export function MarketDataSync() {
       <div className={styles.syncControls}>
         <input
           type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          disabled={loading}
+          value={sync.startDate}
+          onChange={(e) => sync.setStartDate(e.target.value)}
+          disabled={sync.loading}
         />
-        <button onClick={handleSync} disabled={loading}>
-          {loading ? 'Syncing...' : 'Sync Market Data'}
+        <button onClick={sync.handleSync} disabled={sync.loading}>
+          {sync.loading ? 'Syncing...' : 'Sync Market Data'}
         </button>
+        <label
+          className={styles.forceRefreshLabel}
+          title="Wipe stored OHLCV and re-fetch from yfinance. Use after a data correction (e.g., dividend adjustments)."
+        >
+          <input
+            type="checkbox"
+            checked={sync.forceRefresh}
+            onChange={(e) => sync.setForceRefresh(e.target.checked)}
+            disabled={sync.loading}
+          />
+          <span>Force refresh</span>
+        </label>
       </div>
-      {result && (
+      {sync.result && (
         <div className={`${styles.syncResult} ${styles.success}`}>
-          ✓ Synced {result.totalRows} rows ({Object.keys(result.results).length} tickers, {result.skipped.length} skipped)
+          ✓ Synced {sync.result.totalRows} rows ({Object.keys(sync.result.results).length} tickers, {sync.result.skipped.length} skipped)
         </div>
       )}
-      {error && (
-        <div className={`${styles.syncResult} ${styles.error}`}>{error}</div>
+      {sync.error && (
+        <div className={`${styles.syncResult} ${styles.error}`}>{sync.error}</div>
       )}
     </section>
   )

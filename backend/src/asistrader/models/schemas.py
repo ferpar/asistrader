@@ -424,6 +424,7 @@ class SyncRequest(BaseModel):
 
     start_date: date
     symbols: list[str] | None = None  # None = all tickers
+    force_refresh: bool = False  # If True, wipe existing rows and re-fetch.
 
 
 class SyncResponse(BaseModel):

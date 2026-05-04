@@ -5,6 +5,7 @@ import type { SyncResult } from '../domain/marketData/types'
 export function useMarketDataSync() {
   const marketDataRepo = useMarketDataRepo()
   const [startDate, setStartDate] = useState('2024-01-01')
+  const [forceRefresh, setForceRefresh] = useState(false)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<SyncResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -15,8 +16,13 @@ export function useMarketDataSync() {
     setResult(null)
 
     try {
-      const response = await marketDataRepo.syncMarketData({ start_date: startDate })
+      const response = await marketDataRepo.syncMarketData({
+        start_date: startDate,
+        force_refresh: forceRefresh,
+      })
       setResult(response)
+      // One-shot: don't leave the destructive flag armed across clicks.
+      setForceRefresh(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sync market data')
     } finally {
@@ -24,5 +30,14 @@ export function useMarketDataSync() {
     }
   }
 
-  return { startDate, setStartDate, loading, result, error, handleSync }
+  return {
+    startDate,
+    setStartDate,
+    forceRefresh,
+    setForceRefresh,
+    loading,
+    result,
+    error,
+    handleSync,
+  }
 }

@@ -1,6 +1,7 @@
 export interface SyncRequest {
   start_date: string
   symbols?: string[] | null
+  force_refresh?: boolean
 }
 
 export interface SyncResponseDTO {

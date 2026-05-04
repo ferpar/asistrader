@@ -28,6 +28,15 @@ export const TradeActionBar = observer(function TradeActionBar() {
           <button className={styles.btnSync} onClick={sync.handleSync} disabled={sync.loading}>
             {sync.loading ? 'Syncing...' : 'Sync'}
           </button>
+          <label className={styles.forceRefreshLabel} title="Wipe stored OHLCV and re-fetch from yfinance. Use after a data correction (e.g., dividend adjustments).">
+            <input
+              type="checkbox"
+              checked={sync.forceRefresh}
+              onChange={(e) => sync.setForceRefresh(e.target.checked)}
+              disabled={sync.loading}
+            />
+            <span>Force refresh</span>
+          </label>
         </div>
 
         <div className={styles.alertGroup}>

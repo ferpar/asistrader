@@ -250,3 +250,203 @@ def test_extend_series_no_extension_needed(
         db_session, sample_ticker.symbol, "backward", date(2024, 1, 5)
     )
     assert count == 0
+
+
+# ── Auto-adjust disabled + force refresh ──
+
+
+@patch("asistrader.services.market_data_service.yf.Ticker")
+def test_fetch_passes_auto_adjust_false(
+    mock_ticker_cls: MagicMock, sample_ticker: Ticker
+) -> None:
+    """yfinance must be called with auto_adjust=False so historical OHLCV
+    matches the raw chart values the user sees, not dividend-adjusted."""
+    mock_ticker = MagicMock()
+    mock_ticker.history.return_value = pd.DataFrame()
+    mock_ticker_cls.return_value = mock_ticker
+
+    market_data_service.fetch_from_yfinance(
+        sample_ticker.symbol, date(2024, 1, 1), date(2024, 1, 5)
+    )
+
+    mock_ticker.history.assert_called_once()
+    call_kwargs = mock_ticker.history.call_args.kwargs
+    assert call_kwargs.get("auto_adjust") is False
+
+
+@patch("asistrader.services.market_data_service.fetch_from_yfinance")
+def test_force_refresh_wipes_and_refetches(
+    mock_fetch: MagicMock,
+    db_session: Session,
+    sample_ticker: Ticker,
+    sample_market_data: list[MarketData],
+) -> None:
+    """force_refresh=True deletes existing rows and re-fetches the full range."""
+    # sample_market_data has 3 existing rows for 2024-01-02..04.
+    pre_count = (
+        db_session.query(MarketData)
+        .filter(MarketData.ticker == sample_ticker.symbol)
+        .count()
+    )
+    assert pre_count == 3
+
+    new_df = pd.DataFrame(
+        {
+            "Open": [200.0],
+            "High": [205.0],
+            "Low": [199.0],
+            "Close": [204.0],
+            "Volume": [1_500_000],
+        },
+        index=pd.DatetimeIndex([date(2024, 1, 5)]),
+    )
+    mock_fetch.return_value = new_df
+
+    result = market_data_service.sync_ticker(
+        db_session,
+        sample_ticker.symbol,
+        date(2024, 1, 1),
+        force_refresh=True,
+    )
+
+    rows = (
+        db_session.query(MarketData)
+        .filter(MarketData.ticker == sample_ticker.symbol)
+        .all()
+    )
+    # Only the new fetch survives; old rows are gone.
+    assert len(rows) == 1
+    assert rows[0].date == date(2024, 1, 5)
+    assert rows[0].close == 204.0
+    assert result["fetched"] == 1
+
+
+@patch("asistrader.services.market_data_service.fetch_from_yfinance")
+def test_default_sync_does_not_wipe(
+    mock_fetch: MagicMock,
+    db_session: Session,
+    sample_ticker: Ticker,
+    sample_market_data: list[MarketData],
+) -> None:
+    """Without force_refresh, gap-detect leaves existing rows untouched."""
+    mock_fetch.return_value = pd.DataFrame()
+
+    market_data_service.sync_ticker(
+        db_session, sample_ticker.symbol, date(2024, 1, 1)
+    )
+
+    rows = (
+        db_session.query(MarketData)
+        .filter(MarketData.ticker == sample_ticker.symbol)
+        .all()
+    )
+    # Original 3 rows still present.
+    assert len(rows) == 3
+
+
+# ── Bulk fetch / chunked force-refresh ──
+
+
+def _multi_history_frame(symbols_to_prices: dict[str, list[float]]) -> pd.DataFrame:
+    """Build a yfinance-style multi-symbol history frame (group_by='ticker')."""
+    if not symbols_to_prices:
+        return pd.DataFrame()
+    n = len(next(iter(symbols_to_prices.values())))
+    dates = pd.DatetimeIndex(
+        [date(2024, 1, 2 + i) for i in range(n)]
+    )
+    cols = pd.MultiIndex.from_product(
+        [list(symbols_to_prices.keys()), ["Open", "High", "Low", "Close", "Volume"]]
+    )
+    rows = []
+    for i in range(n):
+        row = []
+        for sym in symbols_to_prices:
+            p = symbols_to_prices[sym][i]
+            row.extend([p, p, p, p, 1000])
+        rows.append(row)
+    return pd.DataFrame(rows, columns=cols, index=dates)
+
+
+@patch("asistrader.services.market_data_service.yf.download")
+def test_bulk_fetch_uses_one_call_for_multiple_symbols(
+    mock_download: MagicMock, db_session: Session
+) -> None:
+    """yf.download is called once for a chunk of symbols, not once per symbol."""
+    mock_download.return_value = _multi_history_frame(
+        {"AAA": [100.0, 101.0], "BBB": [50.0, 51.0]}
+    )
+
+    counts = market_data_service.bulk_fetch_and_store(
+        db_session, ["AAA", "BBB"], date(2024, 1, 2), date(2024, 1, 3)
+    )
+
+    assert mock_download.call_count == 1
+    assert counts["AAA"] == 2
+    assert counts["BBB"] == 2
+
+
+@patch("asistrader.services.market_data_service.time.sleep")
+@patch("asistrader.services.market_data_service.yf.download")
+def test_bulk_fetch_chunks_with_cooldown(
+    mock_download: MagicMock,
+    mock_sleep: MagicMock,
+    db_session: Session,
+) -> None:
+    """50 symbols at chunk_size=20 → 3 download calls + 2 cool-off sleeps."""
+    symbols = [f"S{i}" for i in range(50)]
+
+    def fake_download(tickers, **_kwargs):
+        return _multi_history_frame({sym: [100.0] for sym in tickers})
+
+    mock_download.side_effect = fake_download
+
+    market_data_service.bulk_fetch_and_store(
+        db_session,
+        symbols,
+        date(2024, 1, 2),
+        date(2024, 1, 2),
+        chunk_size=20,
+        delay_between_chunks=2.0,
+    )
+
+    expected_chunks = (50 + 20 - 1) // 20  # = 3
+    assert mock_download.call_count == expected_chunks
+    # Sleep fires AFTER all chunks except the last.
+    assert mock_sleep.call_count == expected_chunks - 1
+    for call in mock_sleep.call_args_list:
+        assert call.args[0] == 2.0
+
+
+@patch("asistrader.services.market_data_service.bulk_fetch_and_store")
+def test_sync_all_force_refresh_routes_through_bulk(
+    mock_bulk: MagicMock,
+    db_session: Session,
+    sample_ticker: Ticker,
+    sample_market_data: list[MarketData],
+) -> None:
+    """force_refresh=True wipes existing rows and calls the bulk path,
+    NOT the per-ticker sync_ticker loop."""
+    mock_bulk.return_value = {sample_ticker.symbol: 5}
+
+    market_data_service.sync_all(
+        db_session,
+        date(2024, 1, 1),
+        symbols=[sample_ticker.symbol],
+        force_refresh=True,
+    )
+
+    # Existing 3 rows wiped before the bulk fetch ran. The mock didn't
+    # actually store anything, so the table is empty post-call.
+    remaining = (
+        db_session.query(MarketData)
+        .filter(MarketData.ticker == sample_ticker.symbol)
+        .count()
+    )
+    assert remaining == 0
+
+    assert mock_bulk.call_count == 1
+    # The bulk function received the symbol list verbatim.
+    args, kwargs = mock_bulk.call_args
+    passed_symbols = kwargs.get("symbols", args[1] if len(args) > 1 else None)
+    assert passed_symbols == [sample_ticker.symbol]

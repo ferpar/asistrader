@@ -145,7 +145,12 @@ def sync_all_market_data(
     - If data exists but doesn't cover today: fills forward gap
     - Skips tickers that already have complete data coverage
     """
-    result = market_data_service.sync_all(db, request.start_date, request.symbols)
+    result = market_data_service.sync_all(
+        db,
+        request.start_date,
+        request.symbols,
+        force_refresh=request.force_refresh,
+    )
 
     return SyncResponse(
         results=result["results"],

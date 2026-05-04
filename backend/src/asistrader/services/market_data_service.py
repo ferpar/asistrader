@@ -1,5 +1,6 @@
 """Market data service for fetching and managing OHLCV data."""
 
+import time
 from datetime import date, timedelta
 
 import pandas as pd
@@ -10,6 +11,17 @@ from sqlalchemy.orm import Session
 
 from asistrader.models.db import MarketData, Ticker
 from asistrader.services.ticker_service import backfill_ticker_metadata
+
+
+# ── Force-refresh bulk path ──
+#
+# Force-refresh re-fetches every ticker's full history. With ~130 tickers a
+# serial loop would fire 130 sequential yfinance calls and Yahoo throttles
+# around ~50 in quick succession. Instead we batch via `yf.download(tickers=...)`
+# which fetches a chunk concurrently in one call, then pause briefly before
+# the next chunk so we stay well below the rate limit.
+BULK_HISTORY_CHUNK_SIZE = 20
+BULK_HISTORY_CHUNK_DELAY_SECONDS = 2.0
 
 
 def get_last_trading_day(reference_date: date) -> date:
@@ -63,11 +75,23 @@ def fetch_from_yfinance(symbol: str, start_date: date, end_date: date) -> pd.Dat
     Returns:
         DataFrame with columns: Open, High, Low, Close, Volume
         Index is DatetimeIndex
+
+    Note:
+        We pass `auto_adjust=False` so the OHLCV values match the actual
+        prices the user saw on charts the day each bar printed. yfinance's
+        default (`True`) back-adjusts past prices for dividends and splits,
+        which silently lowers historical lows below the user's entry/SL
+        levels and causes false-positive auto-detect hits. For SL/TP/entry
+        detection we always want the raw, unadjusted prices.
     """
     ticker = yf.Ticker(symbol)
     # yfinance end is exclusive, so add 1 day
     end_date_exclusive = end_date + pd.Timedelta(days=1)
-    df = ticker.history(start=start_date, end=end_date_exclusive)
+    df = ticker.history(
+        start=start_date,
+        end=end_date_exclusive,
+        auto_adjust=False,
+    )
     return df
 
 
@@ -314,7 +338,90 @@ def bulk_extend(
     return {"results": results, "total_rows": total_rows, "errors": errors}
 
 
-def sync_ticker(db: Session, symbol: str, start_date: date) -> dict:
+def fetch_bulk_from_yfinance(
+    symbols: list[str],
+    start_date: date,
+    end_date: date,
+) -> dict[str, pd.DataFrame]:
+    """Fetch OHLCV history for multiple symbols in a single yfinance call.
+
+    Returns a dict `{symbol → per-symbol DataFrame}`. Symbols missing from
+    yfinance's response (delisted, typos) are simply absent from the result.
+    """
+    if not symbols:
+        return {}
+
+    end_exclusive = end_date + pd.Timedelta(days=1)
+    df = yf.download(
+        tickers=symbols,
+        start=start_date,
+        end=end_exclusive,
+        auto_adjust=False,
+        progress=False,
+        group_by="ticker",
+        threads=True,
+    )
+
+    if df is None or df.empty:
+        return {}
+
+    out: dict[str, pd.DataFrame] = {}
+    if len(symbols) == 1:
+        # Flat OHLCV frame for a single symbol.
+        out[symbols[0]] = df
+        return out
+
+    # Multi-symbol → MultiIndex columns keyed by symbol on the outer level.
+    available = set(df.columns.get_level_values(0))
+    for sym in symbols:
+        if sym not in available:
+            continue
+        sub = df[sym].dropna(how="all")
+        if not sub.empty:
+            out[sym] = sub
+    return out
+
+
+def bulk_fetch_and_store(
+    db: Session,
+    symbols: list[str],
+    start_date: date,
+    end_date: date,
+    chunk_size: int = BULK_HISTORY_CHUNK_SIZE,
+    delay_between_chunks: float = BULK_HISTORY_CHUNK_DELAY_SECONDS,
+) -> dict[str, int]:
+    """Bulk-fetch multiple tickers' history in chunks, with cool-off between.
+
+    Used by force-refresh to stay under yfinance's rate limit. Each chunk is
+    one HTTP burst (yfinance fires the chunk symbols in parallel internally),
+    then a short sleep before the next chunk so we don't trip throttling.
+    Returns `{symbol → rows stored}` (zero for symbols absent from the fetch).
+    """
+    upper_symbols = [s.upper() for s in symbols]
+    counts: dict[str, int] = {sym: 0 for sym in upper_symbols}
+    if not upper_symbols:
+        return counts
+
+    for i in range(0, len(upper_symbols), chunk_size):
+        chunk = upper_symbols[i : i + chunk_size]
+        fetched = fetch_bulk_from_yfinance(chunk, start_date, end_date)
+        for sym, sub in fetched.items():
+            ensure_ticker_exists(db, sym)
+            stored = store_market_data(db, sym, sub)
+            counts[sym] = stored
+        # Cool-off between chunks (skip after the last chunk).
+        if i + chunk_size < len(upper_symbols):
+            time.sleep(delay_between_chunks)
+
+    return counts
+
+
+def sync_ticker(
+    db: Session,
+    symbol: str,
+    start_date: date,
+    force_refresh: bool = False,
+) -> dict:
     """Sync single ticker from start_date to today.
 
     Intelligently fetches only missing data:
@@ -327,11 +434,21 @@ def sync_ticker(db: Session, symbol: str, start_date: date) -> dict:
         db: Database session
         symbol: Ticker symbol
         start_date: Start date for sync range
+        force_refresh: If True, wipe existing rows and re-fetch the full range.
+            Use when previously-stored data needs to be replaced (e.g., after
+            switching from `auto_adjust=True` to `auto_adjust=False`).
 
     Returns:
         Dict with 'fetched' (int) and 'skipped' (bool)
     """
     today = date.today()
+
+    if force_refresh:
+        db.query(MarketData).filter(MarketData.ticker == symbol).delete()
+        db.commit()
+        fetched = fetch_and_store(db, symbol, start_date, today)
+        return {"fetched": fetched, "skipped": fetched == 0}
+
     last_trading_day = get_last_trading_day(today)
     earliest, latest = get_data_bounds(db, symbol)
     fetched = 0
@@ -359,7 +476,12 @@ def sync_ticker(db: Session, symbol: str, start_date: date) -> dict:
     return {"fetched": fetched, "skipped": skipped}
 
 
-def sync_all(db: Session, start_date: date, symbols: list[str] | None = None) -> dict:
+def sync_all(
+    db: Session,
+    start_date: date,
+    symbols: list[str] | None = None,
+    force_refresh: bool = False,
+) -> dict:
     """Sync all tickers from start_date to today.
 
     Intelligently fetches only missing data for each ticker.
@@ -368,6 +490,8 @@ def sync_all(db: Session, start_date: date, symbols: list[str] | None = None) ->
         db: Database session
         start_date: Start date for sync range
         symbols: List of ticker symbols, or None for all tickers in db
+        force_refresh: If True, wipe and re-fetch every symbol. Used to replace
+            stale data (e.g., after switching `auto_adjust` semantics).
 
     Returns:
         Dict with 'results' (symbol -> rows fetched), 'total_rows', 'skipped', and 'errors'
@@ -375,23 +499,49 @@ def sync_all(db: Session, start_date: date, symbols: list[str] | None = None) ->
     if symbols is None:
         symbols = get_all_ticker_symbols(db)
 
-    results = {}
-    errors = {}
-    skipped = []
+    results: dict[str, int] = {}
+    errors: dict[str, str] = {}
+    skipped: list[str] = []
     total_rows = 0
 
-    for symbol in symbols:
+    if force_refresh:
+        # One destructive sweep, one chunked bulk fetch — far fewer HTTP
+        # bursts than calling sync_ticker per symbol, so we don't trip the
+        # yfinance rate limit on portfolios with many tickers.
         try:
-            ticker = ensure_ticker_exists(db, symbol)
-            backfill_ticker_metadata(db, ticker)
-            result = sync_ticker(db, symbol, start_date)
-            results[symbol] = result["fetched"]
-            total_rows += result["fetched"]
-            if result["skipped"]:
-                skipped.append(symbol)
+            for symbol in symbols:
+                ticker = ensure_ticker_exists(db, symbol)
+                backfill_ticker_metadata(db, ticker)
+            db.query(MarketData).filter(MarketData.ticker.in_(symbols)).delete(
+                synchronize_session=False
+            )
+            db.commit()
+
+            today = date.today()
+            counts = bulk_fetch_and_store(db, symbols, start_date, today)
+            for symbol in symbols:
+                fetched = counts.get(symbol.upper(), 0)
+                results[symbol] = fetched
+                total_rows += fetched
+                if fetched == 0:
+                    skipped.append(symbol)
         except Exception as e:
-            errors[symbol] = str(e)
-            results[symbol] = 0
+            # Surface a single top-level error rather than per-symbol — the
+            # whole refresh either succeeded or it didn't.
+            errors["__bulk__"] = str(e)
+    else:
+        for symbol in symbols:
+            try:
+                ticker = ensure_ticker_exists(db, symbol)
+                backfill_ticker_metadata(db, ticker)
+                result = sync_ticker(db, symbol, start_date, force_refresh=False)
+                results[symbol] = result["fetched"]
+                total_rows += result["fetched"]
+                if result["skipped"]:
+                    skipped.append(symbol)
+            except Exception as e:
+                errors[symbol] = str(e)
+                results[symbol] = 0
 
     # Piggyback FX sync on ticker refresh: gather currencies of the synced
     # tickers and ensure their rate history is up to date. Local import to
