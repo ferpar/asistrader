@@ -1,0 +1,30 @@
+/*
+ * Shimmer block used as a placeholder while async aggregations recompute.
+ * Sized via inline width/height (or matched to the surrounding text), kept
+ * inline-block so it slots into stat-grid cells without breaking layout.
+ */
+
+.skeleton {
+  display: inline-block;
+  background-color: var(--color-surface);
+  border-radius: 3px;
+  vertical-align: middle;
+  animation: shimmer 1.4s ease-in-out infinite;
+  min-width: 3em;
+  height: 1em;
+}
+
+@keyframes shimmer {
+  0%, 100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+/* Use on parent containers to fade content during recompute (kept dim but legible). */
+.fadeWhileLoading {
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}

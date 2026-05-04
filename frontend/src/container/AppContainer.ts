@@ -2,6 +2,7 @@ import { getAccessToken } from '../utils/tokenStorage'
 import { HttpTradeRepository, HttpPriceProvider } from '../domain/trade/HttpTradeRepository'
 import { TradeStore } from '../domain/trade/TradeStore'
 import { LiveMetricsStore } from '../domain/trade/LiveMetricsStore'
+import { TradeMetricsStore } from '../domain/trade/TradeMetricsStore'
 import { HttpStrategyRepository } from '../domain/strategy/HttpStrategyRepository'
 import { HttpMarketDataRepository } from '../domain/marketData/HttpMarketDataRepository'
 import { HttpTickerRepository } from '../domain/ticker/HttpTickerRepository'
@@ -30,6 +31,12 @@ export function createAppContainer(): AppContainer {
   const fxStore = new FxStore(fxRepo)
   const fundRepo = new HttpFundRepository(baseUrl, getAccessToken)
   const fundStore = new FundStore(fundRepo, fxStore)
+  const tradeMetricsStore = new TradeMetricsStore(
+    tradeStore,
+    liveMetricsStore,
+    fundStore,
+    fxStore,
+  )
   const benchmarkRepo = new HttpBenchmarkRepository(baseUrl, getAccessToken)
   const benchmarkStore = new BenchmarkStore(benchmarkRepo)
   const radarRepo = new HttpRadarRepository(baseUrl, getAccessToken)
@@ -37,6 +44,7 @@ export function createAppContainer(): AppContainer {
   return {
     tradeStore,
     liveMetricsStore,
+    tradeMetricsStore,
     strategyRepo,
     marketDataRepo,
     tickerStore,

@@ -23,6 +23,10 @@ export const TradeActions = observer(function TradeActions({ trade, currentPrice
 
   const checkFundsAndOrder = async () => {
     const balance = fundStore.balance$.get()
+    if (balance === null) {
+      alert('Balance is still loading. Please try again in a moment.')
+      return
+    }
     const amount = trade.amount.toNumber()
     if (amount > balance.maxPerTrade.toNumber()) {
       alert(`Trade amount $${amount.toFixed(2)} exceeds max per trade $${balance.maxPerTrade.toFixed(2)}`)
@@ -38,6 +42,10 @@ export const TradeActions = observer(function TradeActions({ trade, currentPrice
 
   const checkFundsAndOpen = () => {
     const balance = fundStore.balance$.get()
+    if (balance === null) {
+      alert('Balance is still loading. Please try again in a moment.')
+      return
+    }
     const amount = trade.amount.toNumber()
     if (amount > balance.maxPerTrade.toNumber()) {
       alert(`Trade amount $${amount.toFixed(2)} exceeds max per trade $${balance.maxPerTrade.toFixed(2)}`)

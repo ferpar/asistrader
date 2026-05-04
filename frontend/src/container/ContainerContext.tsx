@@ -39,6 +39,10 @@ export function useLiveMetricsStore() {
   return useContainer().liveMetricsStore
 }
 
+export function useTradeMetricsStore() {
+  return useContainer().tradeMetricsStore
+}
+
 export function useStrategyRepo() {
   return useContainer().strategyRepo
 }

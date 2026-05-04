@@ -177,17 +177,22 @@ describe('FundStore.updateBaseCurrency', () => {
   it('balance$ recomputes in the new base currency', async () => {
     const fund = new FundStore(fundRepo, fxStore)
     await fund.loadEvents()
+    // Flush the queued recompute microtask.
+    await Promise.resolve()
 
-    const equityInUsd = fund.balance$.get().equity
+    const usdBalance = fund.balance$.get()
+    expect(usdBalance).not.toBeNull()
     // 1000 USD + 500 EUR × 1.10 = 1550 USD
-    expect(equityInUsd.toNumber()).toBeCloseTo(1550, 8)
+    expect(usdBalance!.equity.toNumber()).toBeCloseTo(1550, 8)
 
     await fund.updateBaseCurrency('EUR')
+    await Promise.resolve()
 
-    const equityInEur = fund.balance$.get().equity
+    const eurBalance = fund.balance$.get()
+    expect(eurBalance).not.toBeNull()
     // Same events: 1000 USD ÷ 1.10 + 500 EUR ≈ 909.09 + 500 = 1409.09
-    expect(equityInEur.toNumber()).toBeCloseTo(909.0909090909 + 500, 6)
-    expect(fund.balance$.get().baseCurrency).toBe('EUR')
+    expect(eurBalance!.equity.toNumber()).toBeCloseTo(909.0909090909 + 500, 6)
+    expect(eurBalance!.baseCurrency).toBe('EUR')
   })
 })
 

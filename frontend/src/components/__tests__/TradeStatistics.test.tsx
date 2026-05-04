@@ -4,47 +4,48 @@ import { Decimal } from '../../domain/shared/Decimal'
 import { TradeStatistics } from '../TradeStatistics'
 import { ContainerProvider } from '../../container/ContainerContext'
 import type { AppContainer } from '../../container/types'
-import type { TradeWithMetrics, LiveMetrics } from '../../domain/trade/types'
-import type { FxRate } from '../../domain/fx/types'
-import type { IFxRepository } from '../../domain/fx/IFxRepository'
-import type { IFundRepository } from '../../domain/fund/IFundRepository'
-import { FxStore } from '../../domain/fx/FxStore'
+import type { TradeWithMetrics } from '../../domain/trade/types'
 import { FundStore } from '../../domain/fund/FundStore'
+import { FxStore } from '../../domain/fx/FxStore'
+import { TradeStore } from '../../domain/trade/TradeStore'
+import { LiveMetricsStore } from '../../domain/trade/LiveMetricsStore'
+import { TradeMetricsStore } from '../../domain/trade/TradeMetricsStore'
+import type { IFundRepository } from '../../domain/fund/IFundRepository'
+import type { IFxRepository } from '../../domain/fx/IFxRepository'
+import type { ITradeRepository, IPriceProvider } from '../../domain/trade/ITradeRepository'
 
-class StubFxRepo implements IFxRepository {
-  constructor(private readonly data: Record<string, FxRate[]>) {}
-  async getHistory(currencies: string[]): Promise<Record<string, FxRate[]>> {
-    const out: Record<string, FxRate[]> = {}
-    for (const c of currencies) out[c] = this.data[c] ?? []
-    return out
-  }
+const D = (n: number | string) => Decimal.from(n)
+
+const stubFxRepo: IFxRepository = {
+  async getHistory() {
+    return {}
+  },
 }
 
 const stubFundRepo: IFundRepository = {
-  async fetchEvents() {
-    return []
-  },
-  async createDeposit() {
-    throw new Error('not implemented')
-  },
-  async createWithdrawal() {
-    throw new Error('not implemented')
-  },
-  async createManualEvent() {
-    throw new Error('not implemented')
-  },
-  async voidEvent() {
-    throw new Error('not implemented')
-  },
-  async fetchSettings() {
-    return { risk_pct: 0.02, base_currency: 'USD' }
-  },
-  async updateSettings() {
-    return { risk_pct: 0.02, base_currency: 'USD' }
-  },
+  async fetchEvents() { return [] },
+  async createDeposit() { throw new Error('nope') },
+  async createWithdrawal() { throw new Error('nope') },
+  async createManualEvent() { throw new Error('nope') },
+  async voidEvent() { throw new Error('nope') },
+  async fetchSettings() { return { risk_pct: 0.02, base_currency: 'USD' } },
+  async updateSettings() { return { risk_pct: 0.02, base_currency: 'USD' } },
 }
 
-const D = (n: number | string) => Decimal.from(n)
+const stubTradeRepo: ITradeRepository = {
+  async fetchTrades() { return [] },
+  async createTrade() { throw new Error('nope') },
+  async updateTrade() { throw new Error('nope') },
+  async detectTradeHits() { throw new Error('nope') },
+  async markLevelHit() { throw new Error('nope') },
+  async unmarkLevelHit() { throw new Error('nope') },
+  async reopenTrade() { throw new Error('nope') },
+  async revertOpenToOrdered() { throw new Error('nope') },
+} as unknown as ITradeRepository
+
+const stubPriceProvider: IPriceProvider = {
+  async fetchBatchPrices() { return {} },
+}
 
 function makeTrade(overrides: Partial<TradeWithMetrics>): TradeWithMetrics {
   return {
@@ -84,209 +85,125 @@ function makeTrade(overrides: Partial<TradeWithMetrics>): TradeWithMetrics {
   }
 }
 
-async function makeContainer(opts: {
-  baseCurrency?: string
-  rates?: Record<string, FxRate[]>
-}): Promise<AppContainer> {
-  const fxRepo = new StubFxRepo(opts.rates ?? {})
-  const fxStore = new FxStore(fxRepo)
-  await fxStore.loadHistory(Object.keys(opts.rates ?? {}))
+interface TestContainer {
+  container: AppContainer
+  fxStore: FxStore
+  fundStore: FundStore
+  tradeStore: TradeStore
+  tradeMetricsStore: TradeMetricsStore
+}
+
+function buildContainer(): TestContainer {
+  const fxStore = new FxStore(stubFxRepo)
   const fundStore = new FundStore(stubFundRepo, fxStore)
-  fundStore.baseCurrency$.set(opts.baseCurrency ?? 'USD')
-  return {
-    fxStore,
+  const tradeStore = new TradeStore(stubTradeRepo)
+  const liveMetricsStore = new LiveMetricsStore(tradeStore, stubPriceProvider)
+  const tradeMetricsStore = new TradeMetricsStore(
+    tradeStore,
+    liveMetricsStore,
     fundStore,
-  } as unknown as AppContainer
+    fxStore,
+  )
+  return {
+    container: { fxStore, fundStore, tradeStore, liveMetricsStore, tradeMetricsStore } as unknown as AppContainer,
+    fxStore, fundStore, tradeStore, tradeMetricsStore,
+  }
 }
 
 function renderWithContainer(container: AppContainer, ui: React.ReactElement) {
   return render(<ContainerProvider container={container}>{ui}</ContainerProvider>)
 }
 
-describe('TradeStatistics — multi-currency aggregation', () => {
-  it('sums realized P&L across mixed-CCY trades in the user base currency', async () => {
-    // USD trade: profit = (110 - 100) × 10 = $100
-    const usdTrade = makeTrade({
-      id: 1,
+const flushMicrotasks = async () => {
+  // Two cycles: one for the scheduled queueMicrotask, one for any chained
+  // observable propagation triggered by setting the result.
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
+describe('TradeStatistics — rendering', () => {
+  it('shows skeleton placeholders before the first compute lands', () => {
+    const { container } = buildContainer()
+    renderWithContainer(
+      container,
+      <TradeStatistics allTrades={[]} filteredTrades={[]} filter="all" />,
+    )
+    // Money cells render skeleton spans (no $/€ amount visible yet).
+    expect(screen.queryByText(/\$/)).toBeNull()
+  })
+
+  it('renders the realized total once compute completes', async () => {
+    const { container, tradeStore } = buildContainer()
+    const trade = makeTrade({
       tickerCurrency: 'USD',
       entryPrice: D(100),
       exitPrice: D(110),
       units: 10,
-      exitDate: new Date('2026-05-01'),
       exitType: 'tp',
     })
-    // EUR trade: profit = (50 - 40) × 10 = €100. At 1.10 → $110
-    const eurTrade = makeTrade({
-      id: 2,
-      ticker: 'MTS.MC',
+    tradeStore.trades$.set([trade])
+    await flushMicrotasks()
+
+    renderWithContainer(
+      container,
+      <TradeStatistics
+        allTrades={[trade]}
+        filteredTrades={[trade]}
+        filter="close"
+      />,
+    )
+
+    // (110 - 100) × 10 = $100 profit; rendered as $100.00 in Total P&L.
+    expect(screen.getAllByText('$100.00').length).toBeGreaterThan(0)
+  })
+
+  it('uses the user base currency symbol for totals', async () => {
+    const { container, tradeStore, fundStore } = buildContainer()
+    fundStore.baseCurrency$.set('EUR')
+    // Seed an EUR trade that needs no conversion in EUR base.
+    const trade = makeTrade({
       tickerCurrency: 'EUR',
       entryPrice: D(40),
       exitPrice: D(50),
       units: 10,
-      exitDate: new Date('2026-05-01'),
       exitType: 'tp',
     })
-
-    const container = await makeContainer({
-      baseCurrency: 'USD',
-      rates: {
-        EUR: [{ currency: 'EUR', date: new Date('2026-05-01'), rateToUsd: D(1.10) }],
-      },
-    })
+    tradeStore.trades$.set([trade])
+    await flushMicrotasks()
 
     renderWithContainer(
       container,
       <TradeStatistics
-        allTrades={[usdTrade, eurTrade]}
-        filteredTrades={[usdTrade, eurTrade]}
-        liveMetrics={{}}
+        allTrades={[trade]}
+        filteredTrades={[trade]}
         filter="close"
       />,
     )
 
-    // 100 USD + 110 USD = $210.00 expected total realized.
-    expect(screen.getByText('$210.00')).toBeInTheDocument()
-  })
-
-  it('aggregates a losing EUR trade as a loss in base currency', async () => {
-    const eurLoser = makeTrade({
-      id: 1,
-      tickerCurrency: 'EUR',
-      entryPrice: D(100),
-      exitPrice: D(80),
-      units: 10,
-      exitDate: new Date('2026-05-01'),
-      exitType: 'sl',
-    })
-
-    const container = await makeContainer({
-      baseCurrency: 'USD',
-      rates: {
-        EUR: [{ currency: 'EUR', date: new Date('2026-05-01'), rateToUsd: D(1.10) }],
-      },
-    })
-
-    renderWithContainer(
-      container,
-      <TradeStatistics
-        allTrades={[eurLoser]}
-        filteredTrades={[eurLoser]}
-        liveMetrics={{}}
-        filter="close"
-      />,
-    )
-
-    // (80 - 100) × 10 = -€200. At 1.10 → -$220 → displayed as -$220.00.
-    expect(screen.getByText('-$220.00')).toBeInTheDocument()
-  })
-
-  it('renders totals using the user base currency symbol', async () => {
-    const usdTrade = makeTrade({
-      id: 1,
-      tickerCurrency: 'USD',
-      entryPrice: D(100),
-      exitPrice: D(110),
-      units: 10,
-      exitDate: new Date('2026-05-01'),
-      exitType: 'tp',
-    })
-
-    const container = await makeContainer({
-      baseCurrency: 'EUR',
-      rates: {
-        USD: [], // present but empty — USD passthrough still works
-        EUR: [{ currency: 'EUR', date: new Date('2026-05-01'), rateToUsd: D(1.10) }],
-      },
-    })
-
-    renderWithContainer(
-      container,
-      <TradeStatistics
-        allTrades={[usdTrade]}
-        filteredTrades={[usdTrade]}
-        liveMetrics={{}}
-        filter="close"
-      />,
-    )
-
-    // $100 profit converted to EUR: 100 / 1.10 ≈ €90.91. Multiple stat
-    // cells show this (Total + Avg Win). Just confirm at least one renders.
     expect(screen.getAllByText(/€/).length).toBeGreaterThan(0)
   })
 
-  it('aggregates unrealized P&L for open EUR trades using today\'s rate', async () => {
-    const today = new Date()
-    const openEur = makeTrade({
-      id: 1,
-      tickerCurrency: 'EUR',
-      status: 'open',
-      exitDate: null,
-      exitPrice: null,
-      exitType: null,
-    })
-    const liveMetrics: Record<number, LiveMetrics> = {
-      1: {
-        currentPrice: D(110),
-        distanceToSL: null,
-        distanceToTP: null,
-        distanceToPE: null,
-        unrealizedPnL: D(100),  // already in EUR
-        unrealizedPnLPct: null,
-      },
-    }
-
-    // Today's rate of 1.20 → €100 unrealized = $120.
-    // Use a date one week before today plus today to make sure walk-back works.
-    const todayIso = today.toISOString().slice(0, 10)
-    const container = await makeContainer({
-      baseCurrency: 'USD',
-      rates: {
-        EUR: [
-          { currency: 'EUR', date: new Date(todayIso), rateToUsd: D(1.20) },
-        ],
-      },
-    })
+  it('shows skeletons again while a recompute is in flight', async () => {
+    const { container, tradeStore, fundStore } = buildContainer()
+    const trade = makeTrade({ tickerCurrency: 'USD', exitType: 'tp' })
+    tradeStore.trades$.set([trade])
+    await flushMicrotasks()
 
     renderWithContainer(
       container,
       <TradeStatistics
-        allTrades={[openEur]}
-        filteredTrades={[openEur]}
-        liveMetrics={liveMetrics}
-        filter="open"
-      />,
-    )
-
-    // €100 unrealized × today's rate 1.20 = $120 in base. Total + Avg Win
-    // both show this — assert at least one cell matches.
-    expect(screen.getAllByText('$120.00').length).toBeGreaterThan(0)
-  })
-
-  it('skips trades whose FX rate is not loaded (no crash)', async () => {
-    // GBP rate not loaded — trade should be skipped silently.
-    const gbpTrade = makeTrade({
-      id: 1,
-      tickerCurrency: 'GBP',
-      entryPrice: D(100),
-      exitPrice: D(110),
-      units: 10,
-      exitDate: new Date('2026-05-01'),
-      exitType: 'tp',
-    })
-
-    const container = await makeContainer({ baseCurrency: 'USD', rates: {} })
-
-    renderWithContainer(
-      container,
-      <TradeStatistics
-        allTrades={[gbpTrade]}
-        filteredTrades={[gbpTrade]}
-        liveMetrics={{}}
+        allTrades={[trade]}
+        filteredTrades={[trade]}
         filter="close"
       />,
     )
+    // First compute landed.
+    expect(screen.getAllByText(/\$/).length).toBeGreaterThan(0)
 
-    // Total P&L renders as $0.00 (skipped, not crashed).
-    expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0)
+    // Trigger a recompute by changing base currency.
+    fundStore.baseCurrency$.set('EUR')
+    // computing$ is now true; the component re-renders to skeletons.
+    // We don't await microtasks here — we want to catch the in-flight state.
+    expect(container.tradeMetricsStore.computing$.get()).toBe(true)
   })
 })

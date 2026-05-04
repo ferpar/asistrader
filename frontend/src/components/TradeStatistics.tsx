@@ -1,138 +1,15 @@
 import { observer } from '@legendapp/state/react'
-import { Decimal } from '../domain/shared/Decimal'
-import type { TradeWithMetrics, LiveMetrics } from '../domain/trade/types'
+import type { TradeWithMetrics } from '../domain/trade/types'
 import type { ExtendedFilter } from '../types/trade'
-import { useFxStore, useFundStore } from '../container/ContainerContext'
-import type { FxStore } from '../domain/fx/FxStore'
+import { useFundStore, useTradeMetricsStore } from '../container/ContainerContext'
+import type { PnLStats } from '../domain/trade/TradeMetricsStore'
+import skeletonStyles from '../styles/skeleton.module.css'
 import styles from './TradeStatistics.module.css'
 
 interface TradeStatisticsProps {
   allTrades: TradeWithMetrics[]
   filteredTrades: TradeWithMetrics[]
-  liveMetrics: Record<number, LiveMetrics>
   filter: ExtendedFilter
-}
-
-interface PnLStats {
-  count: number
-  wins: number
-  losses: number
-  winRate: number
-  totalPnL: number
-  avgWin: number
-  avgLoss: number
-  profitFactor: number
-}
-
-function emptyStats(): PnLStats {
-  return { count: 0, wins: 0, losses: 0, winRate: 0, totalPnL: 0, avgWin: 0, avgLoss: 0, profitFactor: 0 }
-}
-
-function buildStats(winPnL: Decimal, lossPnL: Decimal, wins: number, losses: number, count: number): PnLStats {
-  const lossAbs = lossPnL.abs()
-  return {
-    count,
-    wins,
-    losses,
-    winRate: wins + losses > 0 ? (wins / (wins + losses)) * 100 : 0,
-    totalPnL: winPnL.minus(lossAbs).toNumber(),
-    avgWin: wins > 0 ? winPnL.div(Decimal.from(wins)).toNumber() : 0,
-    avgLoss: losses > 0 ? lossAbs.div(Decimal.from(losses)).toNumber() : 0,
-    profitFactor: lossAbs.isPositive() ? winPnL.div(lossAbs).toNumber() : winPnL.isPositive() ? Infinity : 0,
-  }
-}
-
-/** Convert via FxStore, skipping the trade if its rate isn't loaded yet. */
-function convertOrSkip(
-  amount: Decimal,
-  fromCcy: string | null,
-  baseCurrency: string,
-  onDate: Date,
-  fxStore: FxStore,
-): Decimal | null {
-  const ccy = fromCcy || baseCurrency
-  if (ccy === baseCurrency) return amount
-  try {
-    return fxStore.convert(amount, ccy, baseCurrency, onDate)
-  } catch {
-    return null
-  }
-}
-
-function calculateRealizedStats(
-  trades: TradeWithMetrics[],
-  baseCurrency: string,
-  fxStore: FxStore,
-): PnLStats {
-  const closed = trades.filter((t) => t.status === 'close')
-  if (closed.length === 0) return emptyStats()
-
-  let winPnL = Decimal.zero()
-  let lossPnL = Decimal.zero()
-  let wins = 0
-  let losses = 0
-
-  for (const trade of closed) {
-    if (!trade.exitPrice || !trade.exitDate) continue
-    const pnlNative = trade.exitPrice
-      .minus(trade.entryPrice)
-      .times(Decimal.from(trade.units))
-    const pnlInBase = convertOrSkip(
-      pnlNative,
-      trade.tickerCurrency,
-      baseCurrency,
-      trade.exitDate,
-      fxStore,
-    )
-    if (pnlInBase === null) continue
-    if (trade.exitType === 'tp') {
-      winPnL = winPnL.plus(pnlInBase)
-      wins++
-    } else if (trade.exitType === 'sl') {
-      lossPnL = lossPnL.plus(pnlInBase)
-      losses++
-    }
-  }
-
-  return buildStats(winPnL, lossPnL, wins, losses, closed.length)
-}
-
-function calculateUnrealizedStats(
-  trades: TradeWithMetrics[],
-  liveMetrics: Record<number, LiveMetrics>,
-  baseCurrency: string,
-  fxStore: FxStore,
-): PnLStats {
-  const open = trades.filter((t) => t.status === 'open')
-  if (open.length === 0) return emptyStats()
-
-  const today = new Date()
-  let winPnL = Decimal.zero()
-  let lossPnL = Decimal.zero()
-  let wins = 0
-  let losses = 0
-
-  for (const trade of open) {
-    const pnlNative = liveMetrics[trade.id]?.unrealizedPnL
-    if (!pnlNative) continue
-    const pnlInBase = convertOrSkip(
-      pnlNative,
-      trade.tickerCurrency,
-      baseCurrency,
-      today,
-      fxStore,
-    )
-    if (pnlInBase === null) continue
-    if (pnlInBase.isPositive()) {
-      winPnL = winPnL.plus(pnlInBase)
-      wins++
-    } else if (pnlInBase.isNegative()) {
-      lossPnL = lossPnL.plus(pnlInBase)
-      losses++
-    }
-  }
-
-  return buildStats(winPnL, lossPnL, wins, losses, open.length)
 }
 
 function formatCurrency(value: number, currency: string): string {
@@ -145,7 +22,7 @@ function formatCurrency(value: number, currency: string): string {
 }
 
 function formatProfitFactor(value: number): string {
-  if (value === Infinity) return '\u221E'
+  if (value === Infinity) return '∞'
   return value.toFixed(2)
 }
 
@@ -156,74 +33,79 @@ function getPnLClass(value: number): string {
 }
 
 const UNREALIZED_ACTIVE: Record<ExtendedFilter, boolean> = {
-  all: true,
-  open: true,
-  winning: true,
-  losing: true,
-  plan: false,
-  ordered: false,
-  close: false,
-  canceled: false,
-  winners: false,
-  losers: false,
+  all: true, open: true, winning: true, losing: true,
+  plan: false, ordered: false, close: false, canceled: false,
+  winners: false, losers: false,
 }
 
 const REALIZED_ACTIVE: Record<ExtendedFilter, boolean> = {
-  all: true,
-  open: false,
-  winning: false,
-  losing: false,
-  plan: false,
-  ordered: false,
-  close: true,
-  canceled: false,
-  winners: true,
-  losers: true,
+  all: true, open: false, winning: false, losing: false,
+  plan: false, ordered: false, close: true, canceled: false,
+  winners: true, losers: true,
 }
+
+const Skeleton = ({ minWidth = '4em' }: { minWidth?: string }) => (
+  <span className={skeletonStyles.skeleton} style={{ minWidth }}>&nbsp;</span>
+)
 
 interface SectionProps {
   title: string
-  stats: PnLStats
+  stats: PnLStats | null
   active: boolean
   baseCurrency: string
+  loading: boolean
 }
 
-function StatSection({ title, stats, active, baseCurrency }: SectionProps) {
+function StatSection({ title, stats, active, baseCurrency, loading }: SectionProps) {
+  const showSkeleton = loading || stats === null
+  const renderNum = (n: number) => (showSkeleton ? <Skeleton /> : n)
+  const renderMoney = (n: number) =>
+    showSkeleton ? <Skeleton minWidth="6em" /> : formatCurrency(n, baseCurrency)
+  const renderPct = (n: number) =>
+    showSkeleton ? <Skeleton /> : `${n.toFixed(1)}%`
+  const renderRatio = (n: number) =>
+    showSkeleton ? <Skeleton /> : formatProfitFactor(n)
+
+  // Resolve safe values for class colouring even while skeleton is shown.
+  const totalPnL = stats?.totalPnL ?? 0
+  const winRate = stats?.winRate ?? 0
+  const profitFactor = stats?.profitFactor ?? 0
+
   return (
     <div className={`${styles.section} ${active ? '' : styles.dimmed}`}>
       <div className={styles.sectionTitle}>{title}</div>
       <div className={styles.statGrid}>
         <div className={styles.statItem}>
           <span className={styles.statLabel}>Count</span>
-          <span className={styles.statValue}>{stats.count}</span>
+          <span className={styles.statValue}>{renderNum(stats?.count ?? 0)}</span>
         </div>
         <div className={styles.statItem}>
           <span className={styles.statLabel}>Wins</span>
-          <span className={`${styles.statValue} positive`}>{stats.wins}</span>
+          <span className={`${styles.statValue} positive`}>{renderNum(stats?.wins ?? 0)}</span>
         </div>
         <div className={styles.statItem}>
           <span className={styles.statLabel}>Losses</span>
-          <span className={`${styles.statValue} negative`}>{stats.losses}</span>
+          <span className={`${styles.statValue} negative`}>{renderNum(stats?.losses ?? 0)}</span>
         </div>
         <div className={styles.statItem}>
           <span className={styles.statLabel}>Win Rate</span>
-          <span className={getPnLClass(stats.winRate - 50)}>{stats.winRate.toFixed(1)}%</span>
+          <span className={getPnLClass(winRate - 50)}>{renderPct(winRate)}</span>
         </div>
         <div className={styles.statItem}>
           <span className={styles.statLabel}>Total P&L</span>
-          <span className={getPnLClass(stats.totalPnL)}>{formatCurrency(stats.totalPnL, baseCurrency)}</span>
+          <span className={getPnLClass(totalPnL)}>{renderMoney(totalPnL)}</span>
         </div>
         <div className={styles.statItem}>
           <span className={styles.statLabel}>Avg Win</span>
-          <span className={`${styles.statValue} positive`}>{formatCurrency(stats.avgWin, baseCurrency)}</span>
+          <span className={`${styles.statValue} positive`}>{renderMoney(stats?.avgWin ?? 0)}</span>
         </div>
         <div className={styles.statItem}>
           <span className={styles.statLabel}>Avg Loss</span>
-          <span className={`${styles.statValue} negative`}>{formatCurrency(stats.avgLoss, baseCurrency)}</span>
+          <span className={`${styles.statValue} negative`}>{renderMoney(stats?.avgLoss ?? 0)}</span>
         </div>
         <div className={styles.statItem}>
           <span className={styles.statLabel}>Ratio</span>
-          <span className={getPnLClass(stats.profitFactor - 1)}>{formatProfitFactor(stats.profitFactor)}</span>
+          <span className={getPnLClass(profitFactor - 1)}>{renderRatio(profitFactor)}</span>
         </div>
       </div>
     </div>
@@ -233,21 +115,18 @@ function StatSection({ title, stats, active, baseCurrency }: SectionProps) {
 export const TradeStatistics = observer(function TradeStatistics({
   allTrades,
   filteredTrades,
-  liveMetrics,
   filter,
 }: TradeStatisticsProps) {
-  const fxStore = useFxStore()
   const fundStore = useFundStore()
+  const tradeMetricsStore = useTradeMetricsStore()
   const baseCurrency = fundStore.baseCurrency$.get()
-  // Re-render once FX history hydrates so per-trade conversions land.
-  fxStore.loaded$.get()
+  const realized = tradeMetricsStore.realized$.get()
+  const unrealized = tradeMetricsStore.unrealized$.get()
+  const computing = tradeMetricsStore.computing$.get()
 
   const totalNonCanceled = allTrades.filter((t) => t.status !== 'canceled').length
   const unrealizedActive = UNREALIZED_ACTIVE[filter]
   const realizedActive = REALIZED_ACTIVE[filter]
-
-  const unrealizedStats = calculateUnrealizedStats(filteredTrades, liveMetrics, baseCurrency, fxStore)
-  const realizedStats = calculateRealizedStats(filteredTrades, baseCurrency, fxStore)
 
   return (
     <div className={styles.tradeStatistics}>
@@ -262,8 +141,20 @@ export const TradeStatistics = observer(function TradeStatistics({
         </div>
       </div>
       <div className={styles.sectionsRow}>
-        <StatSection title="Unrealized" stats={unrealizedStats} active={unrealizedActive} baseCurrency={baseCurrency} />
-        <StatSection title="Realized" stats={realizedStats} active={realizedActive} baseCurrency={baseCurrency} />
+        <StatSection
+          title="Unrealized"
+          stats={unrealized}
+          active={unrealizedActive}
+          baseCurrency={baseCurrency}
+          loading={computing}
+        />
+        <StatSection
+          title="Realized"
+          stats={realized}
+          active={realizedActive}
+          baseCurrency={baseCurrency}
+          loading={computing}
+        />
       </div>
     </div>
   )

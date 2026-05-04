@@ -46,10 +46,9 @@ export const TradeDashboard = observer(function TradeDashboard() {
         <TradeStatistics
           allTrades={allTrades}
           filteredTrades={filteredTrades}
-          liveMetrics={liveMetrics}
           filter={filter}
         />
-        <TickerPerformance trades={store.trades$.get()} />
+        <TickerPerformance />
         <TradeFilters value={filter} onChange={(f) => store.setFilter(f)} />
         <TradeTable
           trades={filteredTrades}

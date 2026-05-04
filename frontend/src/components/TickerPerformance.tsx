@@ -1,73 +1,21 @@
-import { useMemo } from 'react'
-import { Decimal } from '../domain/shared/Decimal'
-import type { TradeWithMetrics } from '../domain/trade/types'
+import { observer } from '@legendapp/state/react'
 import { formatPrice } from '../utils/priceFormat'
+import { useTradeMetricsStore } from '../container/ContainerContext'
+import skeletonStyles from '../styles/skeleton.module.css'
 import styles from './TickerPerformance.module.css'
 
-interface TickerStats {
-  symbol: string
-  currency: string | null
-  priceHint: number | null
-  tradeCount: number
-  wins: number
-  losses: number
-  winRate: number
-  totalPnL: number
-  avgPnL: number
-}
+const SKELETON_ROW_COUNT = 3
 
-function calculateTickerPerformance(trades: TradeWithMetrics[]): TickerStats[] {
-  const closedTrades = trades.filter(t => t.status === 'close')
+export const TickerPerformance = observer(function TickerPerformance() {
+  const tradeMetricsStore = useTradeMetricsStore()
+  const tickerStats = tradeMetricsStore.perTicker$.get()
+  const computing = tradeMetricsStore.computing$.get()
 
-  // Group by ticker
-  const byTicker = new Map<string, TradeWithMetrics[]>()
-  closedTrades.forEach(trade => {
-    const list = byTicker.get(trade.ticker) || []
-    list.push(trade)
-    byTicker.set(trade.ticker, list)
-  })
+  // Skeleton on every recompute (cold + every base-currency switch / data load).
+  const showSkeleton = computing || tickerStats === null
 
-  // Calculate stats per ticker
-  const stats: TickerStats[] = []
-  byTicker.forEach((tickerTrades, symbol) => {
-    const winners = tickerTrades.filter(t => t.exitType === 'tp')
-    const losers = tickerTrades.filter(t => t.exitType === 'sl')
-
-    const calculatePnL = (t: TradeWithMetrics): Decimal =>
-      t.exitPrice
-        ? t.exitPrice.minus(t.entryPrice).times(Decimal.from(t.units))
-        : Decimal.zero()
-
-    const totalPnL = tickerTrades.reduce((sum, t) => sum.plus(calculatePnL(t)), Decimal.zero())
-
-    stats.push({
-      symbol,
-      currency: tickerTrades[0]?.tickerCurrency ?? null,
-      priceHint: tickerTrades[0]?.tickerPriceHint ?? null,
-      tradeCount: tickerTrades.length,
-      wins: winners.length,
-      losses: losers.length,
-      winRate: tickerTrades.length > 0
-        ? (winners.length / tickerTrades.length) * 100
-        : 0,
-      totalPnL: totalPnL.toNumber(),
-      avgPnL: tickerTrades.length > 0 ? totalPnL.div(Decimal.from(tickerTrades.length)).toNumber() : 0,
-    })
-  })
-
-  // Sort by totalPnL descending (best performers first)
-  return stats.sort((a, b) => b.totalPnL - a.totalPnL)
-}
-
-interface TickerPerformanceProps {
-  trades: TradeWithMetrics[]
-}
-
-export function TickerPerformance({ trades }: TickerPerformanceProps) {
-  const tickerStats = useMemo(() => calculateTickerPerformance(trades), [trades])
-
-  if (tickerStats.length === 0) {
-    return null  // Don't show if no closed trades
+  if (!showSkeleton && tickerStats!.length === 0) {
+    return null  // No closed trades — original behavior.
   }
 
   return (
@@ -85,22 +33,37 @@ export function TickerPerformance({ trades }: TickerPerformanceProps) {
           </tr>
         </thead>
         <tbody>
-          {tickerStats.map(stat => (
-            <tr key={stat.symbol}>
-              <td className={styles.tickerSymbol}>{stat.symbol}</td>
-              <td>{stat.tradeCount}</td>
-              <td>{stat.wins}/{stat.losses}</td>
-              <td>{stat.winRate.toFixed(1)}%</td>
-              <td className={stat.totalPnL >= 0 ? 'positive' : 'negative'}>
-                {formatPrice(stat.totalPnL, stat.currency, stat.priceHint)}
-              </td>
-              <td className={stat.avgPnL >= 0 ? 'positive' : 'negative'}>
-                {formatPrice(stat.avgPnL, stat.currency, stat.priceHint)}
-              </td>
-            </tr>
-          ))}
+          {showSkeleton
+            ? Array.from({ length: SKELETON_ROW_COUNT }).map((_, i) => (
+                <tr key={`skel-${i}`}>
+                  <td>
+                    <span className={skeletonStyles.skeleton} style={{ minWidth: '4em' }}>&nbsp;</span>
+                  </td>
+                  <td><span className={skeletonStyles.skeleton}>&nbsp;</span></td>
+                  <td><span className={skeletonStyles.skeleton}>&nbsp;</span></td>
+                  <td><span className={skeletonStyles.skeleton}>&nbsp;</span></td>
+                  <td><span className={skeletonStyles.skeleton} style={{ minWidth: '5em' }}>&nbsp;</span></td>
+                  <td><span className={skeletonStyles.skeleton} style={{ minWidth: '5em' }}>&nbsp;</span></td>
+                </tr>
+              ))
+            : tickerStats!.map((stat) => (
+                <tr key={stat.symbol}>
+                  <td className={styles.tickerSymbol}>{stat.symbol}</td>
+                  <td>{stat.tradeCount}</td>
+                  <td>
+                    {stat.wins}/{stat.losses}
+                  </td>
+                  <td>{stat.winRate.toFixed(1)}%</td>
+                  <td className={stat.totalPnL >= 0 ? 'positive' : 'negative'}>
+                    {formatPrice(stat.totalPnL, stat.currency, stat.priceHint)}
+                  </td>
+                  <td className={stat.avgPnL >= 0 ? 'positive' : 'negative'}>
+                    {formatPrice(stat.avgPnL, stat.currency, stat.priceHint)}
+                  </td>
+                </tr>
+              ))}
         </tbody>
       </table>
     </div>
   )
-}
+})

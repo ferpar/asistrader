@@ -1,4 +1,4 @@
-import { observable, computed } from '@legendapp/state'
+import { observable } from '@legendapp/state'
 import { Decimal } from '../shared/Decimal'
 import type { IFundRepository } from './IFundRepository'
 import type { FundEvent, BalanceSummary } from './types'
@@ -7,6 +7,21 @@ import type { FxStore } from '../fx/FxStore'
 import { computeBalance } from './computeBalance'
 
 const DEFAULT_BASE_CURRENCY = 'USD'
+
+/**
+ * Build a cheap key over the inputs that matter for balance computation.
+ * Two recomputes with the same key produce the same output, so we can
+ * skip work. We don't include event identities because mutations always
+ * go through `loadEvents`, which replaces the array reference.
+ */
+function balanceKey(
+  eventCount: number,
+  riskPct: Decimal,
+  baseCurrency: string,
+  fxLoaded: boolean,
+): string {
+  return `${eventCount}|${riskPct.toString()}|${baseCurrency}|${fxLoaded ? 1 : 0}`
+}
 
 export class FundStore {
   readonly events$ = observable<FundEvent[]>([])
@@ -17,23 +32,50 @@ export class FundStore {
   readonly baseCurrency$ = observable<string>(DEFAULT_BASE_CURRENCY)
   readonly fxLoaded$ = observable(false)
 
-  readonly balance$ = computed<BalanceSummary>(() => {
-    const events = this.events$.get()
-    const riskPct = this.riskPct$.get()
-    const baseCurrency = this.baseCurrency$.get()
-    // Re-evaluate when FX history changes; FxStore.loaded$ flips on hydration.
-    this.fxLoaded$.get()
-    return computeBalance(events, riskPct, baseCurrency, this.fxStore)
-  })
+  /** Latest balance result. `null` until the first compute lands. */
+  readonly balance$ = observable<BalanceSummary | null>(null)
+  /** True from the moment a recompute is scheduled until it lands. */
+  readonly balanceComputing$ = observable(false)
+
+  private lastBalanceKey = ''
 
   constructor(
     private readonly repo: IFundRepository,
     private readonly fxStore: FxStore,
   ) {
-    // Mirror FxStore's loaded flag into our own observable so balance$
-    // recomputes when history arrives.
+    // Inputs that should trigger a balance recompute.
     this.fxStore.loaded$.onChange(({ value }) => {
       this.fxLoaded$.set(Boolean(value))
+      this.scheduleBalanceRecompute()
+    })
+    this.events$.onChange(() => this.scheduleBalanceRecompute())
+    this.riskPct$.onChange(() => this.scheduleBalanceRecompute())
+    this.baseCurrency$.onChange(() => this.scheduleBalanceRecompute())
+  }
+
+  /**
+   * Yield to the event loop, then run computeBalance. The skeleton flashes
+   * on every recompute (per the agreed UX). Memoization skips no-op recomputes.
+   */
+  private scheduleBalanceRecompute(): void {
+    const key = balanceKey(
+      this.events$.get().length,
+      this.riskPct$.get(),
+      this.baseCurrency$.get(),
+      this.fxLoaded$.get(),
+    )
+    if (key === this.lastBalanceKey) return
+    this.lastBalanceKey = key
+    this.balanceComputing$.set(true)
+    queueMicrotask(() => {
+      const result = computeBalance(
+        this.events$.get(),
+        this.riskPct$.get(),
+        this.baseCurrency$.get(),
+        this.fxStore,
+      )
+      this.balance$.set(result)
+      this.balanceComputing$.set(false)
     })
   }
 

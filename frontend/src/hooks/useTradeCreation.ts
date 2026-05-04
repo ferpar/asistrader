@@ -177,7 +177,9 @@ export function useTradeCreation(initialTicker?: string) {
   const suggestedUnits = useMemo(() => {
     const entryPrice = parseFloat(formData.entry_price) || 0
     if (entryPrice <= 0) return null
-    const maxPerTrade = fundStore.balance$.get().maxPerTrade.toNumber()
+    const balance = fundStore.balance$.get()
+    if (balance === null) return null
+    const maxPerTrade = balance.maxPerTrade.toNumber()
     if (maxPerTrade <= 0) return null
     const units = Math.floor(maxPerTrade / entryPrice)
     return units > 0 ? units : null
