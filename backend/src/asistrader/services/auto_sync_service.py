@@ -22,6 +22,9 @@ logger = logging.getLogger(__name__)
 # Default lookback when a user has no events / trades on file yet.
 DEFAULT_LOOKBACK_DAYS = 365
 
+# See fx_service.EARLIEST_DATE_BUFFER_DAYS — same rationale.
+EARLIEST_DATE_BUFFER_DAYS = 14
+
 
 def _user_ticker_symbols(db: Session, user_id: int) -> list[str]:
     rows = (
@@ -34,6 +37,9 @@ def _user_ticker_symbols(db: Session, user_id: int) -> list[str]:
 
 
 def _user_oldest_date(db: Session, user_id: int) -> date:
+    """Earliest event/trade date the user has, padded backward by
+    EARLIEST_DATE_BUFFER_DAYS so the FX walk-back always has a weekday rate
+    available even when the earliest event is on a weekend/holiday."""
     earliest_event = (
         db.query(func.min(FundEvent.event_date))
         .filter(FundEvent.user_id == user_id)
@@ -46,7 +52,7 @@ def _user_oldest_date(db: Session, user_id: int) -> date:
     )
     candidates = [d for d in (earliest_event, earliest_trade) if d is not None]
     if candidates:
-        return min(candidates)
+        return min(candidates) - timedelta(days=EARLIEST_DATE_BUFFER_DAYS)
     return date.today() - timedelta(days=DEFAULT_LOOKBACK_DAYS)
 
 

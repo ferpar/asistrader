@@ -1,6 +1,6 @@
 """Tests for the FX rate service."""
 
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -285,10 +285,12 @@ class TestEnsureRatesForUser:
         assert "EUR" in result["results"]
         assert "GBP" in result["results"]
         assert "USD" in result["skipped"]
-        # Earliest date = 2024-06-01 (oldest trade.date_planned).
+        # Earliest date = 2024-06-01 (oldest trade.date_planned), padded
+        # backward by EARLIEST_DATE_BUFFER_DAYS = 14 so the walk-back has
+        # weekday rates even if the earliest event is on a weekend.
         for call in mock_fetch.call_args_list:
             start_date_arg = call[0][1]
-            assert start_date_arg == date(2024, 6, 1)
+            assert start_date_arg == date(2024, 6, 1) - timedelta(days=14)
 
     @patch("asistrader.services.fx_service.fetch_from_yfinance")
     def test_falls_back_to_default_lookback_when_no_data(
@@ -343,9 +345,18 @@ class TestEnsureRatesForUser:
         )
         db_session.commit()
 
-        # Pre-populate rate so first call has nothing to fetch.
+        # Pre-populate rates back far enough to cover the buffered start.
+        # ensure_rates_for_user fetches from earliest_trade − 14 days, so
+        # we need at least one rate at or before that point.
         last_td = fx_service.get_last_trading_day(date.today())
-        db_session.add(FxRate(currency="EUR", date=last_td, rate_to_usd=1.10))
+        db_session.add_all([
+            FxRate(
+                currency="EUR",
+                date=last_td - timedelta(days=20),  # before buffer window
+                rate_to_usd=1.10,
+            ),
+            FxRate(currency="EUR", date=last_td, rate_to_usd=1.10),
+        ])
         db_session.commit()
 
         fx_service.ensure_rates_for_user(db_session, sample_user.id)

@@ -121,10 +121,16 @@ class TestEnsureUserDataFresh:
         last_td = get_last_trading_day(date.today())
 
         # Pre-populate every series up to last_trading_day so gap detection
-        # finds no work for any pair.
+        # finds no work for any pair. The 14-day buffer in _user_oldest_date
+        # means we need rows at or before 2025-01-01 (= 2025-01-15 − 14d).
         db_session.add_all([
+            FxRate(currency="EUR", date=date(2024, 12, 30), rate_to_usd=1.10),
             FxRate(currency="EUR", date=date(2025, 1, 15), rate_to_usd=1.10),
             FxRate(currency="EUR", date=last_td, rate_to_usd=1.10),
+            MarketData(
+                ticker="MTS.MC", date=date(2024, 12, 30),
+                open=100.0, high=101.0, low=99.0, close=100.5, volume=1000.0,
+            ),
             MarketData(
                 ticker="MTS.MC", date=date(2025, 1, 15),
                 open=100.0, high=101.0, low=99.0, close=100.5, volume=1000.0,
@@ -132,6 +138,10 @@ class TestEnsureUserDataFresh:
             MarketData(
                 ticker="MTS.MC", date=last_td,
                 open=100.0, high=101.0, low=99.0, close=100.5, volume=1000.0,
+            ),
+            BenchmarkMarketData(
+                benchmark="^STOXX50E", date=date(2024, 12, 30),
+                open=4500.0, high=4510.0, low=4490.0, close=4505.0, volume=0.0,
             ),
             BenchmarkMarketData(
                 benchmark="^STOXX50E", date=date(2025, 1, 15),

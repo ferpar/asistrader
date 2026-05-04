@@ -182,3 +182,50 @@ def test_check_trade_allowed_returns_clean_error_when_fx_missing(
 
     with pytest.raises(FundError, match="FX rate"):
         check_trade_allowed(db_session, sample_user.id, 100.0, trade_currency="EUR")
+
+
+def test_weekend_event_converts_using_prior_friday_rate(
+    db_session: Session, sample_user: User
+) -> None:
+    """Regression: a deposit on Saturday must convert correctly when the
+    base is non-USD. The FX sync's 14-day buffer guarantees the prior
+    Friday's rate is in fx_rates, so the walk-back finds it.
+
+    Without the buffer, the deposit was silently skipped from balance,
+    producing wildly wrong equity numbers when switching base currency.
+    """
+    from datetime import date
+
+    from asistrader.models.db import FxRate
+    from asistrader.services.fund_service import (
+        compute_balance,
+        update_base_currency,
+    )
+
+    # Saturday 2026-04-04 — yfinance returns no rate for this date.
+    saturday = date(2026, 4, 4)
+    friday_before = date(2026, 4, 3)
+
+    # Simulate what a *correct* sync (with buffer) would have stored:
+    # weekday rates including the Friday before the Saturday event.
+    db_session.add_all([
+        FxRate(currency="EUR", date=friday_before, rate_to_usd=1.10),
+        FxRate(currency="EUR", date=date(2026, 4, 6), rate_to_usd=1.10),
+    ])
+    db_session.commit()
+
+    # USD deposit on a Saturday.
+    create_deposit(
+        db_session,
+        sample_user.id,
+        100000.0,
+        event_date=saturday,
+    )
+
+    # Switch base to EUR: convert USD → EUR using Friday's rate.
+    update_base_currency(db_session, sample_user.id, "EUR")
+    balance = compute_balance(db_session, sample_user.id)
+
+    # 100,000 USD ÷ 1.10 = ~90,909 EUR. Must NOT be skipped.
+    assert balance["equity"] == pytest.approx(100_000 / 1.10)
+    assert balance["base_currency"] == "EUR"

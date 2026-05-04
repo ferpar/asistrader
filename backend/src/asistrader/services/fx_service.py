@@ -227,6 +227,14 @@ def ensure_rates_for(
 # Default lookback when a user has no events / trades on file yet.
 DEFAULT_LOOKBACK_DAYS = 365
 
+# Padding applied before the user's earliest event/trade date when fetching FX
+# history. Without this, an event on a Saturday would have no rate at or before
+# its date in fx_rates (yfinance returns weekday data only, and the fetch starts
+# AT the event date). The walk-back in `get_rate_to_usd` would then find nothing
+# and `compute_balance` would silently skip that event. 14 days comfortably
+# covers any weekend or holiday cluster (longest known: ~5 days).
+EARLIEST_DATE_BUFFER_DAYS = 14
+
 
 def ensure_rates_for_user(db: Session, user_id: int) -> dict:
     """Sync FX history covering every currency this user has events or trades in.
@@ -237,8 +245,10 @@ def ensure_rates_for_user(db: Session, user_id: int) -> dict:
     manually trigger an initial FX sync.
 
     The since_date is the earliest date this user has financial data for —
-    the min of fund_events.event_date and trades.date_planned. If no data
-    exists yet, falls back to today − DEFAULT_LOOKBACK_DAYS.
+    the min of fund_events.event_date and trades.date_planned — minus a
+    14-day buffer so the walk-back in get_rate_to_usd always has a weekday
+    rate to find (handles weekend/holiday event dates). If no data exists
+    yet, falls back to today − DEFAULT_LOOKBACK_DAYS.
     """
     from sqlalchemy import func
 
@@ -267,7 +277,7 @@ def ensure_rates_for_user(db: Session, user_id: int) -> dict:
     base = settings.base_currency if settings and settings.base_currency else "USD"
     currencies.add(base)
 
-    # Oldest date we need rates for.
+    # Oldest date we need rates for, padded backward.
     earliest_event = (
         db.query(func.min(FundEvent.event_date))
         .filter(FundEvent.user_id == user_id)
@@ -280,7 +290,7 @@ def ensure_rates_for_user(db: Session, user_id: int) -> dict:
     )
     candidates = [d for d in (earliest_event, earliest_trade) if d is not None]
     since_date = (
-        min(candidates)
+        min(candidates) - timedelta(days=EARLIEST_DATE_BUFFER_DAYS)
         if candidates
         else date.today() - timedelta(days=DEFAULT_LOOKBACK_DAYS)
     )
