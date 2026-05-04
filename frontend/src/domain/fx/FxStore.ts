@@ -1,5 +1,6 @@
 import { observable } from '@legendapp/state'
 import { Decimal } from '../shared/Decimal'
+import { toLocalDateIso } from '../../utils/dateOnly'
 import type { IFxRepository } from './IFxRepository'
 import type { FxRate, FxRateSeries } from './types'
 
@@ -18,14 +19,24 @@ function normalizeCurrency(currency: string): [string, number] {
   return SUBUNIT_CURRENCIES[currency] ?? [currency, 1]
 }
 
+// Use local-date semantics here so a Date built via `parseDateOnly` (local
+// noon) hashes consistently with one built via `new Date()` (now, in local
+// time). Mixing UTC and local would mis-key entries near midnight.
 function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10)
+  return toLocalDateIso(d)
 }
 
 function dayBefore(iso: string): string {
-  const d = new Date(iso + 'T00:00:00Z')
-  d.setUTCDate(d.getUTCDate() - 1)
-  return isoDate(d)
+  // Walk by parsing as local noon, decrementing, and re-formatting in local.
+  const parts = iso.split('-')
+  const d = new Date(
+    Number(parts[0]),
+    Number(parts[1]) - 1,
+    Number(parts[2]),
+    12, 0, 0, 0,
+  )
+  d.setDate(d.getDate() - 1)
+  return toLocalDateIso(d)
 }
 
 /**

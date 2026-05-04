@@ -3,6 +3,7 @@ import { TradeUpdateRequest, ExitType, ExitLevelCreateRequest, CancelReason, Ord
 import type { Strategy } from '../domain/strategy/types'
 import type { TradeWithMetrics } from '../domain/trade/types'
 import { useTradeStore, useStrategyRepo } from '../container/ContainerContext'
+import { localTodayIso, toLocalDateIso } from '../utils/dateOnly'
 import { PriceInput } from './PriceInput'
 import styles from './TradeEditModal.module.css'
 import formStyles from '../styles/forms.module.css'
@@ -42,15 +43,15 @@ export function TradeEditModal({ trade, mode, currentPrice, onClose }: TradeEdit
     stop_loss: trade.stopLoss.toNumber().toString(),
     take_profit: trade.takeProfit.toNumber().toString(),
     units: trade.units.toString(),
-    date_actual: new Date().toISOString().split('T')[0],
+    date_actual: localTodayIso(),
     exit_price: currentPrice != null ? currentPrice.toString() : '',
     exit_type: (currentPrice != null ? inferExitType(currentPrice) : 'sl') as ExitType,
-    exit_date: new Date().toISOString().split('T')[0],
+    exit_date: localTodayIso(),
     strategy_id: trade.strategyId?.toString() || '',
     cancel_reason: '' as CancelReason | '',
     order_type: (trade.orderType || '') as OrderType | '',
     time_in_effect: (trade.timeInEffect || '') as TimeInEffect | '',
-    gtd_date: trade.gtdDate ? trade.gtdDate.toISOString().split('T')[0] : '',
+    gtd_date: trade.gtdDate ? toLocalDateIso(trade.gtdDate) : '',
   })
 
   // Prefill exit_price/exit_type when the live price arrives after the modal mounts.

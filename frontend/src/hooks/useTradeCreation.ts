@@ -4,6 +4,7 @@ import type { Strategy } from '../domain/strategy/types'
 import type { Ticker } from '../domain/ticker/types'
 import { useTradeValidation } from './useTradeValidation'
 import { useTradeStore, useStrategyRepo, useTickerStore, useFundStore } from '../container/ContainerContext'
+import { localTodayIso } from '../utils/dateOnly'
 
 export interface ExitLevelInput {
   price: string
@@ -30,7 +31,7 @@ export function useTradeCreation(initialTicker?: string) {
     stop_loss: '',
     take_profit: '',
     units: '',
-    date_planned: new Date().toISOString().split('T')[0],
+    date_planned: localTodayIso(),
     strategy_id: '',
     auto_detect: false,
     order_type: '' as OrderType | '',
@@ -209,7 +210,7 @@ export function useTradeCreation(initialTicker?: string) {
       stop_loss: '',
       take_profit: '',
       units: '',
-      date_planned: new Date().toISOString().split('T')[0],
+      date_planned: localTodayIso(),
       strategy_id: '',
       auto_detect: false,
       order_type: '',

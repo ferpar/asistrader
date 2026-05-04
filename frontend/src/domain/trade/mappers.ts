@@ -1,4 +1,5 @@
 import { Decimal } from '../shared/Decimal'
+import { parseDateOnly } from '../../utils/dateOnly'
 import type {
   TradeDTO,
   ExitLevelDTO,
@@ -27,7 +28,7 @@ export function mapExitLevel(dto: ExitLevelDTO): ExitLevel {
     unitsPct: Decimal.from(dto.units_pct),
     orderIndex: dto.order_index,
     status: dto.status,
-    hitDate: dto.hit_date ? new Date(dto.hit_date) : null,
+    hitDate: dto.hit_date ? parseDateOnly(dto.hit_date) : null,
     unitsClosed: dto.units_closed,
     moveSlToBreakeven: dto.move_sl_to_breakeven,
   }
@@ -48,14 +49,14 @@ export function mapTrade(dto: TradeDTO): TradeWithMetrics {
     entryPrice: Decimal.from(dto.entry_price),
     stopLoss: Decimal.from(dto.stop_loss),
     takeProfit: Decimal.from(dto.take_profit),
-    datePlanned: new Date(dto.date_planned),
-    dateActual: dto.date_actual ? new Date(dto.date_actual) : null,
-    exitDate: dto.exit_date ? new Date(dto.exit_date) : null,
+    datePlanned: parseDateOnly(dto.date_planned),
+    dateActual: dto.date_actual ? parseDateOnly(dto.date_actual) : null,
+    exitDate: dto.exit_date ? parseDateOnly(dto.exit_date) : null,
     exitType: dto.exit_type,
     exitPrice: dto.exit_price !== null ? Decimal.from(dto.exit_price) : null,
     orderType: dto.order_type,
     timeInEffect: dto.time_in_effect,
-    gtdDate: dto.gtd_date ? new Date(dto.gtd_date) : null,
+    gtdDate: dto.gtd_date ? parseDateOnly(dto.gtd_date) : null,
     autoDetect: dto.auto_detect,
     isLayered: dto.is_layered,
     exitLevels: dto.exit_levels.map(mapExitLevel),

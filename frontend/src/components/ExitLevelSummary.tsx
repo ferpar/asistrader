@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import type { ExitLevel } from '../domain/trade/types'
 import type { TradeStatus } from '../types/trade'
 import { formatPrice } from '../utils/priceFormat'
+import { localTodayIso } from '../utils/dateOnly'
 import { PriceInput } from './PriceInput'
 import styles from './ExitLevelSummary.module.css'
 
@@ -20,7 +21,7 @@ export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units, trade
   // entryPrice is available for future use (e.g., calculating profit per level)
   void _entryPrice
   const [confirmingLevelId, setConfirmingLevelId] = useState<number | null>(null)
-  const [hitDate, setHitDate] = useState(new Date().toISOString().split('T')[0])
+  const [hitDate, setHitDate] = useState(localTodayIso())
   const [hitPrice, setHitPrice] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -53,7 +54,7 @@ export function ExitLevelSummary({ levels, entryPrice: _entryPrice, units, trade
 
   const handleStartConfirm = (level: ExitLevel) => {
     setConfirmingLevelId(level.id)
-    setHitDate(new Date().toISOString().split('T')[0])
+    setHitDate(localTodayIso())
     setHitPrice(level.price.toNumber().toString())
   }
 

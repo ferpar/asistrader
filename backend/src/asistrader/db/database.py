@@ -11,7 +11,11 @@ DATABASE_URL = os.getenv(
     "postgresql://asistrader:asistrader@localhost:5432/asistrader",
 )
 
-engine = create_engine(DATABASE_URL)
+# pool_pre_ping=True does a tiny `SELECT 1` before reusing a pooled connection,
+# so DB restarts, network blips, or PgBouncer idle-timeouts don't surface as
+# OperationalError on the next request. Tiny per-request cost, large
+# reliability gain.
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
