@@ -433,6 +433,7 @@ class SyncResponse(BaseModel):
     total_rows: int
     skipped: list[str]  # symbols that already had complete data
     errors: dict[str, str]
+    fx: "FxSyncResponse | None" = None  # populated when ticker sync also refreshed FX
 
 
 class BenchmarkSchema(BaseModel):
@@ -512,6 +513,41 @@ class BenchmarkSyncResponse(BaseModel):
     """Response schema for benchmark sync operation."""
 
     results: dict[str, int]
+    total_rows: int
+    skipped: list[str]
+    errors: dict[str, str]
+
+
+class FxRateSchema(BaseModel):
+    """Schema for a single FX rate row."""
+
+    currency: str
+    date: date
+    rate_to_usd: float
+
+    model_config = {"from_attributes": True}
+
+
+class FxRatesResponse(BaseModel):
+    """Response schema for FX rate history lookup."""
+
+    rates: dict[str, list[FxRateSchema]]  # currency -> rows
+
+
+class FxSyncRequest(BaseModel):
+    """Request schema for triggering an FX sync.
+
+    `currencies=None` means: derive from the user's tickers + base currency.
+    """
+
+    start_date: date
+    currencies: list[str] | None = None
+
+
+class FxSyncResponse(BaseModel):
+    """Response schema for FX sync operation."""
+
+    results: dict[str, int]  # currency -> rows fetched
     total_rows: int
     skipped: list[str]
     errors: dict[str, str]
@@ -696,6 +732,7 @@ class FundEventSchema(BaseModel):
     user_id: int
     event_type: FundEventType
     amount: float
+    currency: str
     description: str | None = None
     trade_id: int | None = None
     auto_detect: bool
@@ -717,6 +754,7 @@ class DepositRequest(BaseModel):
     """Request schema for depositing funds."""
 
     amount: float = Field(gt=0)
+    currency: str | None = None  # default = user's base
     description: str | None = None
     event_date: date | None = None
 
@@ -725,6 +763,7 @@ class WithdrawalRequest(BaseModel):
     """Request schema for withdrawing funds."""
 
     amount: float = Field(gt=0)
+    currency: str | None = None  # default = user's base
     description: str | None = None
     event_date: date | None = None
 
@@ -734,6 +773,7 @@ class ManualBenefitLossRequest(BaseModel):
 
     event_type: Literal["benefit", "loss"]
     amount: float = Field(gt=0)
+    currency: str | None = None  # default = user's base
     description: str | None = None
     trade_id: int | None = None
     event_date: date | None = None
@@ -747,12 +787,24 @@ class FundEventResponse(BaseModel):
 
 
 class RiskSettingsRequest(BaseModel):
-    """Request schema for updating risk settings."""
+    """Request schema for updating risk / fund settings.
 
-    risk_pct: float = Field(gt=0, le=1.0)
+    Both fields are optional so the same endpoint can update either or both.
+    """
+
+    risk_pct: float | None = Field(default=None, gt=0, le=1.0)
+    base_currency: str | None = None
 
 
 class RiskSettingsResponse(BaseModel):
-    """Response schema for risk settings."""
+    """Response schema for risk / fund settings."""
 
     risk_pct: float
+    base_currency: str
+
+
+class RepairCurrenciesResponse(BaseModel):
+    """Response schema for the repair-currencies endpoint."""
+
+    counts: dict[str, int]  # event_type -> rows repaired
+    total: int

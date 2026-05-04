@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from asistrader.api.auth import router as auth_router
 from asistrader.api.benchmarks import router as benchmarks_router
 from asistrader.api.fund import router as fund_router
+from asistrader.api.fx import router as fx_router
 from asistrader.api.market_data import router as market_data_router
 from asistrader.api.strategies import router as strategies_router
 from asistrader.api.tickers import router as tickers_router
@@ -33,6 +34,7 @@ app.include_router(tickers_router)
 app.include_router(strategies_router)
 app.include_router(market_data_router)
 app.include_router(benchmarks_router)
+app.include_router(fx_router)
 
 
 @app.get("/health")

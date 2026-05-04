@@ -16,8 +16,7 @@ function App() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      fundStore.loadEvents()
-      fundStore.loadRiskPct()
+      fundStore.loadSettings().then(() => fundStore.loadEvents())
     }
   }, [isAuthenticated, fundStore])
 

@@ -8,6 +8,8 @@ import { HttpTickerRepository } from '../domain/ticker/HttpTickerRepository'
 import { TickerStore } from '../domain/ticker/TickerStore'
 import { HttpFundRepository } from '../domain/fund/HttpFundRepository'
 import { FundStore } from '../domain/fund/FundStore'
+import { HttpFxRepository } from '../domain/fx/HttpFxRepository'
+import { FxStore } from '../domain/fx/FxStore'
 import { HttpRadarRepository } from '../domain/radar/HttpRadarRepository'
 import { RadarStore } from '../domain/radar/RadarStore'
 import { HttpBenchmarkRepository } from '../domain/benchmark/HttpBenchmarkRepository'
@@ -24,8 +26,10 @@ export function createAppContainer(): AppContainer {
   const marketDataRepo = new HttpMarketDataRepository(baseUrl, getAccessToken)
   const tickerRepo = new HttpTickerRepository(baseUrl, getAccessToken)
   const tickerStore = new TickerStore(tickerRepo)
+  const fxRepo = new HttpFxRepository(baseUrl, getAccessToken)
+  const fxStore = new FxStore(fxRepo)
   const fundRepo = new HttpFundRepository(baseUrl, getAccessToken)
-  const fundStore = new FundStore(fundRepo)
+  const fundStore = new FundStore(fundRepo, fxStore)
   const benchmarkRepo = new HttpBenchmarkRepository(baseUrl, getAccessToken)
   const benchmarkStore = new BenchmarkStore(benchmarkRepo)
   const radarRepo = new HttpRadarRepository(baseUrl, getAccessToken)
@@ -37,6 +41,7 @@ export function createAppContainer(): AppContainer {
     marketDataRepo,
     tickerStore,
     fundStore,
+    fxStore,
     radarStore,
     benchmarkStore,
   }

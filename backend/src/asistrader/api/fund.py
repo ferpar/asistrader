@@ -1,17 +1,23 @@
 """Fund management API endpoints."""
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
 from asistrader.models.db import FundEventType as DBFundEventType, User
+from asistrader.services import fx_service
+
+logger = logging.getLogger(__name__)
 from asistrader.models.schemas import (
     DepositRequest,
     FundEventListResponse,
     FundEventResponse,
     FundEventSchema,
     ManualBenefitLossRequest,
+    RepairCurrenciesResponse,
     RiskSettingsRequest,
     RiskSettingsResponse,
     WithdrawalRequest,
@@ -22,9 +28,12 @@ from asistrader.services.fund_service import (
     create_deposit,
     create_loss,
     create_withdrawal,
+    get_base_currency,
     get_fund_events,
     get_risk_pct,
     rebuild_events_from_trades,
+    repair_trade_event_currencies,
+    update_base_currency,
     update_risk_pct,
     void_event,
 )
@@ -42,6 +51,14 @@ def list_events(
     """List all fund events for the current user. Auto-fills gaps from trade history."""
     # Rebuild any missing events from trade history before returning
     rebuild_events_from_trades(db, current_user.id)
+
+    # Best-effort FX sync. Idempotent — gap detection means this is a no-op
+    # after the first run. Wrapped in try/except so a yfinance outage or
+    # network error doesn't break the events read.
+    try:
+        fx_service.ensure_rates_for_user(db, current_user.id)
+    except Exception as e:
+        logger.warning("FX auto-sync failed during list_events: %s", e)
 
     db_event_type = None
     if event_type:
@@ -73,12 +90,13 @@ def deposit(
         db,
         user_id=current_user.id,
         amount=request.amount,
+        currency=request.currency,
         description=request.description,
         event_date=request.event_date,
     )
     return FundEventResponse(
         event=FundEventSchema.model_validate(event),
-        message=f"Deposited {request.amount:.2f}",
+        message=f"Deposited {request.amount:.2f} {event.currency}",
     )
 
 
@@ -94,6 +112,7 @@ def withdrawal(
             db,
             user_id=current_user.id,
             amount=request.amount,
+            currency=request.currency,
             description=request.description,
             event_date=request.event_date,
         )
@@ -101,7 +120,7 @@ def withdrawal(
         raise HTTPException(status_code=400, detail=str(e))
     return FundEventResponse(
         event=FundEventSchema.model_validate(event),
-        message=f"Withdrew {request.amount:.2f}",
+        message=f"Withdrew {request.amount:.2f} {event.currency}",
     )
 
 
@@ -117,6 +136,7 @@ def manual_event(
             db,
             user_id=current_user.id,
             amount=request.amount,
+            currency=request.currency,
             trade_id=request.trade_id,
             description=request.description,
             event_date=request.event_date,
@@ -126,13 +146,14 @@ def manual_event(
             db,
             user_id=current_user.id,
             amount=request.amount,
+            currency=request.currency,
             trade_id=request.trade_id,
             description=request.description,
             event_date=request.event_date,
         )
     return FundEventResponse(
         event=FundEventSchema.model_validate(event),
-        message=f"Created {request.event_type} event for {request.amount:.2f}",
+        message=f"Created {request.event_type} event for {request.amount:.2f} {event.currency}",
     )
 
 
@@ -158,9 +179,25 @@ def get_settings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> RiskSettingsResponse:
-    """Get risk settings."""
-    risk_pct = get_risk_pct(db, current_user.id)
-    return RiskSettingsResponse(risk_pct=risk_pct)
+    """Get risk + fund settings."""
+    return RiskSettingsResponse(
+        risk_pct=get_risk_pct(db, current_user.id),
+        base_currency=get_base_currency(db, current_user.id),
+    )
+
+
+@router.post("/repair-currencies", response_model=RepairCurrenciesResponse)
+def repair_currencies(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> RepairCurrenciesResponse:
+    """Repair legacy fund events whose currency was defaulted to USD.
+
+    Syncs trade-linked events to their trade's ticker currency. Idempotent —
+    once events are correctly tagged, subsequent calls are no-ops.
+    """
+    counts = repair_trade_event_currencies(db, user_id=current_user.id)
+    return RepairCurrenciesResponse(counts=counts, total=sum(counts.values()))
 
 
 @router.patch("/settings", response_model=RiskSettingsResponse)
@@ -169,8 +206,14 @@ def update_settings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> RiskSettingsResponse:
-    """Update risk settings."""
-    risk_pct = update_risk_pct(db, current_user.id, request.risk_pct)
-    return RiskSettingsResponse(risk_pct=risk_pct)
+    """Update risk and/or base currency settings."""
+    if request.risk_pct is not None:
+        update_risk_pct(db, current_user.id, request.risk_pct)
+    if request.base_currency is not None:
+        update_base_currency(db, current_user.id, request.base_currency.upper())
+    return RiskSettingsResponse(
+        risk_pct=get_risk_pct(db, current_user.id),
+        base_currency=get_base_currency(db, current_user.id),
+    )
 
 

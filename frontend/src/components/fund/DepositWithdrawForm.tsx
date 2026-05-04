@@ -1,15 +1,25 @@
 import { useState } from 'react'
+import { observer } from '@legendapp/state/react'
 import { useFundStore } from '../../container/ContainerContext'
+import { SUPPORTED_CURRENCIES } from '../../domain/fx/currencies'
 import formStyles from '../../styles/forms.module.css'
 import styles from './DepositWithdrawForm.module.css'
 
-export function DepositWithdrawForm() {
+export const DepositWithdrawForm = observer(function DepositWithdrawForm() {
   const store = useFundStore()
+  const baseCurrency = store.baseCurrency$.get()
   const [amount, setAmount] = useState('')
+  const [currency, setCurrency] = useState<string>(baseCurrency)
   const [description, setDescription] = useState('')
   const [eventDate, setEventDate] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Re-sync the currency selector with the user's base if they switch it
+  // while no input is in flight.
+  if (!amount && currency !== baseCurrency && !submitting) {
+    setCurrency(baseCurrency)
+  }
 
   const handleSubmit = async (action: 'deposit' | 'withdrawal') => {
     const numAmount = parseFloat(amount)
@@ -22,6 +32,7 @@ export function DepositWithdrawForm() {
     try {
       const request = {
         amount: numAmount,
+        currency,
         description: description || undefined,
         event_date: eventDate || undefined,
       }
@@ -55,6 +66,18 @@ export function DepositWithdrawForm() {
             min="0"
             placeholder="0.00"
           />
+        </div>
+        <div className={formStyles.formGroup}>
+          <label htmlFor="fund-currency">Currency</label>
+          <select
+            id="fund-currency"
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+          >
+            {SUPPORTED_CURRENCIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
         </div>
         <div className={formStyles.formGroup}>
           <label htmlFor="fund-description">Description</label>
@@ -94,4 +117,4 @@ export function DepositWithdrawForm() {
       </div>
     </div>
   )
-}
+})

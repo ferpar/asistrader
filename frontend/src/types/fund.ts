@@ -5,6 +5,7 @@ export interface FundEventDTO {
   user_id: number
   event_type: FundEventType
   amount: number
+  currency: string
   description: string | null
   trade_id: number | null
   auto_detect: boolean
@@ -25,12 +26,14 @@ export interface FundEventResponseDTO {
 
 export interface DepositRequest {
   amount: number
+  currency?: string
   description?: string
   event_date?: string
 }
 
 export interface WithdrawalRequest {
   amount: number
+  currency?: string
   description?: string
   event_date?: string
 }
@@ -38,11 +41,18 @@ export interface WithdrawalRequest {
 export interface ManualEventRequest {
   event_type: 'benefit' | 'loss'
   amount: number
+  currency?: string
   description?: string
   trade_id?: number
   event_date?: string
 }
 
-export interface RiskSettingsDTO {
+export interface FundSettingsDTO {
   risk_pct: number
+  base_currency: string
+}
+
+export interface FundSettingsRequest {
+  risk_pct?: number
+  base_currency?: string
 }

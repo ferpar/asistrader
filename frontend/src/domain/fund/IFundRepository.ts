@@ -1,5 +1,11 @@
 import type { FundEvent } from './types'
-import type { DepositRequest, WithdrawalRequest, ManualEventRequest } from '../../types/fund'
+import type {
+  DepositRequest,
+  FundSettingsDTO,
+  FundSettingsRequest,
+  ManualEventRequest,
+  WithdrawalRequest,
+} from '../../types/fund'
 
 export interface IFundRepository {
   fetchEvents(includeVoided: boolean): Promise<FundEvent[]>
@@ -7,6 +13,6 @@ export interface IFundRepository {
   createWithdrawal(request: WithdrawalRequest): Promise<FundEvent>
   createManualEvent(request: ManualEventRequest): Promise<FundEvent>
   voidEvent(eventId: number): Promise<FundEvent>
-  fetchRiskPct(): Promise<number>
-  updateRiskPct(riskPct: number): Promise<number>
+  fetchSettings(): Promise<FundSettingsDTO>
+  updateSettings(request: FundSettingsRequest): Promise<FundSettingsDTO>
 }

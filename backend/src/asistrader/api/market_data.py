@@ -152,6 +152,7 @@ def sync_all_market_data(
         total_rows=result["total_rows"],
         skipped=result["skipped"],
         errors=result["errors"],
+        fx=result.get("fx"),
     )
 
 

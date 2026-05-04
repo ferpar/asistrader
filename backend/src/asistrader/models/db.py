@@ -384,6 +384,7 @@ class FundEvent(Base):
         nullable=False,
     )
     amount = Column(Float, nullable=False)  # Always positive; sign derived from event_type
+    currency = Column(String(3), nullable=False, default="USD", server_default="USD")
     description = Column(String, nullable=True)
     trade_id = Column(Integer, ForeignKey("trades.id"), nullable=True)
     auto_detect = Column(Boolean, default=False)
@@ -402,12 +403,35 @@ class FundEvent(Base):
 
 
 class UserFundSettings(Base):
-    """Per-user fund settings (risk percentage, etc.)."""
+    """Per-user fund settings (risk percentage, base/reporting currency)."""
 
     __tablename__ = "user_fund_settings"
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
     risk_pct = Column(Float, default=0.02)
+    base_currency = Column(
+        String(3), nullable=False, default="USD", server_default="USD"
+    )
 
     user_rel = relationship("User", back_populates="fund_settings")
+
+
+class FxRate(Base):
+    """Daily FX rate against USD.
+
+    Stored as `rate_to_usd`: 1 unit of `currency` = `rate_to_usd` USD on `date`.
+    Conversion A→B triangulates through USD.
+    """
+
+    __tablename__ = "fx_rates"
+
+    id = Column(Integer, primary_key=True)
+    currency = Column(String(3), nullable=False)
+    date = Column(Date, nullable=False)
+    rate_to_usd = Column(Float, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("currency", "date", name="uq_fx_rates_currency_date"),
+        Index("ix_fx_rates_currency_date", "currency", "date"),
+    )

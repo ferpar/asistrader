@@ -393,4 +393,32 @@ def sync_all(db: Session, start_date: date, symbols: list[str] | None = None) ->
             errors[symbol] = str(e)
             results[symbol] = 0
 
-    return {"results": results, "total_rows": total_rows, "skipped": skipped, "errors": errors}
+    # Piggyback FX sync on ticker refresh: gather currencies of the synced
+    # tickers and ensure their rate history is up to date. Local import to
+    # avoid a service-layer circular dependency.
+    from asistrader.services import fx_service
+
+    currencies = sorted(
+        {
+            c
+            for (c,) in db.query(Ticker.currency)
+            .filter(Ticker.symbol.in_(symbols), Ticker.currency.isnot(None))
+            .distinct()
+            .all()
+            if c
+        }
+    )
+    fx_result: dict = {"results": {}, "total_rows": 0, "skipped": [], "errors": {}}
+    if currencies:
+        try:
+            fx_result = fx_service.sync_fx_all(db, currencies, start_date)
+        except Exception as e:
+            fx_result["errors"]["__fx__"] = str(e)
+
+    return {
+        "results": results,
+        "total_rows": total_rows,
+        "skipped": skipped,
+        "errors": errors,
+        "fx": fx_result,
+    }

@@ -6,7 +6,8 @@ import type {
   ManualEventRequest,
   FundEventListResponseDTO,
   FundEventResponseDTO,
-  RiskSettingsDTO,
+  FundSettingsDTO,
+  FundSettingsRequest,
 } from '../../types/fund'
 import { mapFundEvent } from './mappers'
 import { buildHeaders } from '../shared/httpHelpers'
@@ -84,23 +85,21 @@ export class HttpFundRepository implements IFundRepository {
     return mapFundEvent(data.event)
   }
 
-  async fetchRiskPct(): Promise<number> {
+  async fetchSettings(): Promise<FundSettingsDTO> {
     const response = await fetch(`${this.baseUrl}/api/fund/settings`, {
       headers: buildHeaders(this.getToken),
     })
-    if (!response.ok) throw new Error('Failed to fetch risk settings')
-    const data: RiskSettingsDTO = await response.json()
-    return data.risk_pct
+    if (!response.ok) throw new Error('Failed to fetch fund settings')
+    return response.json()
   }
 
-  async updateRiskPct(riskPct: number): Promise<number> {
+  async updateSettings(request: FundSettingsRequest): Promise<FundSettingsDTO> {
     const response = await fetch(`${this.baseUrl}/api/fund/settings`, {
       method: 'PATCH',
       headers: buildHeaders(this.getToken, true),
-      body: JSON.stringify({ risk_pct: riskPct }),
+      body: JSON.stringify(request),
     })
-    if (!response.ok) throw new Error('Failed to update risk settings')
-    const data: RiskSettingsDTO = await response.json()
-    return data.risk_pct
+    if (!response.ok) throw new Error('Failed to update fund settings')
+    return response.json()
   }
 }

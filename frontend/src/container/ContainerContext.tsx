@@ -4,8 +4,15 @@ import { createAppContainer } from './AppContainer'
 
 const ContainerCtx = createContext<AppContainer | null>(null)
 
-export function ContainerProvider({ children }: { children: ReactNode }) {
-  const containerRef = useRef<AppContainer | null>(null)
+export function ContainerProvider({
+  children,
+  container,
+}: {
+  children: ReactNode
+  /** Inject a pre-built container — used by tests. */
+  container?: AppContainer
+}) {
+  const containerRef = useRef<AppContainer | null>(container ?? null)
   if (containerRef.current === null) {
     containerRef.current = createAppContainer()
   }
@@ -46,6 +53,10 @@ export function useTickerStore() {
 
 export function useFundStore() {
   return useContainer().fundStore
+}
+
+export function useFxStore() {
+  return useContainer().fxStore
 }
 
 export function useRadarStore() {

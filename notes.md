@@ -31,8 +31,8 @@ SMA - improvements:
 		(i.e. shortest is 2 points and each furthest one has half the porints) 
 
 fix auto trading
-	- disable temporarily
-	- build test harness
+	DONE - disable temporarily
+	DONE - build test harness
 		- first iteration: alerts only
 			- consider the first day data cannot be used to auto-trade
 				the low / high might have happenned before opening the trade
@@ -45,7 +45,6 @@ Exchange rates
 	on order as we 
 
 
-add name under the ticker symbol on edit open close etc... modals
 
 
 Una vez que una orden está "Close" podemos calcular el IRR/TIR de la siguiente forma: retorno €/Inversión € dividido entre los días entre Open y Close, multiplicado por 365... eso para cada ticker en cada operación, para un ticker con todas sus operaciones, y para toda la cartera...
@@ -179,3 +178,5 @@ DONE - find out how to get market data for INDEXES
 DONE - add regression coefficient and slope as part of the tiker card on the radar
 
 DONE - add option to unopen trades
+
+DONE - add name under the ticker symbol on edit open close etc... modals

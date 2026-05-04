@@ -201,10 +201,13 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
     if new_status and trade.user_id is not None:
         from asistrader.services.fund_service import check_trade_allowed
 
+        ticker_currency = (
+            trade.ticker_rel.currency if trade.ticker_rel else None
+        )
         if new_status == TradeStatus.ORDERED and current_status == TradeStatus.PLAN:
-            check_trade_allowed(db, trade.user_id, trade.amount)
+            check_trade_allowed(db, trade.user_id, trade.amount, trade_currency=ticker_currency)
         elif new_status == TradeStatus.OPEN and current_status == TradeStatus.PLAN:
-            check_trade_allowed(db, trade.user_id, trade.amount)
+            check_trade_allowed(db, trade.user_id, trade.amount, trade_currency=ticker_currency)
 
     # Apply updates
     for key, value in updates.items():
@@ -222,10 +225,23 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
     if new_status and trade.user_id is not None:
         from asistrader.services.fund_service import create_reserve, handle_trade_close, void_reserve_for_trade
 
+        ticker_currency_for_reserve = (
+            trade.ticker_rel.currency if trade.ticker_rel else None
+        )
         if new_status == TradeStatus.ORDERED and current_status == TradeStatus.PLAN:
-            create_reserve(db, trade.user_id, trade_id, trade.amount, auto_detect=trade.auto_detect)
+            create_reserve(
+                db, trade.user_id, trade_id, trade.amount,
+                auto_detect=trade.auto_detect,
+                currency=ticker_currency_for_reserve,
+                event_date=trade.date_planned,
+            )
         elif new_status == TradeStatus.OPEN and current_status == TradeStatus.PLAN:
-            create_reserve(db, trade.user_id, trade_id, trade.amount, auto_detect=trade.auto_detect)
+            create_reserve(
+                db, trade.user_id, trade_id, trade.amount,
+                auto_detect=trade.auto_detect,
+                currency=ticker_currency_for_reserve,
+                event_date=trade.date_actual or trade.date_planned,
+            )
         elif new_status == TradeStatus.PLAN and current_status == TradeStatus.ORDERED:
             void_reserve_for_trade(db, trade.user_id, trade_id)
         elif new_status == TradeStatus.CANCELED:

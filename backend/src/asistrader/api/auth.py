@@ -1,11 +1,16 @@
 """Authentication API endpoints."""
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
 from asistrader.models.db import User
+from asistrader.services import auto_sync_service
+
+logger = logging.getLogger(__name__)
 from asistrader.models.schemas import (
     AccessTokenResponse,
     AuthResponse,
@@ -116,10 +121,24 @@ def logout(request: LogoutRequest, db: Session = Depends(get_db)) -> MessageResp
 
 
 @router.get("/me", response_model=UserSchema)
-def get_me(current_user: User = Depends(get_current_user)) -> UserSchema:
+def get_me(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UserSchema:
     """
     Get the current authenticated user's info.
 
     Requires a valid access token in the Authorization header.
+
+    Side effect: triggers a best-effort sync of the user's FX rates, ticker
+    market data, and benchmark market data. Each downstream sync uses gap
+    detection — yfinance is only called when there's a real gap, so calling
+    /me on every session start is essentially free.
     """
+    try:
+        auto_sync_service.ensure_user_data_fresh(db, current_user.id)
+    except Exception as e:
+        # Top-level safety net: even if auto_sync_service somehow leaks an
+        # exception, /me must still return the user.
+        logger.warning("Auto-sync wrapper failed for user %s: %s", current_user.id, e)
     return UserSchema.model_validate(current_user)

@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { observer } from '@legendapp/state/react'
 import { useFundStore } from '../../container/ContainerContext'
+import { SUPPORTED_CURRENCIES } from '../../domain/fx/currencies'
 import styles from './RiskSettings.module.css'
 
 export const RiskSettings = observer(function RiskSettings() {
   const store = useFundStore()
   const currentPct = store.riskPct$.get().toNumber()
+  const baseCurrency = store.baseCurrency$.get()
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
 
@@ -25,6 +27,10 @@ export const RiskSettings = observer(function RiskSettings() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSave()
     if (e.key === 'Escape') setEditing(false)
+  }
+
+  const handleBaseCurrencyChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    await store.updateBaseCurrency(e.target.value)
   }
 
   return (
@@ -51,6 +57,17 @@ export const RiskSettings = observer(function RiskSettings() {
           {(currentPct * 100).toFixed(1)}%
         </button>
       )}
+
+      <span className={styles.label}>Base currency:</span>
+      <select
+        value={baseCurrency}
+        onChange={handleBaseCurrencyChange}
+        className={styles.select}
+      >
+        {SUPPORTED_CURRENCIES.map((c) => (
+          <option key={c} value={c}>{c}</option>
+        ))}
+      </select>
     </div>
   )
 })

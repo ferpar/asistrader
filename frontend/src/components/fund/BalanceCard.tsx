@@ -7,7 +7,7 @@ export const BalanceCard = observer(function BalanceCard() {
   const balance = store.balance$.get()
 
   const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: balance.baseCurrency }).format(value)
 
   const formatPercent = (value: number) =>
     new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value)

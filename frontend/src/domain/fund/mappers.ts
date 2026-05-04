@@ -8,6 +8,7 @@ export function mapFundEvent(dto: FundEventDTO): FundEvent {
     userId: dto.user_id,
     eventType: dto.event_type,
     amount: Decimal.from(dto.amount),
+    currency: dto.currency,
     description: dto.description,
     tradeId: dto.trade_id,
     autoDetect: dto.auto_detect,

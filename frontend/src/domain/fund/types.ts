@@ -8,6 +8,7 @@ export interface FundEvent {
   userId: number
   eventType: FundEventType
   amount: Decimal
+  currency: string
   description: string | null
   tradeId: number | null
   autoDetect: boolean
@@ -22,4 +23,5 @@ export interface BalanceSummary {
   available: Decimal
   maxPerTrade: Decimal
   riskPct: Decimal
+  baseCurrency: string
 }
