@@ -124,9 +124,12 @@ def get_ticker_price(symbol: str) -> TickerPriceResponse:
 
 
 @router.post("/prices", response_model=BatchPriceResponse)
-def get_batch_prices_endpoint(request: BatchPriceRequest) -> BatchPriceResponse:
-    """Get current prices for multiple tickers in one call."""
-    results = get_batch_prices(request.symbols)
+def get_batch_prices_endpoint(
+    request: BatchPriceRequest,
+    db: Session = Depends(get_db),
+) -> BatchPriceResponse:
+    """Get current prices for multiple tickers in one yfinance call."""
+    results = get_batch_prices(request.symbols, db=db)
     prices = {
         symbol: PriceData(
             price=data["price"],

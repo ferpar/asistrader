@@ -1,6 +1,8 @@
 """Ticker business logic service."""
 
 import logging
+import threading
+import time
 
 import yfinance as yf
 from sqlalchemy.orm import Session
@@ -8,6 +10,44 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 from asistrader.models.db import Ticker
+
+
+# ── Batch-price scaling ──
+#
+# yfinance's `yf.download(symbols, threads=True)` is *parallel HTTP*, not a
+# truly-batched URL call. With 50+ symbols Yahoo rate-limits aggressively, so
+# we chunk the request and cache results briefly to keep navigation snappy.
+PRICE_CHUNK_SIZE = 30
+PRICE_CACHE_TTL_SECONDS = 60
+
+_PRICE_CACHE: dict[str, tuple[float, dict]] = {}  # symbol → (expires_at, result)
+_PRICE_CACHE_LOCK = threading.Lock()
+
+
+def _cache_get(symbol: str) -> dict | None:
+    with _PRICE_CACHE_LOCK:
+        entry = _PRICE_CACHE.get(symbol)
+        if entry is None:
+            return None
+        expires_at, result = entry
+        if time.monotonic() >= expires_at:
+            _PRICE_CACHE.pop(symbol, None)
+            return None
+        return result
+
+
+def _cache_put(symbol: str, result: dict) -> None:
+    with _PRICE_CACHE_LOCK:
+        _PRICE_CACHE[symbol] = (
+            time.monotonic() + PRICE_CACHE_TTL_SECONDS,
+            result,
+        )
+
+
+def _clear_price_cache() -> None:
+    """Test helper — wipe the in-process cache."""
+    with _PRICE_CACHE_LOCK:
+        _PRICE_CACHE.clear()
 
 
 class TickerExistsError(Exception):
@@ -164,16 +204,119 @@ def get_current_price(symbol: str) -> dict:
         return {"price": None, "currency": None, "valid": False}
 
 
-def get_batch_prices(symbols: list[str]) -> dict[str, dict]:
+def _fetch_chunk(
+    symbols: list[str], currencies: dict[str, str | None]
+) -> dict[str, dict]:
+    """Fetch one chunk via yf.download. Returns per-symbol result dicts."""
+    out: dict[str, dict] = {
+        sym: {"price": None, "currency": None, "valid": False} for sym in symbols
+    }
+    try:
+        df = yf.download(
+            tickers=symbols,
+            period="1d",
+            progress=False,
+            group_by="ticker",
+            auto_adjust=False,
+            threads=True,
+        )
+    except Exception:
+        logger.exception("Batch yfinance download failed for %s", symbols)
+        return out
+
+    if df is None or df.empty:
+        return out
+
+    for sym in symbols:
+        try:
+            # >1 ticker → MultiIndex columns. =1 ticker → flat OHLCV.
+            if len(symbols) > 1:
+                if sym not in df.columns.get_level_values(0):
+                    continue
+                sub = df[sym]
+            else:
+                sub = df
+            close_series = sub["Close"].dropna()
+            if close_series.empty:
+                continue
+            last_price = float(close_series.iloc[-1])
+            currency = currencies.get(sym)
+            if currency is None:
+                # Rare: ticker not in our DB. Pay one fast_info round-trip.
+                try:
+                    currency = yf.Ticker(sym).fast_info.get("currency")
+                except Exception:
+                    currency = None
+            out[sym] = {"price": last_price, "currency": currency, "valid": True}
+        except Exception:
+            logger.exception("Failed to extract batch price for %s", sym)
+
+    return out
+
+
+def get_batch_prices(
+    symbols: list[str], db: Session | None = None
+) -> dict[str, dict]:
     """Get current prices for multiple tickers.
 
-    Args:
-        symbols: List of ticker symbols
+    Uses `yf.download(period="1d")` which is yfinance's parallel-fetch path
+    (one HTTP request per symbol, but fired concurrently via threads). To
+    avoid swamping Yahoo's rate limiter at scale, the symbol list is split
+    into chunks of `PRICE_CHUNK_SIZE`, processed sequentially. Each result
+    is cached for `PRICE_CACHE_TTL_SECONDS`, so a flurry of /prices calls
+    during navigation only pays the network cost once.
 
-    Returns:
-        dict mapping symbol to price data (price, currency, valid)
+    Currency is sourced from the local `tickers` table when `db` is provided
+    (avoids a per-symbol metadata round-trip). For symbols not in the DB,
+    falls back to fetching currency individually via fast_info.
+
+    Returns dict mapping `symbol.upper()` to {price, currency, valid}.
+    Symbols that don't appear in the yfinance response are returned with
+    valid=False rather than dropped.
     """
-    results = {}
-    for symbol in symbols:
-        results[symbol.upper()] = get_current_price(symbol)
+    if not symbols:
+        return {}
+
+    upper_symbols = [s.upper() for s in symbols]
+    results: dict[str, dict] = {}
+
+    # Serve cached entries; collect the rest for fetching.
+    to_fetch: list[str] = []
+    for sym in upper_symbols:
+        cached = _cache_get(sym)
+        if cached is not None:
+            results[sym] = cached
+        else:
+            to_fetch.append(sym)
+
+    if not to_fetch:
+        return results
+
+    # Look up currencies once for the to-fetch set.
+    currencies: dict[str, str | None] = {}
+    if db is not None:
+        rows = (
+            db.query(Ticker.symbol, Ticker.currency)
+            .filter(Ticker.symbol.in_(to_fetch))
+            .all()
+        )
+        currencies = {sym: ccy for sym, ccy in rows}
+
+    # Chunked fetches keep concurrent yfinance requests bounded.
+    for start in range(0, len(to_fetch), PRICE_CHUNK_SIZE):
+        chunk = to_fetch[start : start + PRICE_CHUNK_SIZE]
+        chunk_result = _fetch_chunk(chunk, currencies)
+        for sym, data in chunk_result.items():
+            results[sym] = data
+            if data["valid"]:
+                # Only cache valid responses; invalid ones (e.g. transient
+                # Yahoo errors) should be retried on the next call.
+                _cache_put(sym, data)
+
+    # Fill any remaining slots so the caller sees every requested symbol.
+    for sym in upper_symbols:
+        results.setdefault(
+            sym, {"price": None, "currency": None, "valid": False}
+        )
+
     return results
