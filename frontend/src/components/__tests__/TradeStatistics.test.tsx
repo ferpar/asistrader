@@ -20,6 +20,9 @@ const stubFxRepo: IFxRepository = {
   async getHistory() {
     return {}
   },
+  async sync() {
+    return { results: {}, total_rows: 0, skipped: [], errors: {} }
+  },
 }
 
 const stubFundRepo: IFundRepository = {

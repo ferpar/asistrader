@@ -1,7 +1,6 @@
 Radar Presets
 	Ex: Flat View Clsest to TP and Drift Behing
 
-
 TIR/IRR:
 	- new tab
 	- two similar sections: realized and un-realized 
@@ -20,9 +19,9 @@ TIR/IRR:
 			we may ponder-average the elapsed times
 		- enhanced**:
 			it attempts to cover for the fact that there's a lot more immobilized than what was resolved in the closed trades. So, it takes the total invested amount (the full immovilized) divides it between the number of ordered and open trades, this quantity is then multiplied by the number of closed trades in the day and added to the invested amount in those closed trades of the day.
-
 		- it is wanted to have a view for the winners, losers and mixed for the annualized daily, not the enhanced
 
+Una vez que una orden está "Close" podemos calcular el IRR/TIR de la siguiente forma: retorno €/Inversión € dividido entre los días entre Open y Close, multiplicado por 365... eso para cada ticker en cada operación, para un ticker con todas sus operaciones, y para toda la cartera...
 
 SMA - improvements:
 	- combinatory score (how many averages below bullish for each of the averages)
@@ -30,31 +29,14 @@ SMA - improvements:
 	- pondered average rating to measure how close the averages are to the price
 		(i.e. shortest is 2 points and each furthest one has half the porints) 
 
-fix auto trading
-	DONE - disable temporarily
-	DONE - build test harness
-		- first iteration: alerts only
-			- consider the first day data cannot be used to auto-trade
-				the low / high might have happenned before opening the trade
-		- alert and offer one-click action
-auto trading complete version
-	- final iteration: auto open, and close
-
-Exchange rates
-	aggregate realized and unrealized, and update fund management to handle rate changes
-	on order as we 
-
-
-
-
-Una vez que una orden está "Close" podemos calcular el IRR/TIR de la siguiente forma: retorno €/Inversión € dividido entre los días entre Open y Close, multiplicado por 365... eso para cada ticker en cada operación, para un ticker con todas sus operaciones, y para toda la cartera...
-
-
 radar screen with 
- macro indicators
+	- permanent list of indexes
+ 	- macro indicators
+
+auto trading complete version
+	- alert and offer one-click action
+	- final iteration: auto open, and close
 	
-find a way to automatically update the tickers data
-	- send request on every frontend run?
 
 strategies / techniques
 	ability for selecting multiple strategies
@@ -180,3 +162,15 @@ DONE - add regression coefficient and slope as part of the tiker card on the rad
 DONE - add option to unopen trades
 
 DONE - add name under the ticker symbol on edit open close etc... modals
+
+DONE - Exchange rates - aggregate realized and unrealized, and update fund management to handle rate changes
+
+DONE - fix auto trading
+	DONE - disable temporarily
+	DONE - build test harness
+		DONE - first iteration: alerts only
+			DONE - consider the first day data cannot be used to auto-trade
+				the low / high might have happenned before opening the trade
+
+DONE - find a way to automatically update the tickers data
+	DONE - send request on every frontend run?

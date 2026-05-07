@@ -6,12 +6,17 @@ import { FxStore } from '../FxStore'
 
 class StubFxRepo implements IFxRepository {
   public calls: string[][] = []
+  public syncCalls: string[][] = []
   constructor(private readonly data: Record<string, FxRate[]>) {}
   async getHistory(currencies: string[]): Promise<Record<string, FxRate[]>> {
     this.calls.push([...currencies])
     const out: Record<string, FxRate[]> = {}
     for (const c of currencies) out[c] = this.data[c] ?? []
     return out
+  }
+  async sync(currencies: string[]) {
+    this.syncCalls.push([...currencies])
+    return { results: {}, total_rows: 0, skipped: [], errors: {} }
   }
 }
 
@@ -158,7 +163,7 @@ describe('FxStore.loadHistory', () => {
       }
       return out
     })
-    const store = new FxStore({ getHistory: spy } as IFxRepository)
+    const store = new FxStore({ getHistory: spy, sync: vi.fn() } as unknown as IFxRepository)
     await store.loadHistory(['EUR'])
     await store.loadHistory(['EUR'])
     expect(spy).toHaveBeenCalledTimes(2)

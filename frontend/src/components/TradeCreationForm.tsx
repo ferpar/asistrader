@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { observer } from '@legendapp/state/react'
 import { TickerSearchInput } from './TickerSearchInput'
 import { PriceInput } from './PriceInput'
 import { useTradeCreation } from '../hooks/useTradeCreation'
@@ -13,7 +14,7 @@ interface TradeCreationFormProps {
   initialTicker?: string
 }
 
-export function TradeCreationForm({ onClose, initialTicker }: TradeCreationFormProps) {
+export const TradeCreationForm = observer(function TradeCreationForm({ onClose, initialTicker }: TradeCreationFormProps) {
   const {
     formData,
     layeredMode,
@@ -50,6 +51,12 @@ export function TradeCreationForm({ onClose, initialTicker }: TradeCreationFormP
   const selectedTicker = tickers.find((t) => t.symbol === formData.ticker) ?? null
   const formatCurrency = (value: number) =>
     formatPrice(value, selectedTicker?.currency, selectedTicker?.priceHint)
+
+  // Base-currency formatter uses 2 decimals (typical for reporting currency).
+  const formatBaseCurrency = (value: number) =>
+    formatPrice(value, preview.baseCurrency, 2)
+
+  const showBaseCurrencyPreview = preview.tickerCurrency !== preview.baseCurrency
 
   const formatPercent = (value: number) =>
     new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value)
@@ -270,14 +277,32 @@ export function TradeCreationForm({ onClose, initialTicker }: TradeCreationFormP
             )}
 
             <div className={styles.formPreview}>
-              <div className={styles.previewItem}><span>Amount:</span><span>{formatCurrency(preview.amount)}</span></div>
+              <div className={styles.previewItem}>
+                <span>Amount:</span>
+                <span className={styles.previewValue}>
+                  {formatCurrency(preview.amount)}
+                  {showBaseCurrencyPreview && preview.amountInBase !== null && (
+                    <span className={styles.previewBaseCurrency}>≈ {formatBaseCurrency(preview.amountInBase)}</span>
+                  )}
+                </span>
+              </div>
               <div className={styles.previewItem}>
                 <span>Risk:</span>
-                <span className={preview.riskAbs < 0 ? 'negative' : 'positive'}>{formatCurrency(preview.riskAbs)} ({formatPercent(preview.riskPct)})</span>
+                <span className={`${styles.previewValue} ${preview.riskAbs < 0 ? 'negative' : 'positive'}`}>
+                  {formatCurrency(preview.riskAbs)} ({formatPercent(preview.riskPct)})
+                  {showBaseCurrencyPreview && preview.riskAbsInBase !== null && (
+                    <span className={styles.previewBaseCurrency}>≈ {formatBaseCurrency(preview.riskAbsInBase)}</span>
+                  )}
+                </span>
               </div>
               <div className={styles.previewItem}>
                 <span>Profit:</span>
-                <span className={preview.profitAbs > 0 ? 'positive' : 'negative'}>{formatCurrency(preview.profitAbs)} ({formatPercent(preview.profitPct)})</span>
+                <span className={`${styles.previewValue} ${preview.profitAbs > 0 ? 'positive' : 'negative'}`}>
+                  {formatCurrency(preview.profitAbs)} ({formatPercent(preview.profitPct)})
+                  {showBaseCurrencyPreview && preview.profitAbsInBase !== null && (
+                    <span className={styles.previewBaseCurrency}>≈ {formatBaseCurrency(preview.profitAbsInBase)}</span>
+                  )}
+                </span>
               </div>
               <div className={styles.previewItem}><span>Ratio:</span><span>{preview.ratio.toFixed(2)}</span></div>
               <div className={styles.previewItem}>
@@ -299,4 +324,4 @@ export function TradeCreationForm({ onClose, initialTicker }: TradeCreationFormP
   )
 
   return createPortal(modalContent, document.body)
-}
+})

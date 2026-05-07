@@ -13,6 +13,9 @@ class StubFxRepo implements IFxRepository {
     for (const c of currencies) out[c] = this.data[c] ?? []
     return out
   }
+  async sync() {
+    return { results: {}, total_rows: 0, skipped: [], errors: {} }
+  }
 }
 
 const D = (n: number | string) => Decimal.from(n)

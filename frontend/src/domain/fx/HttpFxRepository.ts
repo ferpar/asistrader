@@ -1,7 +1,7 @@
 import { Decimal } from '../shared/Decimal'
 import { buildHeaders } from '../shared/httpHelpers'
 import { parseDateOnly, toLocalDateIso } from '../../utils/dateOnly'
-import type { FxRatesResponseDTO } from '../../types/fx'
+import type { FxRatesResponseDTO, FxSyncResponseDTO } from '../../types/fx'
 import type { IFxRepository } from './IFxRepository'
 import type { FxRate } from './types'
 
@@ -36,5 +36,18 @@ export class HttpFxRepository implements IFxRepository {
       }))
     }
     return out
+  }
+
+  async sync(currencies: string[], startDate: Date): Promise<FxSyncResponseDTO> {
+    const response = await fetch(`${this.baseUrl}/api/fx/sync`, {
+      method: 'POST',
+      headers: { ...buildHeaders(this.getToken), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        currencies,
+        start_date: toLocalDateIso(startDate),
+      }),
+    })
+    if (!response.ok) throw new Error(`Failed to sync FX rates: ${response.statusText}`)
+    return await response.json()
   }
 }

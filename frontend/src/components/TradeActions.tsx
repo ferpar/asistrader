@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { observer } from '@legendapp/state/react'
 import type { TradeWithMetrics } from '../domain/trade/types'
 import { TradeEditModal, EditMode } from './TradeEditModal'
-import { useTradeStore, useFundStore } from '../container/ContainerContext'
+import { useTradeStore, useFundStore, useFxStore } from '../container/ContainerContext'
 import styles from './TradeActions.module.css'
 
 interface TradeActionsProps {
@@ -13,6 +13,7 @@ interface TradeActionsProps {
 export const TradeActions = observer(function TradeActions({ trade, currentPrice }: TradeActionsProps) {
   const tradeStore = useTradeStore()
   const fundStore = useFundStore()
+  const fxStore = useFxStore()
   const [editingMode, setEditingMode] = useState<EditMode | null>(null)
 
   const openModal = (mode: EditMode) => setEditingMode(mode)
@@ -21,19 +22,40 @@ export const TradeActions = observer(function TradeActions({ trade, currentPrice
     fundStore.loadEvents()
   }
 
+  // Returns the trade amount converted to base currency, or null if FX is unavailable
+  // (in which case an alert has already fired). The pre-flight here mirrors the backend's
+  // check_trade_allowed: amounts in ticker currency must be converted before comparing
+  // against maxPerTrade / available, which are in base.
+  const tradeAmountInBase = (): { amountInBase: number; baseCurrency: string } | null => {
+    const baseCurrency = fundStore.baseCurrency$.get()
+    const tickerCurrency = trade.tickerCurrency ?? baseCurrency
+    try {
+      const converted = fxStore.convert(trade.amount, tickerCurrency, baseCurrency, new Date())
+      return { amountInBase: converted.toNumber(), baseCurrency }
+    } catch {
+      alert(
+        `FX rate for ${tickerCurrency}/${baseCurrency} is not available. ` +
+        `Refresh tickers to sync FX rates, then try again.`,
+      )
+      return null
+    }
+  }
+
   const checkFundsAndOrder = async () => {
     const balance = fundStore.balance$.get()
     if (balance === null) {
       alert('Balance is still loading. Please try again in a moment.')
       return
     }
-    const amount = trade.amount.toNumber()
-    if (amount > balance.maxPerTrade.toNumber()) {
-      alert(`Trade amount $${amount.toFixed(2)} exceeds max per trade $${balance.maxPerTrade.toFixed(2)}`)
+    const converted = tradeAmountInBase()
+    if (converted === null) return
+    const { amountInBase, baseCurrency } = converted
+    if (amountInBase > balance.maxPerTrade.toNumber()) {
+      alert(`Trade amount ${amountInBase.toFixed(2)} ${baseCurrency} exceeds max per trade ${balance.maxPerTrade.toFixed(2)} ${baseCurrency}`)
       return
     }
-    if (amount > balance.available.toNumber()) {
-      alert(`Trade amount $${amount.toFixed(2)} exceeds available funds $${balance.available.toFixed(2)}`)
+    if (amountInBase > balance.available.toNumber()) {
+      alert(`Trade amount ${amountInBase.toFixed(2)} ${baseCurrency} exceeds available funds ${balance.available.toFixed(2)} ${baseCurrency}`)
       return
     }
     await tradeStore.updateTrade(trade.id, { status: 'ordered' })
@@ -46,13 +68,15 @@ export const TradeActions = observer(function TradeActions({ trade, currentPrice
       alert('Balance is still loading. Please try again in a moment.')
       return
     }
-    const amount = trade.amount.toNumber()
-    if (amount > balance.maxPerTrade.toNumber()) {
-      alert(`Trade amount $${amount.toFixed(2)} exceeds max per trade $${balance.maxPerTrade.toFixed(2)}`)
+    const converted = tradeAmountInBase()
+    if (converted === null) return
+    const { amountInBase, baseCurrency } = converted
+    if (amountInBase > balance.maxPerTrade.toNumber()) {
+      alert(`Trade amount ${amountInBase.toFixed(2)} ${baseCurrency} exceeds max per trade ${balance.maxPerTrade.toFixed(2)} ${baseCurrency}`)
       return
     }
-    if (amount > balance.available.toNumber()) {
-      alert(`Trade amount $${amount.toFixed(2)} exceeds available funds $${balance.available.toFixed(2)}`)
+    if (amountInBase > balance.available.toNumber()) {
+      alert(`Trade amount ${amountInBase.toFixed(2)} ${baseCurrency} exceeds available funds ${balance.available.toFixed(2)} ${baseCurrency}`)
       return
     }
     openModal('open')

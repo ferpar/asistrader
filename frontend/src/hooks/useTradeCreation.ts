@@ -3,8 +3,9 @@ import { TradeCreateRequest, ExitLevelCreateRequest, OrderType, TimeInEffect } f
 import type { Strategy } from '../domain/strategy/types'
 import type { Ticker } from '../domain/ticker/types'
 import { useTradeValidation } from './useTradeValidation'
-import { useTradeStore, useStrategyRepo, useTickerStore, useFundStore } from '../container/ContainerContext'
+import { useTradeStore, useStrategyRepo, useTickerStore, useFundStore, useFxStore } from '../container/ContainerContext'
 import { localTodayIso } from '../utils/dateOnly'
+import { Decimal } from '../domain/shared/Decimal'
 
 export interface ExitLevelInput {
   price: string
@@ -17,6 +18,7 @@ export function useTradeCreation(initialTicker?: string) {
   const strategyRepo = useStrategyRepo()
   const tickerStore = useTickerStore()
   const fundStore = useFundStore()
+  const fxStore = useFxStore()
   const [tickers, setTickers] = useState<Ticker[]>([])
   const [strategies, setStrategies] = useState<Strategy[]>([])
   const [loadingTickers, setLoadingTickers] = useState(true)
@@ -88,6 +90,28 @@ export function useTradeCreation(initialTicker?: string) {
     loadCurrentPrice(formData.ticker)
   }, [formData.ticker, loadCurrentPrice])
 
+  // Ensure FX rates for the selected ticker's currency AND the user's base
+  // are loaded — both legs are needed since FxStore.convert triangulates via
+  // USD (rate_to_usd[from] / rate_to_usd[to]). FundStore only loads FX for
+  // currencies seen in existing fund events, and the on-login auto-sync only
+  // covers currencies of *traded* tickers — so a brand-new currency (e.g.
+  // GBp before the first Rolls Royce trade) needs an explicit fetch + sync.
+  // `ensureLoaded` is a no-op if rates are already cached.
+  useEffect(() => {
+    const ticker = tickers.find(t => t.symbol === formData.ticker)
+    if (!ticker?.currency) return
+    const baseCurrency = fundStore.baseCurrency$.get()
+    fxStore.ensureLoaded(ticker.currency)
+    if (baseCurrency !== ticker.currency) fxStore.ensureLoaded(baseCurrency)
+  }, [formData.ticker, tickers, fxStore, fundStore])
+
+  // Subscribe to FX cache state so the form (wrapped in `observer`) re-renders
+  // — and the memos below re-run — once the per-ticker rate finishes loading.
+  // `loading$` flips on every load (true→false), which `loaded$` doesn't after
+  // the initial hydration.
+  const fxLoading = fxStore.loading$.get()
+  const fxLoaded = fxStore.loaded$.get()
+
   const preview = useMemo(() => {
     const entryPrice = parseFloat(formData.entry_price) || 0
     const units = parseInt(formData.units) || 0
@@ -118,8 +142,34 @@ export function useTradeCreation(initialTicker?: string) {
     const profitPct = amount !== 0 ? profitAbs / amount : 0
     const ratio = riskAbs !== 0 ? -profitAbs / riskAbs : 0
 
-    return { amount, riskAbs, profitAbs, riskPct, profitPct, ratio }
-  }, [formData.entry_price, formData.stop_loss, formData.take_profit, formData.units, layeredMode, tpLevels])
+    // Base-currency conversions for the preview. Null when ticker currency
+    // matches base, or when FX rates aren't loaded yet.
+    const baseCurrency = fundStore.baseCurrency$.get()
+    const tickerCurrency = tickers.find(t => t.symbol === formData.ticker)?.currency ?? baseCurrency
+    let amountInBase: number | null = null
+    let riskAbsInBase: number | null = null
+    let profitAbsInBase: number | null = null
+    if (tickerCurrency !== baseCurrency) {
+      try {
+        const today = new Date()
+        amountInBase = fxStore.convert(Decimal.from(amount), tickerCurrency, baseCurrency, today).toNumber()
+        riskAbsInBase = fxStore.convert(Decimal.from(riskAbs), tickerCurrency, baseCurrency, today).toNumber()
+        profitAbsInBase = fxStore.convert(Decimal.from(profitAbs), tickerCurrency, baseCurrency, today).toNumber()
+      } catch {
+        // FX not yet loaded — leave nulls; UI hides the secondary line.
+      }
+    }
+
+    return {
+      amount, riskAbs, profitAbs, riskPct, profitPct, ratio,
+      amountInBase, riskAbsInBase, profitAbsInBase,
+      baseCurrency, tickerCurrency,
+    }
+  }, [
+    formData.entry_price, formData.stop_loss, formData.take_profit, formData.units,
+    formData.ticker, layeredMode, tpLevels, tickers, fundStore, fxStore,
+    fxLoaded, fxLoading,
+  ])
 
   const exitLevelsForValidation = useMemo((): ExitLevelCreateRequest[] | undefined => {
     if (!layeredMode) return undefined
@@ -180,11 +230,21 @@ export function useTradeCreation(initialTicker?: string) {
     if (entryPrice <= 0) return null
     const balance = fundStore.balance$.get()
     if (balance === null) return null
-    const maxPerTrade = balance.maxPerTrade.toNumber()
-    if (maxPerTrade <= 0) return null
-    const units = Math.floor(maxPerTrade / entryPrice)
+    const maxPerTrade = balance.maxPerTrade
+    if (!maxPerTrade.isPositive()) return null
+    // entryPrice is in the ticker's currency (e.g. GBp pence); maxPerTrade is in the
+    // user's base currency. Convert to the ticker's currency before dividing.
+    const baseCurrency = fundStore.baseCurrency$.get()
+    const tickerCurrency = tickers.find(t => t.symbol === formData.ticker)?.currency ?? baseCurrency
+    let maxPerTradeInTickerCcy: Decimal
+    try {
+      maxPerTradeInTickerCcy = fxStore.convert(maxPerTrade, baseCurrency, tickerCurrency, new Date())
+    } catch {
+      return null
+    }
+    const units = Math.floor(maxPerTradeInTickerCcy.toNumber() / entryPrice)
     return units > 0 ? units : null
-  }, [formData.entry_price, fundStore])
+  }, [formData.entry_price, formData.ticker, tickers, fundStore, fxStore, fxLoaded, fxLoading])
 
   const applySuggestedUnits = () => {
     if (suggestedUnits !== null) {

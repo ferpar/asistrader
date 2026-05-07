@@ -148,6 +148,18 @@
   font-weight: 500;
 }
 
+.previewValue {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.previewBaseCurrency {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
 @media (max-width: 600px) {
   .modal {
     width: 100%;

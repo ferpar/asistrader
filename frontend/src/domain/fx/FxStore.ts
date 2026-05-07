@@ -63,6 +63,31 @@ export class FxStore {
   constructor(private readonly repo: IFxRepository) {}
 
   /**
+   * Ensure rates exist for the given currency. If the local cache has any
+   * data, this is a fast no-op. Otherwise asks the backend to sync from
+   * yfinance, then loads. Use this when a currency hasn't been used before
+   * (e.g. picking a ticker in a brand-new currency in the trade-creation
+   * form, before any trade exists for the on-login auto-sync to find).
+   *
+   * `lookbackDays` controls how far back to seed history — default 365 days
+   * covers historical event computations and is gap-detected on the server.
+   */
+  async ensureLoaded(currency: string, lookbackDays: number = 365): Promise<void> {
+    const [canonical] = normalizeCurrency(currency)
+    if (canonical === 'USD') return
+    if ((this.sortedDates.get(canonical)?.length ?? 0) > 0) return
+    const since = new Date()
+    since.setDate(since.getDate() - lookbackDays)
+    try {
+      await this.repo.sync([canonical], since)
+    } catch (err) {
+      this.error$.set(err instanceof Error ? err.message : 'Failed to sync FX rates')
+      return
+    }
+    await this.loadHistory([canonical])
+  }
+
+  /**
    * Fetch rate history for the listed currencies and merge into the cache.
    * Sub-unit currencies are mapped to their canonical parent (e.g. 'GBp' →
    * 'GBP') so the backend only stores one series per canonical currency.
