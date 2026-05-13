@@ -34,7 +34,7 @@ radar screen with
  	- macro indicators
 
 auto trading complete version
-	- alert and offer one-click action
+	- fix precision 
 	- final iteration: auto open, and close
 	
 

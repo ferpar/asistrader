@@ -33,24 +33,63 @@ function Harness({
 }
 
 describe('PriceInput', () => {
-  it('derives step from priceHint', () => {
+  it('uses type=text to avoid locale-aware number parsing', () => {
     render(<Harness priceHint={2} />)
-    expect(screen.getByPlaceholderText('price')).toHaveAttribute('step', '0.01')
+    expect(screen.getByPlaceholderText('price')).toHaveAttribute('type', 'text')
   })
 
-  it('uses fine-grained step for high priceHint', () => {
-    render(<Harness priceHint={4} />)
-    expect(screen.getByPlaceholderText('price')).toHaveAttribute('step', '0.0001')
+  it('sets inputmode=decimal for mobile numeric keypad', () => {
+    render(<Harness priceHint={2} />)
+    expect(screen.getByPlaceholderText('price')).toHaveAttribute('inputmode', 'decimal')
   })
 
-  it('falls back to step 0.01 when priceHint is null', () => {
-    render(<Harness priceHint={null} />)
-    expect(screen.getByPlaceholderText('price')).toHaveAttribute('step', '0.01')
+  it('emits dot-decimal unchanged', () => {
+    const onChange = vi.fn()
+    render(<Harness priceHint={4} onChange={onChange} />)
+    const input = screen.getByPlaceholderText('price')
+    fireEvent.change(input, { target: { value: '1.154' } })
+    expect(onChange).toHaveBeenLastCalledWith('1.154')
   })
 
-  it('uses step 1 when priceHint is 0', () => {
-    render(<Harness priceHint={0} />)
-    expect(screen.getByPlaceholderText('price')).toHaveAttribute('step', '1')
+  it('normalizes comma decimal to dot (Spanish-typed value)', () => {
+    const onChange = vi.fn()
+    render(<Harness priceHint={4} onChange={onChange} />)
+    const input = screen.getByPlaceholderText('price')
+    fireEvent.change(input, { target: { value: '1,154' } })
+    expect(onChange).toHaveBeenLastCalledWith('1.154')
+  })
+
+  it('strips English thousand separators when both separators appear', () => {
+    const onChange = vi.fn()
+    render(<Harness priceHint={2} onChange={onChange} />)
+    const input = screen.getByPlaceholderText('price')
+    fireEvent.change(input, { target: { value: '1,234.56' } })
+    expect(onChange).toHaveBeenLastCalledWith('1234.56')
+  })
+
+  it('strips Spanish thousand separators when both separators appear', () => {
+    const onChange = vi.fn()
+    render(<Harness priceHint={2} onChange={onChange} />)
+    const input = screen.getByPlaceholderText('price')
+    fireEvent.change(input, { target: { value: '1.234,56' } })
+    expect(onChange).toHaveBeenLastCalledWith('1234.56')
+  })
+
+  it('strips junk characters', () => {
+    const onChange = vi.fn()
+    render(<Harness priceHint={2} onChange={onChange} />)
+    const input = screen.getByPlaceholderText('price')
+    fireEvent.change(input, { target: { value: ' €1.50 ' } })
+    expect(onChange).toHaveBeenLastCalledWith('1.50')
+  })
+
+  it('snaps display to canonical dot form on blur', () => {
+    render(<Harness priceHint={2} />)
+    const input = screen.getByPlaceholderText('price') as HTMLInputElement
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: '1,50' } })
+    fireEvent.blur(input)
+    expect(input.value).toBe('1.50')
   })
 
   it('shows precision hint while focused with excess decimals', () => {
