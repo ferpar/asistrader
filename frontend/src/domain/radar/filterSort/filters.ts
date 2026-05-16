@@ -5,10 +5,12 @@ import {
   computeDrift,
   type DriftState,
 } from '../../../utils/timelineExpectations'
-import { computePriceChangesAsOf } from '../indicators'
+import { computePriceChangesAsOf, RSI_OVERBOUGHT, RSI_OVERSOLD } from '../indicators'
 import type {
   StructureCategory,
   TrendSignFilter,
+  RsiZoneFilter,
+  DivergenceFilter,
   ActivityFilter,
   ProximityFilter,
   TickerScope,
@@ -34,6 +36,29 @@ function matchesTrend(indicator: TickerIndicators, filter: TrendSignFilter): boo
   const slope = indicator.linearRegression.lr50.slope
   if (slope === null) return false
   return filter === 'up' ? slope > 0 : slope < 0
+}
+
+export function classifyRsiZone(
+  latest: number | null,
+): 'overbought' | 'oversold' | 'neutral' | null {
+  if (latest === null) return null
+  if (latest >= RSI_OVERBOUGHT) return 'overbought'
+  if (latest <= RSI_OVERSOLD) return 'oversold'
+  return 'neutral'
+}
+
+function matchesRsiZone(indicator: TickerIndicators, filter: RsiZoneFilter): boolean {
+  if (filter === 'any') return true
+  return classifyRsiZone(indicator.rsi.latest) === filter
+}
+
+function matchesDivergence(indicator: TickerIndicators, filter: DivergenceFilter): boolean {
+  if (filter === 'any') return true
+  const { bearish, bullish } = indicator.rsi.divergence
+  if (filter === 'present') return bearish !== null || bullish !== null
+  if (filter === 'bullish') return bullish !== null
+  if (filter === 'bearish') return bearish !== null
+  return bearish === null && bullish === null // 'none'
 }
 
 function matchesActivity(trades: TradeWithMetrics[], filter: ActivityFilter): boolean {
@@ -64,6 +89,8 @@ export function filterTicker(
   if (!matchesSearch(indicator, scope.search)) return false
   if (!matchesStructure(indicator, scope.structure)) return false
   if (!matchesTrend(indicator, scope.trendSign)) return false
+  if (!matchesRsiZone(indicator, scope.rsiZone)) return false
+  if (!matchesDivergence(indicator, scope.divergence)) return false
   if (!matchesActivity(trades, scope.activity)) return false
   return true
 }

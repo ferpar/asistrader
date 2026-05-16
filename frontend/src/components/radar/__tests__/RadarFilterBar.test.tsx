@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { RadarFilterBar } from '../RadarFilterBar'
 import { DEFAULT_VIEW_STATE, type RadarViewState } from '../../../domain/radar/filterSort'
 
@@ -33,9 +33,28 @@ describe('RadarFilterBar', () => {
   it('updates ticker.structure when a structure pill is clicked', () => {
     const onChange = vi.fn()
     render(<Harness onChange={onChange} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Bullish' }))
+    const structure = screen.getByRole('group', { name: 'Structure' })
+    fireEvent.click(within(structure).getByRole('button', { name: 'Bullish' }))
     const last = onChange.mock.calls[onChange.mock.calls.length - 1]?.[0] as RadarViewState
     expect(last.ticker.structure).toBe('bullish')
+  })
+
+  it('updates ticker.divergence when a divergence pill is clicked', () => {
+    const onChange = vi.fn()
+    render(<Harness onChange={onChange} />)
+    const divergence = screen.getByRole('group', { name: 'Divergence' })
+    fireEvent.click(within(divergence).getByRole('button', { name: 'Bearish' }))
+    const last = onChange.mock.calls[onChange.mock.calls.length - 1]?.[0] as RadarViewState
+    expect(last.ticker.divergence).toBe('bearish')
+  })
+
+  it('updates ticker.rsiZone when an RSI pill is clicked', () => {
+    const onChange = vi.fn()
+    render(<Harness onChange={onChange} />)
+    const rsi = screen.getByRole('group', { name: 'RSI' })
+    fireEvent.click(within(rsi).getByRole('button', { name: 'Oversold' }))
+    const last = onChange.mock.calls[onChange.mock.calls.length - 1]?.[0] as RadarViewState
+    expect(last.ticker.rsiZone).toBe('oversold')
   })
 
   it('updates trade.status when a status pill is clicked', () => {

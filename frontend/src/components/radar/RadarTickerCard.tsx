@@ -1,5 +1,6 @@
 import { observer } from '@legendapp/state/react'
 import type { TickerIndicators, DivergenceSignal } from '../../domain/radar/types'
+import { RSI_OVERBOUGHT, RSI_OVERSOLD } from '../../domain/radar/indicators'
 import type { Ticker } from '../../domain/ticker/types'
 import type { TradeWithMetrics, LiveMetrics } from '../../domain/trade/types'
 import { formatPrice } from '../../utils/priceFormat'
@@ -31,8 +32,8 @@ function getStructureColor(structure: string | null): string {
 
 function getRsiTone(value: number | null): string {
   if (value === null) return ''
-  if (value >= 70) return styles.bearish
-  if (value <= 30) return styles.bullish
+  if (value >= RSI_OVERBOUGHT) return styles.bearish
+  if (value <= RSI_OVERSOLD) return styles.bullish
   return ''
 }
 

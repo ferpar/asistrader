@@ -7,6 +7,8 @@ import {
   type TradeScope,
   type StructureCategory,
   type TrendSignFilter,
+  type RsiZoneFilter,
+  type DivergenceFilter,
   type ActivityFilter,
   type TradeStatusFilter,
   type PnlSignFilter,
@@ -32,7 +34,7 @@ interface PillGroupProps<T extends string> {
 
 function PillGroup<T extends string>({ label, options, value, onChange }: PillGroupProps<T>) {
   return (
-    <div className={styles.group}>
+    <div className={styles.group} role="group" aria-label={label}>
       <span className={styles.groupLabel}>{label}</span>
       <div className={styles.pills}>
         {options.map((opt) => (
@@ -61,6 +63,21 @@ const TREND_OPTIONS: readonly { value: TrendSignFilter; label: string }[] = [
   { value: 'any', label: 'Any' },
   { value: 'up', label: 'Up' },
   { value: 'down', label: 'Down' },
+]
+
+const RSI_ZONE_OPTIONS: readonly { value: RsiZoneFilter; label: string }[] = [
+  { value: 'any', label: 'Any' },
+  { value: 'overbought', label: 'Overbought' },
+  { value: 'neutral', label: 'Neutral' },
+  { value: 'oversold', label: 'Oversold' },
+]
+
+const DIVERGENCE_OPTIONS: readonly { value: DivergenceFilter; label: string }[] = [
+  { value: 'any', label: 'Any' },
+  { value: 'present', label: 'Present' },
+  { value: 'bullish', label: 'Bullish' },
+  { value: 'bearish', label: 'Bearish' },
+  { value: 'none', label: 'None' },
 ]
 
 const ACTIVITY_OPTIONS: readonly { value: ActivityFilter; label: string }[] = [
@@ -95,6 +112,8 @@ const SORT_KEYS: readonly SortKey[] = [
   'symbol',
   'activeCount',
   'lrSlope50',
+  'rsi',
+  'divergenceStrength',
   'closestToSL',
   'closestToTP',
   'closestToPE',
@@ -138,6 +157,18 @@ export function RadarFilterBar({ value, onChange, onReset }: RadarFilterBarProps
           options={TREND_OPTIONS}
           value={value.ticker.trendSign}
           onChange={(trendSign) => patchTicker({ trendSign })}
+        />
+        <PillGroup
+          label="RSI"
+          options={RSI_ZONE_OPTIONS}
+          value={value.ticker.rsiZone}
+          onChange={(rsiZone) => patchTicker({ rsiZone })}
+        />
+        <PillGroup
+          label="Divergence"
+          options={DIVERGENCE_OPTIONS}
+          value={value.ticker.divergence}
+          onChange={(divergence) => patchTicker({ divergence })}
         />
         <PillGroup
           label="Activity"

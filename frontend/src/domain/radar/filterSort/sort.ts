@@ -73,11 +73,22 @@ export interface TickerSortContext {
   now: Date
 }
 
+/** Strongest divergence on a ticker — max touch count across both directions. */
+function divergenceScore(indicator: TickerIndicators): number | null {
+  const { bearish, bullish } = indicator.rsi.divergence
+  const counts = [bearish?.touchCount, bullish?.touchCount].filter(
+    (c): c is number => c !== undefined,
+  )
+  return counts.length ? Math.max(...counts) : null
+}
+
 export function tickerSortKeyValue(key: SortKey, ctx: TickerSortContext): number | null {
   const { indicator, trades, liveMetrics, now } = ctx
   if (key === 'symbol') return null
   if (key === 'activeCount') return activeTrades(trades).length
   if (key === 'lrSlope50') return indicator.linearRegression.lr50.slope
+  if (key === 'rsi') return indicator.rsi.latest
+  if (key === 'divergenceStrength') return divergenceScore(indicator)
   if (key === 'closestToSL') {
     return maxNonNull(openTrades(trades).map((t) => liveMetrics[t.id]?.distanceToSL?.toNumber() ?? null))
   }
@@ -167,6 +178,8 @@ export function tradeSortKeyValue(
   const metric = liveMetrics[trade.id]
   if (key === 'symbol' || key === 'activeCount') return null
   if (key === 'lrSlope50') return indicator.linearRegression.lr50.slope
+  if (key === 'rsi') return indicator.rsi.latest
+  if (key === 'divergenceStrength') return divergenceScore(indicator)
   if (key === 'closestToSL') return metric?.distanceToSL?.toNumber() ?? null
   if (key === 'closestToTP') return metric?.distanceToTP?.toNumber() ?? null
   if (key === 'closestToPE') {

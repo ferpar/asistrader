@@ -7,6 +7,7 @@ import type {
   LinearRegressionResult,
   DatedClose,
   RsiIndicator,
+  DivergenceSignal,
 } from '../types'
 import type { LiveMetrics } from '../../trade/types'
 import type { RadarViewState } from '../filterSort'
@@ -47,6 +48,20 @@ export function buildLinearRegression(overrides?: Partial<LinearRegressionStruct
     lr20: buildLinearRegressionResult(),
     lr50: buildLinearRegressionResult(),
     lr200: buildLinearRegressionResult(),
+    ...overrides,
+  }
+}
+
+export function buildDivergenceSignal(overrides?: Partial<DivergenceSignal>): DivergenceSignal {
+  return {
+    pivots: [
+      { index: 0, date: '2025-01-01', rsi: 75, price: 100 },
+      { index: 20, date: '2025-02-01', rsi: 65, price: 110 },
+    ],
+    rsiSlope: -0.5,
+    priceSlopePct: 0.005,
+    touchCount: 2,
+    strength: 'weak',
     ...overrides,
   }
 }

@@ -3,6 +3,8 @@ import type { TradeWithMetrics } from '../../trade/types'
 
 export type StructureCategory = 'any' | 'bullish' | 'bearish' | 'mixed'
 export type TrendSignFilter = 'any' | 'up' | 'down'
+export type RsiZoneFilter = 'any' | 'overbought' | 'oversold' | 'neutral'
+export type DivergenceFilter = 'any' | 'present' | 'bullish' | 'bearish' | 'none'
 export type ActivityFilter = 'any' | 'hasOpen' | 'hasPlan' | 'hasActive' | 'hasNone'
 export type TradeStatusFilter = 'any' | 'plan' | 'ordered' | 'open'
 export type PnlSignFilter = 'any' | 'winning' | 'losing'
@@ -13,6 +15,8 @@ export type ProximityFilter = null | { target: ProximityTarget; withinPct: numbe
 export interface TickerScope {
   structure: StructureCategory
   trendSign: TrendSignFilter
+  rsiZone: RsiZoneFilter
+  divergence: DivergenceFilter
   activity: ActivityFilter
   search: string
   hideErrored: boolean
@@ -29,6 +33,8 @@ export type SortKey =
   | 'symbol'
   | 'activeCount'
   | 'lrSlope50'
+  | 'rsi'
+  | 'divergenceStrength'
   | 'closestToSL'
   | 'closestToTP'
   | 'closestToPE'
@@ -56,6 +62,8 @@ export const DEFAULT_VIEW_STATE: RadarViewState = {
   ticker: {
     structure: 'any',
     trendSign: 'any',
+    rsiZone: 'any',
+    divergence: 'any',
     activity: 'any',
     search: '',
     hideErrored: false,
@@ -74,6 +82,8 @@ export const SORT_KEY_LABELS: Record<SortKey, string> = {
   symbol: 'Symbol',
   activeCount: 'Active count',
   lrSlope50: 'Trend (LR 50d)',
+  rsi: 'RSI',
+  divergenceStrength: 'Divergence strength',
   closestToSL: 'Closest to SL',
   closestToTP: 'Closest to TP',
   closestToPE: 'Closest to entry (PE)',
@@ -88,6 +98,8 @@ export const SORT_KEY_DEFAULT_DIR: Record<SortKey, SortDir> = {
   symbol: 'asc',
   activeCount: 'desc',
   lrSlope50: 'desc',
+  rsi: 'desc',
+  divergenceStrength: 'desc',
   closestToSL: 'desc',
   closestToTP: 'desc',
   closestToPE: 'asc',

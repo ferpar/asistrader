@@ -1,6 +1,7 @@
 export * from './types'
 export {
   classifyStructure,
+  classifyRsiZone,
   filterTicker,
   filterTrade,
   computeTradeDrift,

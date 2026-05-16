@@ -1,4 +1,5 @@
 import type { RsiIndicator, DivergenceSignal } from '../../domain/radar/types'
+import { RSI_OVERBOUGHT, RSI_OVERSOLD } from '../../domain/radar/indicators'
 import styles from './RsiSparkline.module.css'
 
 const W = 260
@@ -57,8 +58,8 @@ export function RsiSparkline({ rsi }: RsiSparklineProps) {
       role="img"
       aria-label="RSI sparkline"
     >
-      <line className={styles.guide} x1={PAD} x2={W - PAD} y1={y(70)} y2={y(70)} />
-      <line className={styles.guide} x1={PAD} x2={W - PAD} y1={y(30)} y2={y(30)} />
+      <line className={styles.guide} x1={PAD} x2={W - PAD} y1={y(RSI_OVERBOUGHT)} y2={y(RSI_OVERBOUGHT)} />
+      <line className={styles.guide} x1={PAD} x2={W - PAD} y1={y(RSI_OVERSOLD)} y2={y(RSI_OVERSOLD)} />
       <polyline className={styles.rsiLine} points={linePoints} fill="none" />
       {renderDivergence(divergence.bearish, styles.divBearish)}
       {renderDivergence(divergence.bullish, styles.divBullish)}

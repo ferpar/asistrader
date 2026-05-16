@@ -149,6 +149,10 @@ const RSI_PERIOD = 14
 const RSI_PIVOT_WIDTH = 5
 const RSI_TOUCH_TOLERANCE = 2 // RSI points; absolute, since RSI is bounded 0-100
 
+// Overbought / oversold thresholds — shared by the filter, card tint, and sparkline.
+export const RSI_OVERBOUGHT = 70
+export const RSI_OVERSOLD = 30
+
 function rsiFromAverages(avgGain: number, avgLoss: number): number {
   if (avgLoss === 0) return avgGain === 0 ? 50 : 100
   if (avgGain === 0) return 0

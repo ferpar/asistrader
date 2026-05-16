@@ -9,9 +9,12 @@ import {
   buildLinearRegressionResult,
   buildViewState,
   buildPriceChanges,
+  buildRsiIndicator,
+  buildDivergenceSignal,
 } from '../testing/fixtures'
 import {
   classifyStructure,
+  classifyRsiZone,
   filterTicker,
   filterTrade,
   sortTickers,
@@ -81,6 +84,23 @@ describe('classifyStructure', () => {
   })
 })
 
+describe('classifyRsiZone', () => {
+  it('returns overbought at or above 70', () => {
+    expect(classifyRsiZone(70)).toBe('overbought')
+    expect(classifyRsiZone(85)).toBe('overbought')
+  })
+  it('returns oversold at or below 30', () => {
+    expect(classifyRsiZone(30)).toBe('oversold')
+    expect(classifyRsiZone(12)).toBe('oversold')
+  })
+  it('returns neutral in between', () => {
+    expect(classifyRsiZone(50)).toBe('neutral')
+  })
+  it('returns null when latest is null', () => {
+    expect(classifyRsiZone(null)).toBeNull()
+  })
+})
+
 describe('filterTicker', () => {
   describe('structure', () => {
     it('any passes all', () => {
@@ -128,6 +148,54 @@ describe('filterTicker', () => {
       })
       expect(filterTicker(ind, [], { ...DEFAULT_VIEW_STATE.ticker, trendSign: 'up' })).toBe(false)
       expect(filterTicker(ind, [], { ...DEFAULT_VIEW_STATE.ticker, trendSign: 'any' })).toBe(true)
+    })
+  })
+
+  describe('rsiZone', () => {
+    it('overbought passes RSI at or above 70', () => {
+      const ind = buildTickerIndicators({ rsi: buildRsiIndicator({ latest: 78 }) })
+      expect(filterTicker(ind, [], { ...DEFAULT_VIEW_STATE.ticker, rsiZone: 'overbought' })).toBe(true)
+    })
+    it('oversold rejects a neutral RSI', () => {
+      const ind = buildTickerIndicators({ rsi: buildRsiIndicator({ latest: 50 }) })
+      expect(filterTicker(ind, [], { ...DEFAULT_VIEW_STATE.ticker, rsiZone: 'oversold' })).toBe(false)
+    })
+    it('rejects a null RSI unless any', () => {
+      const ind = buildTickerIndicators({ rsi: buildRsiIndicator({ latest: null }) })
+      expect(filterTicker(ind, [], { ...DEFAULT_VIEW_STATE.ticker, rsiZone: 'neutral' })).toBe(false)
+      expect(filterTicker(ind, [], { ...DEFAULT_VIEW_STATE.ticker, rsiZone: 'any' })).toBe(true)
+    })
+  })
+
+  describe('divergence', () => {
+    const bearishRsi = buildRsiIndicator({
+      divergence: { bearish: buildDivergenceSignal(), bullish: null },
+    })
+    const bullishRsi = buildRsiIndicator({
+      divergence: { bearish: null, bullish: buildDivergenceSignal() },
+    })
+    it('present passes when any divergence exists', () => {
+      const ind = buildTickerIndicators({ rsi: bearishRsi })
+      expect(filterTicker(ind, [], { ...DEFAULT_VIEW_STATE.ticker, divergence: 'present' })).toBe(true)
+    })
+    it('bullish passes only bullish divergences', () => {
+      expect(
+        filterTicker(buildTickerIndicators({ rsi: bullishRsi }), [], { ...DEFAULT_VIEW_STATE.ticker, divergence: 'bullish' }),
+      ).toBe(true)
+      expect(
+        filterTicker(buildTickerIndicators({ rsi: bearishRsi }), [], { ...DEFAULT_VIEW_STATE.ticker, divergence: 'bullish' }),
+      ).toBe(false)
+    })
+    it('bearish passes only bearish divergences', () => {
+      expect(
+        filterTicker(buildTickerIndicators({ rsi: bearishRsi }), [], { ...DEFAULT_VIEW_STATE.ticker, divergence: 'bearish' }),
+      ).toBe(true)
+    })
+    it('none passes only tickers without a divergence', () => {
+      expect(filterTicker(buildTickerIndicators(), [], { ...DEFAULT_VIEW_STATE.ticker, divergence: 'none' })).toBe(true)
+      expect(
+        filterTicker(buildTickerIndicators({ rsi: bearishRsi }), [], { ...DEFAULT_VIEW_STATE.ticker, divergence: 'none' }),
+      ).toBe(false)
     })
   })
 
@@ -445,6 +513,49 @@ describe('sortTickers', () => {
       NOW,
     )
     expect(sorted.map((i) => i.symbol)).toEqual(['XXX', 'YYY'])
+  })
+})
+
+describe('sortTickers by RSI and divergence', () => {
+  it('sorts by rsi descending (highest RSI first)', () => {
+    const lo = buildTickerIndicators({ symbol: 'LO', rsi: buildRsiIndicator({ latest: 25 }) })
+    const mid = buildTickerIndicators({ symbol: 'MID', rsi: buildRsiIndicator({ latest: 55 }) })
+    const hi = buildTickerIndicators({ symbol: 'HI', rsi: buildRsiIndicator({ latest: 82 }) })
+    const sorted = sortTickers([lo, hi, mid], { LO: [], MID: [], HI: [] }, {}, { key: 'rsi', dir: 'desc' }, NOW)
+    expect(sorted.map((i) => i.symbol)).toEqual(['HI', 'MID', 'LO'])
+  })
+
+  it('sorts by divergenceStrength descending (strongest line first, none last)', () => {
+    const strong = buildTickerIndicators({
+      symbol: 'STR',
+      rsi: buildRsiIndicator({ divergence: { bearish: buildDivergenceSignal({ touchCount: 4 }), bullish: null } }),
+    })
+    const weak = buildTickerIndicators({
+      symbol: 'WK',
+      rsi: buildRsiIndicator({ divergence: { bearish: buildDivergenceSignal({ touchCount: 2 }), bullish: null } }),
+    })
+    const none = buildTickerIndicators({ symbol: 'NON' })
+    const sorted = sortTickers(
+      [weak, none, strong],
+      { STR: [], WK: [], NON: [] },
+      {},
+      { key: 'divergenceStrength', dir: 'desc' },
+      NOW,
+    )
+    expect(sorted.map((i) => i.symbol)).toEqual(['STR', 'WK', 'NON'])
+  })
+
+  it('divergenceStrength takes the max touch count across both directions', () => {
+    const ind = buildTickerIndicators({
+      symbol: 'BOTH',
+      rsi: buildRsiIndicator({
+        divergence: {
+          bearish: buildDivergenceSignal({ touchCount: 2 }),
+          bullish: buildDivergenceSignal({ touchCount: 5 }),
+        },
+      }),
+    })
+    expect(tickerSortKeyValue('divergenceStrength', { indicator: ind, trades: [], liveMetrics: {}, now: NOW })).toBe(5)
   })
 })
 
