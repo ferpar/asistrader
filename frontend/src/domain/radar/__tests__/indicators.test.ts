@@ -5,7 +5,12 @@ import {
   computePriceChanges,
   computeLinearRegression,
   computeLinearRegressionStructure,
+  computeRsiSeries,
+  findRsiPivots,
+  detectDivergenceLine,
+  computeRsi,
 } from '../indicators'
+import type { RsiPivot, DatedClose } from '../types'
 
 describe('computeSma', () => {
   it('returns null when insufficient data', () => {
@@ -190,5 +195,180 @@ describe('computeLinearRegressionStructure', () => {
     expect(result.lr200.slope).toBeNull()
     expect(result.lr200.slopePct).toBeNull()
     expect(result.lr200.r2).toBeNull()
+  })
+})
+
+describe('computeRsiSeries', () => {
+  it('returns an all-null series shorter than period + 1', () => {
+    const series = computeRsiSeries(Array(14).fill(100))
+    expect(series).toHaveLength(14)
+    expect(series.every((v) => v === null)).toBe(true)
+  })
+
+  it('leaves the warm-up region null and fills from index `period`', () => {
+    const closes: number[] = []
+    for (let i = 0; i < 30; i++) closes.push(100 + i)
+    const series = computeRsiSeries(closes)
+    expect(series.slice(0, 14).every((v) => v === null)).toBe(true)
+    expect(series[14]).not.toBeNull()
+  })
+
+  it('returns 100 for a strictly rising series (no losses)', () => {
+    const closes: number[] = []
+    for (let i = 0; i < 20; i++) closes.push(100 + i)
+    const series = computeRsiSeries(closes)
+    expect(series[19]).toBeCloseTo(100, 8)
+  })
+
+  it('returns 0 for a strictly falling series (no gains)', () => {
+    const closes: number[] = []
+    for (let i = 0; i < 20; i++) closes.push(100 - i)
+    const series = computeRsiSeries(closes)
+    expect(series[19]).toBeCloseTo(0, 8)
+  })
+
+  it('returns 50 for a perfectly flat series', () => {
+    const series = computeRsiSeries(Array(20).fill(100))
+    expect(series[19]).toBeCloseTo(50, 8)
+  })
+
+  it('matches hand-computed Wilder smoothing for period 2', () => {
+    // changes: +1, -1, +1, +1
+    // seed: avgGain 0.5, avgLoss 0.5 -> 50
+    // i3: avgGain 0.75, avgLoss 0.25 -> 75
+    // i4: avgGain 0.875, avgLoss 0.125 -> 87.5
+    const series = computeRsiSeries([10, 11, 10, 11, 12], 2)
+    expect(series[0]).toBeNull()
+    expect(series[1]).toBeNull()
+    expect(series[2]).toBeCloseTo(50, 8)
+    expect(series[3]).toBeCloseTo(75, 8)
+    expect(series[4]).toBeCloseTo(87.5, 8)
+  })
+})
+
+describe('findRsiPivots', () => {
+  const dated = (n: number): DatedClose[] =>
+    Array.from({ length: n }, (_, i) => ({ date: `2025-01-${String(i + 1).padStart(2, '0')}`, close: 100 + i }))
+
+  it('detects a single swing high at the apex of a tent', () => {
+    // values rise to a peak at index 10, then fall symmetrically
+    const series = Array.from({ length: 21 }, (_, i) => 10 - Math.abs(i - 10))
+    const { highs, lows } = findRsiPivots(series, dated(21))
+    expect(highs).toHaveLength(1)
+    expect(highs[0].index).toBe(10)
+    expect(lows).toHaveLength(0)
+  })
+
+  it('ignores pivots within w of either edge', () => {
+    // a high at index 2 cannot be confirmed with w=5
+    const series = Array.from({ length: 21 }, (_, i) => (i === 2 ? 99 : 1))
+    const { highs } = findRsiPivots(series, dated(21))
+    expect(highs).toHaveLength(0)
+  })
+
+  it('records the local close extreme around a pivot', () => {
+    const series = Array.from({ length: 21 }, (_, i) => 10 - Math.abs(i - 10))
+    const closes: DatedClose[] = Array.from({ length: 21 }, (_, i) => ({
+      date: `2025-01-${String(i + 1).padStart(2, '0')}`,
+      close: i === 10 ? 200 : 100,
+    }))
+    const { highs } = findRsiPivots(series, closes)
+    expect(highs[0].price).toBe(200) // max close within +/- w of the high
+  })
+})
+
+describe('detectDivergenceLine', () => {
+  const highs = (rows: [number, number, number][]): RsiPivot[] =>
+    rows.map(([index, rsi, price]) => ({ index, rsi, price, date: `d${index}` }))
+
+  it('flags a bearish divergence: lower RSI highs vs higher price highs', () => {
+    const pivots = highs([
+      [0, 80, 100],
+      [10, 75, 110],
+      [20, 70, 120],
+    ])
+    const sig = detectDivergenceLine(pivots, true)
+    expect(sig).not.toBeNull()
+    expect(sig!.rsiSlope).toBeLessThan(0)
+    expect(sig!.fromDate).toBe('d0')
+    expect(sig!.toDate).toBe('d20')
+    expect(sig!.touchCount).toBe(3) // 2 endpoints + 1 intermediate on the line
+    expect(sig!.strength).toBe('moderate')
+  })
+
+  it('flags a bullish divergence: higher RSI lows vs lower price lows', () => {
+    const pivots = highs([
+      [0, 30, 120],
+      [10, 35, 110],
+      [20, 40, 100],
+    ])
+    const sig = detectDivergenceLine(pivots, false)
+    expect(sig).not.toBeNull()
+    expect(sig!.rsiSlope).toBeGreaterThan(0)
+    expect(sig!.strength).toBe('moderate')
+  })
+
+  it('grades a clean 4-touch trendline as strong', () => {
+    const pivots = highs([
+      [0, 80, 100],
+      [10, 75, 110],
+      [20, 70, 115],
+      [30, 65, 120],
+    ])
+    const sig = detectDivergenceLine(pivots, true)
+    expect(sig!.touchCount).toBe(4)
+    expect(sig!.strength).toBe('strong')
+  })
+
+  it('grades a bare two-pivot line as weak', () => {
+    const pivots = highs([
+      [0, 80, 100],
+      [10, 70, 110],
+    ])
+    const sig = detectDivergenceLine(pivots, true)
+    expect(sig!.touchCount).toBe(2)
+    expect(sig!.strength).toBe('weak')
+  })
+
+  it('returns null when RSI highs are not descending', () => {
+    const pivots = highs([
+      [0, 70, 100],
+      [10, 75, 110],
+    ])
+    expect(detectDivergenceLine(pivots, true)).toBeNull()
+  })
+
+  it('returns null when price does not confirm (no higher high)', () => {
+    const pivots = highs([
+      [0, 80, 120],
+      [10, 70, 110],
+    ])
+    expect(detectDivergenceLine(pivots, true)).toBeNull()
+  })
+
+  it('returns null with fewer than two pivots', () => {
+    expect(detectDivergenceLine(highs([[10, 70, 100]]), true)).toBeNull()
+  })
+})
+
+describe('computeRsi', () => {
+  it('produces a series aligned to the input and a non-null latest value', () => {
+    const datedCloses: DatedClose[] = Array.from({ length: 60 }, (_, i) => ({
+      date: `2025-01-${String(i + 1).padStart(2, '0')}`,
+      close: 100 + Math.sin(i / 3) * 5,
+    }))
+    const rsi = computeRsi(datedCloses)
+    expect(rsi.series).toHaveLength(60)
+    expect(rsi.latest).not.toBeNull()
+    expect(rsi.latest!).toBeGreaterThanOrEqual(0)
+    expect(rsi.latest!).toBeLessThanOrEqual(100)
+  })
+
+  it('reports no divergence and a null latest for empty input', () => {
+    const rsi = computeRsi([])
+    expect(rsi.series).toHaveLength(0)
+    expect(rsi.latest).toBeNull()
+    expect(rsi.divergence.bearish).toBeNull()
+    expect(rsi.divergence.bullish).toBeNull()
   })
 })

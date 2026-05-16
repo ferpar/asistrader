@@ -6,6 +6,7 @@ import type {
   LinearRegressionStructure,
   LinearRegressionResult,
   DatedClose,
+  RsiIndicator,
 } from '../types'
 import type { LiveMetrics } from '../../trade/types'
 import type { RadarViewState } from '../filterSort'
@@ -50,6 +51,15 @@ export function buildLinearRegression(overrides?: Partial<LinearRegressionStruct
   }
 }
 
+export function buildRsiIndicator(overrides?: Partial<RsiIndicator>): RsiIndicator {
+  return {
+    series: [],
+    latest: 55,
+    divergence: { bearish: null, bullish: null },
+    ...overrides,
+  }
+}
+
 function defaultDatedCloses(): DatedClose[] {
   const out: DatedClose[] = []
   const start = new Date('2025-06-01')
@@ -69,6 +79,7 @@ export function buildTickerIndicators(overrides?: Partial<TickerIndicators>): Ti
     sma: buildSmaStructure(),
     priceChanges: buildPriceChanges(),
     linearRegression: buildLinearRegression(),
+    rsi: buildRsiIndicator(),
     datedCloses: defaultDatedCloses(),
     error: null,
     ...overrides,

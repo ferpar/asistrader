@@ -4,6 +4,10 @@ import type {
   DatedClose,
   LinearRegressionResult,
   LinearRegressionStructure,
+  RsiPivot,
+  RsiIndicator,
+  DivergenceSignal,
+  DivergenceStrength,
 } from './types'
 
 const EMPTY_LR_RESULT: LinearRegressionResult = { slope: null, slopePct: null, r2: null }
@@ -136,5 +140,166 @@ export function computeLinearRegressionStructure(closes: number[]): LinearRegres
     lr20: computeLinearRegression(closes, 20),
     lr50: computeLinearRegression(closes, 50),
     lr200: computeLinearRegression(closes, 200),
+  }
+}
+
+// --- RSI -------------------------------------------------------------------
+
+const RSI_PERIOD = 14
+const RSI_PIVOT_WIDTH = 5
+const RSI_TOUCH_TOLERANCE = 2 // RSI points; absolute, since RSI is bounded 0-100
+
+function rsiFromAverages(avgGain: number, avgLoss: number): number {
+  if (avgLoss === 0) return avgGain === 0 ? 50 : 100
+  if (avgGain === 0) return 0
+  return 100 - 100 / (1 + avgGain / avgLoss)
+}
+
+/**
+ * Wilder-smoothed RSI, aligned index-for-index with `closes`.
+ * Entries before the smoothing seed has formed are `null`.
+ */
+export function computeRsiSeries(closes: number[], period = RSI_PERIOD): (number | null)[] {
+  const n = closes.length
+  const out: (number | null)[] = new Array(n).fill(null)
+  if (period < 1 || n < period + 1) return out
+
+  // Seed: simple average of the first `period` close-to-close changes.
+  let gainSum = 0
+  let lossSum = 0
+  for (let i = 1; i <= period; i++) {
+    const ch = closes[i] - closes[i - 1]
+    if (ch >= 0) gainSum += ch
+    else lossSum -= ch
+  }
+  let avgGain = gainSum / period
+  let avgLoss = lossSum / period
+  out[period] = rsiFromAverages(avgGain, avgLoss)
+
+  // Wilder smoothing forward: each average decays the prior one.
+  for (let i = period + 1; i < n; i++) {
+    const ch = closes[i] - closes[i - 1]
+    const gain = ch > 0 ? ch : 0
+    const loss = ch < 0 ? -ch : 0
+    avgGain = (avgGain * (period - 1) + gain) / period
+    avgLoss = (avgLoss * (period - 1) + loss) / period
+    out[i] = rsiFromAverages(avgGain, avgLoss)
+  }
+  return out
+}
+
+/**
+ * Confirmed swing pivots on the RSI series. A swing high at `i` strictly
+ * exceeds the `w` values on each side; lows mirror it. `price` is the local
+ * close extreme within ±w (max near a high, min near a low).
+ */
+export function findRsiPivots(
+  series: (number | null)[],
+  datedCloses: DatedClose[],
+  w = RSI_PIVOT_WIDTH,
+): { highs: RsiPivot[]; lows: RsiPivot[] } {
+  const highs: RsiPivot[] = []
+  const lows: RsiPivot[] = []
+  const n = Math.min(series.length, datedCloses.length)
+
+  for (let i = w; i < n - w; i++) {
+    const v = series[i]
+    if (v === null) continue
+    let isHigh = true
+    let isLow = true
+    for (let j = i - w; j <= i + w; j++) {
+      if (j === i) continue
+      const o = series[j]
+      if (o === null) { isHigh = false; isLow = false; break }
+      if (o >= v) isHigh = false
+      if (o <= v) isLow = false
+    }
+    if (!isHigh && !isLow) continue
+
+    let extreme = datedCloses[i].close
+    for (let j = i - w; j <= i + w; j++) {
+      const c = datedCloses[j].close
+      if (isHigh) extreme = Math.max(extreme, c)
+      else extreme = Math.min(extreme, c)
+    }
+    const pivot: RsiPivot = { index: i, date: datedCloses[i].date, rsi: v, price: extreme }
+    if (isHigh) highs.push(pivot)
+    else lows.push(pivot)
+  }
+  return { highs, lows }
+}
+
+/**
+ * Detects a divergence by joining the latest pivot `pf` to its hull
+ * predecessor — for highs the earlier pivot with the minimum slope-to-`pf`,
+ * for lows the maximum. That edge is the unique trendline to `pf` that no
+ * other pivot crosses. A signal fires only when RSI and price disagree.
+ */
+export function detectDivergenceLine(
+  pivots: RsiPivot[],
+  isHigh: boolean,
+  touchTol = RSI_TOUCH_TOLERANCE,
+): DivergenceSignal | null {
+  if (pivots.length < 2) return null
+  const pf = pivots[pivots.length - 1]
+  const earlier = pivots.slice(0, -1)
+
+  let from = earlier[0]
+  let rsiSlope = (pf.rsi - from.rsi) / (pf.index - from.index)
+  for (let i = 1; i < earlier.length; i++) {
+    const k = earlier[i]
+    const s = (pf.rsi - k.rsi) / (pf.index - k.index)
+    if (isHigh ? s < rsiSlope : s > rsiSlope) {
+      rsiSlope = s
+      from = k
+    }
+  }
+
+  // RSI momentum must run counter to the trade direction.
+  if (isHigh ? rsiSlope >= 0 : rsiSlope <= 0) return null
+
+  // Price must confirm: higher high for bearish, lower low for bullish.
+  const priceMove = pf.price - from.price
+  if (isHigh ? priceMove <= 0 : priceMove >= 0) return null
+  if (from.price === 0) return null
+
+  const span = pf.index - from.index
+  const priceSlopePct = priceMove / from.price / span
+
+  // Confidence: intermediate pivots hugging the trendline.
+  let touches = 0
+  for (const p of earlier) {
+    if (p.index <= from.index || p.index >= pf.index) continue
+    const lineRsi = from.rsi + rsiSlope * (p.index - from.index)
+    const gap = isHigh ? lineRsi - p.rsi : p.rsi - lineRsi
+    if (gap >= -1e-6 && gap <= touchTol) touches++
+  }
+  const touchCount = 2 + touches
+  const strength: DivergenceStrength =
+    touchCount >= 4 ? 'strong' : touchCount === 3 ? 'moderate' : 'weak'
+
+  return { fromDate: from.date, toDate: pf.date, rsiSlope, priceSlopePct, touchCount, strength }
+}
+
+export function computeRsi(datedCloses: DatedClose[]): RsiIndicator {
+  const closes = datedCloses.map((d) => d.close)
+  const series = computeRsiSeries(closes)
+
+  let latest: number | null = null
+  for (let i = series.length - 1; i >= 0; i--) {
+    if (series[i] !== null) {
+      latest = series[i]
+      break
+    }
+  }
+
+  const { highs, lows } = findRsiPivots(series, datedCloses)
+  return {
+    series,
+    latest,
+    divergence: {
+      bearish: detectDivergenceLine(highs, true),
+      bullish: detectDivergenceLine(lows, false),
+    },
   }
 }

@@ -1,5 +1,5 @@
 import { observer } from '@legendapp/state/react'
-import type { TickerIndicators } from '../../domain/radar/types'
+import type { TickerIndicators, DivergenceSignal } from '../../domain/radar/types'
 import type { Ticker } from '../../domain/ticker/types'
 import type { TradeWithMetrics, LiveMetrics } from '../../domain/trade/types'
 import { formatPrice } from '../../utils/priceFormat'
@@ -28,6 +28,17 @@ function getStructureColor(structure: string | null): string {
   return ''
 }
 
+function getRsiTone(value: number | null): string {
+  if (value === null) return ''
+  if (value >= 70) return styles.bearish
+  if (value <= 30) return styles.bullish
+  return ''
+}
+
+function divergenceTitle(d: DivergenceSignal): string {
+  return `${d.fromDate} → ${d.toDate} · ${d.touchCount} touches · ${d.strength}`
+}
+
 function countByStatus(trades: TradeWithMetrics[]) {
   let plan = 0, ordered = 0, open = 0, closed = 0
   for (const t of trades) {
@@ -48,7 +59,7 @@ export const RadarTickerCard = observer(function RadarTickerCard({
   onRemove,
   onNewTrade,
 }: RadarTickerCardProps) {
-  const { symbol, currentPrice, sma, priceChanges, linearRegression, datedCloses, error } = indicators
+  const { symbol, currentPrice, sma, priceChanges, linearRegression, rsi, datedCloses, error } = indicators
   const fmt = (value: number) => formatPrice(value, ticker?.currency, ticker?.priceHint)
   const tickerName = ticker?.name ?? null
   const counts = countByStatus(trades)
@@ -171,6 +182,31 @@ export const RadarTickerCard = observer(function RadarTickerCard({
                 <span>R² {lr.r2 !== null ? formatR2(lr.r2) : '-'}</span>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className={styles.section}>
+          <div className={styles.sectionLabel}>RSI (14)</div>
+          <div className={styles.rsiRow}>
+            <span className={`${styles.rsiValue} ${getRsiTone(rsi.latest)}`}>
+              {rsi.latest !== null ? rsi.latest.toFixed(1) : '-'}
+            </span>
+            {rsi.divergence.bearish && (
+              <span
+                className={`${styles.divBadge} ${styles.divBearish}`}
+                title={divergenceTitle(rsi.divergence.bearish)}
+              >
+                ▼ Bearish · {rsi.divergence.bearish.strength}
+              </span>
+            )}
+            {rsi.divergence.bullish && (
+              <span
+                className={`${styles.divBadge} ${styles.divBullish}`}
+                title={divergenceTitle(rsi.divergence.bullish)}
+              >
+                ▲ Bullish · {rsi.divergence.bullish.strength}
+              </span>
+            )}
           </div>
         </div>
       </div>

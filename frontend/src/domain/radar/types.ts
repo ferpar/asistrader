@@ -30,6 +30,33 @@ export interface LinearRegressionStructure {
   lr200: LinearRegressionResult
 }
 
+export interface RsiPivot {
+  index: number
+  date: string
+  rsi: number
+  price: number
+}
+
+export type DivergenceStrength = 'weak' | 'moderate' | 'strong'
+
+export interface DivergenceSignal {
+  fromDate: string
+  toDate: string
+  rsiSlope: number
+  priceSlopePct: number
+  touchCount: number
+  strength: DivergenceStrength
+}
+
+export interface RsiIndicator {
+  series: (number | null)[]
+  latest: number | null
+  divergence: {
+    bearish: DivergenceSignal | null
+    bullish: DivergenceSignal | null
+  }
+}
+
 export interface TickerIndicators {
   symbol: string
   name: string | null
@@ -37,6 +64,7 @@ export interface TickerIndicators {
   sma: SmaStructure
   priceChanges: PriceChanges
   linearRegression: LinearRegressionStructure
+  rsi: RsiIndicator
   datedCloses: DatedClose[]
   error: string | null
 }

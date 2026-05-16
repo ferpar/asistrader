@@ -1,6 +1,6 @@
 import { observable } from '@legendapp/state'
 import type { IRadarRepository } from './IRadarRepository'
-import type { TickerIndicators } from './types'
+import type { TickerIndicators, RsiIndicator } from './types'
 import type { MarketDataRowDTO } from '../../types/radar'
 import type { IBenchmarkRepository } from '../benchmark/IBenchmarkRepository'
 import type { BenchmarkIndicators } from '../benchmark/types'
@@ -9,6 +9,7 @@ import {
   computeSmaStructure,
   computePriceChanges,
   computeLinearRegressionStructure,
+  computeRsi,
 } from './indicators'
 import { DEFAULT_VIEW_STATE, type RadarViewState } from './filterSort'
 
@@ -68,6 +69,11 @@ const EMPTY_SMA = { sma5: null, sma20: null, sma50: null, sma200: null, structur
 const EMPTY_CHANGES = { avgChange50d: null, avgChangePct50d: null, avgChange5d: null, avgChangePct5d: null }
 const EMPTY_LR_RESULT = { slope: null, slopePct: null, r2: null }
 const EMPTY_LR = { lr20: EMPTY_LR_RESULT, lr50: EMPTY_LR_RESULT, lr200: EMPTY_LR_RESULT }
+const EMPTY_RSI: RsiIndicator = {
+  series: [],
+  latest: null,
+  divergence: { bearish: null, bullish: null },
+}
 
 function buildBenchmarkIndicators(
   symbol: string,
@@ -194,6 +200,7 @@ export class RadarStore {
             sma: EMPTY_SMA,
             priceChanges: EMPTY_CHANGES,
             linearRegression: EMPTY_LR,
+            rsi: EMPTY_RSI,
             datedCloses: [],
             error: tickerResult.errors[symbol],
           }
@@ -213,6 +220,7 @@ export class RadarStore {
             sma: EMPTY_SMA,
             priceChanges: EMPTY_CHANGES,
             linearRegression: EMPTY_LR,
+            rsi: EMPTY_RSI,
             datedCloses: [],
             error: 'No price data available',
           }
@@ -226,6 +234,7 @@ export class RadarStore {
           sma: computeSmaStructure(closes, currentPrice),
           priceChanges: computePriceChanges(closes),
           linearRegression: computeLinearRegressionStructure(closes),
+          rsi: computeRsi(datedCloses),
           datedCloses,
           error: null,
         }
