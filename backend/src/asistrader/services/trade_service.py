@@ -144,13 +144,17 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
                 raise TradeUpdateError("cancel_reason is required when canceling a trade")
 
         elif current_status == TradeStatus.PLAN and new_status == TradeStatus.ORDERED:
-            # plan → ordered
-            pass
+            # plan → ordered: capital is now committed to the broker
+            if not updates.get("date_ordered"):
+                updates["date_ordered"] = date.today()
 
         elif current_status == TradeStatus.PLAN and new_status == TradeStatus.OPEN:
             # plan → open: auto-set date_actual if not provided
             if "date_actual" not in updates or updates["date_actual"] is None:
                 updates["date_actual"] = date.today()
+            # order + fill collapse into one moment when ordered is skipped
+            if not updates.get("date_ordered"):
+                updates["date_ordered"] = updates["date_actual"]
 
         elif current_status == TradeStatus.ORDERED and new_status == TradeStatus.OPEN:
             # ordered → open: auto-set date_actual if not provided
@@ -158,8 +162,9 @@ def update_trade(db: Session, trade_id: int, **updates) -> Trade:
                 updates["date_actual"] = date.today()
 
         elif current_status == TradeStatus.ORDERED and new_status == TradeStatus.PLAN:
-            # ordered → plan: retract the order
-            pass
+            # ordered → plan: retract the order; capital no longer committed.
+            # Set directly — the updates loop below skips None values.
+            trade.date_ordered = None
 
         elif current_status == TradeStatus.OPEN and new_status == TradeStatus.CLOSE:
             # open → close: require exit fields

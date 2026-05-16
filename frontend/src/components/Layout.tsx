@@ -42,6 +42,12 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         >
           Radar
         </button>
+        <button
+          className={`${styles.navTab} ${currentPage === 'drivers' ? styles.navTabActive : ''}`}
+          onClick={() => onNavigate('drivers')}
+        >
+          Drivers
+        </button>
       </nav>
       <main className={styles.main}>
         {children}

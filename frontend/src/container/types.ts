@@ -8,6 +8,7 @@ import { FundStore } from '../domain/fund/FundStore'
 import { FxStore } from '../domain/fx/FxStore'
 import { RadarStore } from '../domain/radar/RadarStore'
 import { BenchmarkStore } from '../domain/benchmark/BenchmarkStore'
+import { IrrStore } from '../domain/irr/IrrStore'
 
 export interface AppContainer {
   tradeStore: TradeStore
@@ -20,4 +21,5 @@ export interface AppContainer {
   fxStore: FxStore
   radarStore: RadarStore
   benchmarkStore: BenchmarkStore
+  irrStore: IrrStore
 }

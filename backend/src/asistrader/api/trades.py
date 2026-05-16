@@ -62,6 +62,7 @@ def _trade_to_schema(t: Trade) -> TradeSchema:
         stop_loss=t.stop_loss,
         take_profit=t.take_profit,
         date_planned=t.date_planned,
+        date_ordered=t.date_ordered,
         date_actual=t.date_actual,
         exit_date=t.exit_date,
         exit_type=t.exit_type,

@@ -241,6 +241,7 @@ class TradeSchema(BaseModel):
     stop_loss: float
     take_profit: float
     date_planned: date
+    date_ordered: date | None = None
     date_actual: date | None = None
 
     # Exit
@@ -315,6 +316,7 @@ class TradeUpdateRequest(BaseModel):
     entry_price: float | None = None
     units: int | None = None
     status: TradeStatus | None = None
+    date_ordered: date | None = None
     date_actual: date | None = None
     exit_date: date | None = None
     exit_price: float | None = None

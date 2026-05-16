@@ -186,6 +186,7 @@ class Trade(Base):
     # Entry
     entry_price = Column(Float)
     date_planned = Column(Date)
+    date_ordered = Column(Date, nullable=True)  # set when status -> ordered (capital committed)
     date_actual = Column(Date, nullable=True)
 
     # Exit

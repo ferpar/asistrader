@@ -70,3 +70,7 @@ export function useRadarStore() {
 export function useBenchmarkStore() {
   return useContainer().benchmarkStore
 }
+
+export function useIrrStore() {
+  return useContainer().irrStore
+}
