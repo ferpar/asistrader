@@ -72,6 +72,7 @@ const EMPTY_LR = { lr20: EMPTY_LR_RESULT, lr50: EMPTY_LR_RESULT, lr200: EMPTY_LR
 const EMPTY_RSI: RsiIndicator = {
   series: [],
   latest: null,
+  pivots: { highs: [], lows: [] },
   divergence: { bearish: null, bullish: null },
 }
 

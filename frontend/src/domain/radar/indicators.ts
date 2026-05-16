@@ -267,18 +267,19 @@ export function detectDivergenceLine(
   const priceSlopePct = priceMove / from.price / span
 
   // Confidence: intermediate pivots hugging the trendline.
-  let touches = 0
+  const touching: RsiPivot[] = []
   for (const p of earlier) {
     if (p.index <= from.index || p.index >= pf.index) continue
     const lineRsi = from.rsi + rsiSlope * (p.index - from.index)
     const gap = isHigh ? lineRsi - p.rsi : p.rsi - lineRsi
-    if (gap >= -1e-6 && gap <= touchTol) touches++
+    if (gap >= -1e-6 && gap <= touchTol) touching.push(p)
   }
-  const touchCount = 2 + touches
+  const linePivots = [from, ...touching, pf]
+  const touchCount = linePivots.length
   const strength: DivergenceStrength =
     touchCount >= 4 ? 'strong' : touchCount === 3 ? 'moderate' : 'weak'
 
-  return { fromDate: from.date, toDate: pf.date, rsiSlope, priceSlopePct, touchCount, strength }
+  return { pivots: linePivots, rsiSlope, priceSlopePct, touchCount, strength }
 }
 
 export function computeRsi(datedCloses: DatedClose[]): RsiIndicator {
@@ -297,6 +298,7 @@ export function computeRsi(datedCloses: DatedClose[]): RsiIndicator {
   return {
     series,
     latest,
+    pivots: { highs, lows },
     divergence: {
       bearish: detectDivergenceLine(highs, true),
       bullish: detectDivergenceLine(lows, false),

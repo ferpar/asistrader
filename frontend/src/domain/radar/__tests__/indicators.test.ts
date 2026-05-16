@@ -290,9 +290,8 @@ describe('detectDivergenceLine', () => {
     const sig = detectDivergenceLine(pivots, true)
     expect(sig).not.toBeNull()
     expect(sig!.rsiSlope).toBeLessThan(0)
-    expect(sig!.fromDate).toBe('d0')
-    expect(sig!.toDate).toBe('d20')
-    expect(sig!.touchCount).toBe(3) // 2 endpoints + 1 intermediate on the line
+    expect(sig!.pivots.map((p) => p.date)).toEqual(['d0', 'd10', 'd20']) // from, touch, pf
+    expect(sig!.touchCount).toBe(3)
     expect(sig!.strength).toBe('moderate')
   })
 
@@ -317,6 +316,7 @@ describe('detectDivergenceLine', () => {
     ])
     const sig = detectDivergenceLine(pivots, true)
     expect(sig!.touchCount).toBe(4)
+    expect(sig!.pivots).toHaveLength(4) // every pivot lies on the line
     expect(sig!.strength).toBe('strong')
   })
 
@@ -362,6 +362,20 @@ describe('computeRsi', () => {
     expect(rsi.latest).not.toBeNull()
     expect(rsi.latest!).toBeGreaterThanOrEqual(0)
     expect(rsi.latest!).toBeLessThanOrEqual(100)
+  })
+
+  it('exposes swing pivots with dates for manual inspection', () => {
+    // a sine wave yields alternating RSI swing highs and lows
+    const datedCloses: DatedClose[] = Array.from({ length: 120 }, (_, i) => ({
+      date: `2025-${String(Math.floor(i / 28) + 1).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`,
+      close: 100 + Math.sin(i / 4) * 8,
+    }))
+    const rsi = computeRsi(datedCloses)
+    expect(rsi.pivots.highs.length).toBeGreaterThan(0)
+    expect(rsi.pivots.lows.length).toBeGreaterThan(0)
+    for (const p of [...rsi.pivots.highs, ...rsi.pivots.lows]) {
+      expect(p.date).toBe(datedCloses[p.index].date)
+    }
   })
 
   it('reports no divergence and a null latest for empty input', () => {

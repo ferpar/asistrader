@@ -181,6 +181,16 @@
   color: var(--color-success);
 }
 
+.divDates {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.6875rem;
+  font-family: monospace;
+  color: var(--color-text-muted);
+  cursor: help;
+}
+
 .changeLabel {
   font-size: 0.6875rem;
   font-weight: 600;

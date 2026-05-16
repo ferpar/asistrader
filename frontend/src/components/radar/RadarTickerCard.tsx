@@ -4,6 +4,7 @@ import type { Ticker } from '../../domain/ticker/types'
 import type { TradeWithMetrics, LiveMetrics } from '../../domain/trade/types'
 import { formatPrice } from '../../utils/priceFormat'
 import { RadarTradeLine } from './tradeLine/RadarTradeLine'
+import { RsiSparkline } from './RsiSparkline'
 import styles from './RadarTickerCard.module.css'
 
 interface RadarTickerCardProps {
@@ -35,8 +36,12 @@ function getRsiTone(value: number | null): string {
   return ''
 }
 
+function divergenceRange(d: DivergenceSignal): string {
+  return `${d.pivots[0].date} → ${d.pivots[d.pivots.length - 1].date}`
+}
+
 function divergenceTitle(d: DivergenceSignal): string {
-  return `${d.fromDate} → ${d.toDate} · ${d.touchCount} touches · ${d.strength}`
+  return `${d.touchCount} touches · ${d.strength}\nPivots: ${d.pivots.map((p) => p.date).join(', ')}`
 }
 
 function countByStatus(trades: TradeWithMetrics[]) {
@@ -208,6 +213,21 @@ export const RadarTickerCard = observer(function RadarTickerCard({
               </span>
             )}
           </div>
+          {(rsi.divergence.bearish || rsi.divergence.bullish) && (
+            <div className={styles.divDates}>
+              {rsi.divergence.bearish && (
+                <span title={divergenceTitle(rsi.divergence.bearish)}>
+                  ▼ {divergenceRange(rsi.divergence.bearish)}
+                </span>
+              )}
+              {rsi.divergence.bullish && (
+                <span title={divergenceTitle(rsi.divergence.bullish)}>
+                  ▲ {divergenceRange(rsi.divergence.bullish)}
+                </span>
+              )}
+            </div>
+          )}
+          <RsiSparkline rsi={rsi} />
         </div>
       </div>
 

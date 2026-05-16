@@ -55,6 +55,7 @@ export function buildRsiIndicator(overrides?: Partial<RsiIndicator>): RsiIndicat
   return {
     series: [],
     latest: 55,
+    pivots: { highs: [], lows: [] },
     divergence: { bearish: null, bullish: null },
     ...overrides,
   }

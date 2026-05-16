@@ -40,8 +40,8 @@ export interface RsiPivot {
 export type DivergenceStrength = 'weak' | 'moderate' | 'strong'
 
 export interface DivergenceSignal {
-  fromDate: string
-  toDate: string
+  /** Pivots on the trendline, chronological: from-pivot, touches, then `pf`. */
+  pivots: RsiPivot[]
   rsiSlope: number
   priceSlopePct: number
   touchCount: number
@@ -51,6 +51,7 @@ export interface DivergenceSignal {
 export interface RsiIndicator {
   series: (number | null)[]
   latest: number | null
+  pivots: { highs: RsiPivot[]; lows: RsiPivot[] }
   divergence: {
     bearish: DivergenceSignal | null
     bullish: DivergenceSignal | null
