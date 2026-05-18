@@ -52,6 +52,8 @@ function mapScope(dto: ScopeBlockDto): ScopeBlock {
   return {
     transactions: dto.transactions.map(mapTrade),
     byTicker: dto.by_ticker.map(mapGroup),
+    byTickerWinners: dto.by_ticker_winners.map(mapGroup),
+    byTickerLosers: dto.by_ticker_losers.map(mapGroup),
     portfolio: dto.portfolio ? mapGroup(dto.portfolio) : null,
   }
 }

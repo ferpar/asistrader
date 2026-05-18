@@ -157,6 +157,50 @@ def test_enhanced_daily_metric(db_session, sample_user, spreadsheet_scenario):
     assert point.enhanced_tir is not None
 
 
+def test_by_ticker_winners_losers_decomposition(db_session, sample_user):
+    """A ticker traded repeatedly is split into mixed / winners-only / losers-only.
+
+    Winners and losers of the same ticker must not cross-contaminate.
+    """
+    db_session.add(Ticker(symbol="MIX", name="Mixed Co", currency="USD"))
+    day = date(2025, 4, 1)
+    # Two winners (+100, +60) and one loser (-40), all on ticker MIX.
+    for profit, days in [(100, 10), (60, 20), (-40, 30)]:
+        db_session.add(
+            Trade(
+                ticker="MIX",
+                status=TradeStatus.CLOSE,
+                amount=1000.0,
+                units=1,
+                entry_price=1000.0,
+                exit_price=1000.0 + profit,
+                date_planned=day - timedelta(days=days),
+                date_ordered=day - timedelta(days=days),
+                exit_date=day,
+                user_id=sample_user.id,
+            )
+        )
+    db_session.commit()
+
+    analysis = compute_analysis(db_session, sample_user.id)
+    realized = analysis.realized
+
+    mixed = {g.label: g for g in realized.by_ticker}["MIX"]
+    winners = {g.label: g for g in realized.by_ticker_winners}["MIX"]
+    losers = {g.label: g for g in realized.by_ticker_losers}["MIX"]
+
+    assert mixed.trade_count == 3
+    assert mixed.profit_base == pytest.approx(120.0)  # 100 + 60 - 40
+
+    assert winners.trade_count == 2
+    assert winners.profit_base == pytest.approx(160.0)  # uncontaminated by the loser
+    assert winners.return_pct > 0
+
+    assert losers.trade_count == 1
+    assert losers.profit_base == pytest.approx(-40.0)
+    assert losers.return_pct < 0
+
+
 def test_unrealized_scope_marks_at_current_price(
     db_session, sample_user, monkeypatch
 ):

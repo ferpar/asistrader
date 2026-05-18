@@ -43,6 +43,30 @@
   margin: 16px 0 8px;
 }
 
+/* Sub-section header with an inline view toggle */
+.subHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.subHeader .subTitle {
+  margin: 0;
+}
+
+/* Daily charts block */
+.charts {
+  margin-top: 20px;
+}
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+}
+
 /* Portfolio summary card */
 .card {
   display: flex;
@@ -97,6 +121,37 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-text-muted);
+}
+
+/* Sortable headers */
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sortable:hover {
+  color: var(--color-text);
+}
+
+.sortActive {
+  color: var(--color-primary, #0969da);
+}
+
+.sortArrow {
+  margin-left: 3px;
+  font-size: 0.6rem;
+}
+
+.sortPriority {
+  display: inline-block;
+  margin-left: 3px;
+  padding: 0 4px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #fff;
+  background-color: var(--color-primary, #0969da);
+  border-radius: 6px;
 }
 
 .table tbody tr:hover {

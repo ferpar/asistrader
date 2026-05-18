@@ -40,9 +40,20 @@ export interface GroupIrr {
 
 export interface ScopeBlock {
   transactions: TradeIrr[]
+  /** Per-ticker aggregation over every trade (the "mixed" view). */
   byTicker: GroupIrr[]
+  /** Per-ticker aggregation over winning trades only. */
+  byTickerWinners: GroupIrr[]
+  /** Per-ticker aggregation over losing trades only. */
+  byTickerLosers: GroupIrr[]
   portfolio: GroupIrr | null
 }
+
+/** Mixed / winners / losers view of a per-ticker breakdown. */
+export type TickerView = 'mixed' | 'winners' | 'losers'
+
+/** All / winners / losers filter for the per-trade table. */
+export type TradeView = 'all' | 'winners' | 'losers'
 
 /** One calendar day of closed-trade activity. */
 export interface DailyPoint {
@@ -110,6 +121,8 @@ export interface GroupIrrDto {
 export interface ScopeBlockDto {
   transactions: TradeIrrDto[]
   by_ticker: GroupIrrDto[]
+  by_ticker_winners: GroupIrrDto[]
+  by_ticker_losers: GroupIrrDto[]
   portfolio: GroupIrrDto | null
 }
 

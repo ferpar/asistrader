@@ -1,0 +1,137 @@
+.chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+
+.chartTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.chartCaption {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  margin: 0 0 8px;
+}
+
+.figure {
+  margin: 0 0 20px;
+  padding: 12px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+/* d3-rendered axes */
+.axis :global(text) {
+  font-size: 0.65rem;
+  fill: var(--color-text-muted);
+}
+
+.axis :global(.domain),
+.axis :global(.tick line) {
+  stroke: var(--color-border);
+}
+
+.gridLine {
+  stroke: var(--color-border);
+  stroke-dasharray: 2 3;
+  opacity: 0.6;
+}
+
+.axisLabel {
+  font-size: 0.65rem;
+  fill: var(--color-text-muted);
+}
+
+/* Histogram */
+.bar {
+  fill: var(--color-primary, #0969da);
+  opacity: 0.55;
+}
+
+.bar:hover {
+  opacity: 0.85;
+}
+
+.normalCurve {
+  fill: none;
+  stroke: var(--color-error, #cf222e);
+  stroke-width: 1.75;
+}
+
+.cdfLine {
+  fill: none;
+  stroke: var(--color-text-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+/* Time series + normal-params lines */
+.lineTir {
+  fill: none;
+  stroke: var(--color-primary, #0969da);
+  stroke-width: 1.75;
+}
+
+.lineDays {
+  fill: none;
+  stroke: var(--color-success, #1a7f37);
+  stroke-width: 1.75;
+}
+
+.meanLine {
+  fill: none;
+  stroke: var(--color-primary, #0969da);
+  stroke-width: 1.75;
+}
+
+.sigmaBand {
+  fill: var(--color-primary, #0969da);
+  opacity: 0.14;
+  stroke: none;
+}
+
+.dot {
+  stroke: var(--color-surface, #fff);
+  stroke-width: 0.75;
+}
+
+/* Inline legend */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 6px 0 0;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 1px;
+  display: inline-block;
+}
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}

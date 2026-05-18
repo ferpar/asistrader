@@ -75,10 +75,18 @@ class GroupIrr(BaseModel):
 
 
 class ScopeBlock(BaseModel):
-    """A realized or unrealized scope: per-trade, per-ticker and portfolio."""
+    """A realized or unrealized scope: per-trade, per-ticker and portfolio.
+
+    ``by_ticker`` aggregates every trade of a ticker (the "mixed" view).
+    ``by_ticker_winners`` / ``by_ticker_losers`` re-aggregate the same tickers
+    using only their winning / losing trades, so a ticker's winners can be read
+    without cross-contamination from its losers (and vice versa).
+    """
 
     transactions: list[TradeIrr]
     by_ticker: list[GroupIrr]
+    by_ticker_winners: list[GroupIrr]
+    by_ticker_losers: list[GroupIrr]
     portfolio: GroupIrr | None = None
 
 
@@ -300,13 +308,12 @@ def _group(label: str, recs: list[_Rec], ticker_name: str | None = None) -> Grou
     )
 
 
-def _build_scope(recs: list[_Rec], portfolio_label: str) -> ScopeBlock:
-    """Assemble a realized/unrealized scope from its per-trade records."""
-    by_ticker_recs: dict[str, list[_Rec]] = defaultdict(list)
+def _by_ticker(recs: list[_Rec]) -> list[GroupIrr]:
+    """Aggregate records into one GroupIrr per ticker, sorted by symbol."""
+    grouped: dict[str, list[_Rec]] = defaultdict(list)
     for r in recs:
-        by_ticker_recs[r.trade.ticker].append(r)
-
-    by_ticker = [
+        grouped[r.trade.ticker].append(r)
+    return [
         _group(
             ticker,
             trecs,
@@ -314,11 +321,19 @@ def _build_scope(recs: list[_Rec], portfolio_label: str) -> ScopeBlock:
             if trecs[0].trade.ticker_rel
             else None,
         )
-        for ticker, trecs in sorted(by_ticker_recs.items())
+        for ticker, trecs in sorted(grouped.items())
     ]
+
+
+def _build_scope(recs: list[_Rec], portfolio_label: str) -> ScopeBlock:
+    """Assemble a realized/unrealized scope from its per-trade records."""
+    winners = [r for r in recs if r.is_winner]
+    losers = [r for r in recs if r.profit_native < 0]
     return ScopeBlock(
         transactions=[_rec_to_trade_irr(r) for r in recs],
-        by_ticker=by_ticker,
+        by_ticker=_by_ticker(recs),
+        by_ticker_winners=_by_ticker(winners),
+        by_ticker_losers=_by_ticker(losers),
         portfolio=_group(portfolio_label, recs) if recs else None,
     )
 

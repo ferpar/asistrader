@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { observer } from '@legendapp/state/react'
 import { useIrrStore } from '../container/ContainerContext'
 import type {
@@ -6,8 +6,14 @@ import type {
   DailyView,
   GroupIrr,
   ScopeBlock,
+  TickerView,
   TradeIrr,
+  TradeView,
 } from '../domain/irr/types'
+import { useMultiSort, useSortedRows, type SortTerm } from '../hooks/useMultiSort'
+import { Histogram } from '../components/charts/Histogram'
+import { TimeSeriesChart } from '../components/charts/TimeSeriesChart'
+import { NormalParamsChart } from '../components/charts/NormalParamsChart'
 import styles from './DriversDashboard.module.css'
 
 // ── Formatting helpers ──
@@ -40,30 +46,127 @@ function signClass(value: number): string {
   return ''
 }
 
+// ── Sortable column header ──
+
+interface SortCtl<K extends string> {
+  terms: SortTerm<K>[]
+  toggle: (key: K, additive: boolean) => void
+  priorityOf: (key: K) => number
+  dirOf: (key: K) => 'asc' | 'desc' | null
+}
+
+function SortableTh<K extends string>({
+  label,
+  sortKey,
+  numeric,
+  sort,
+}: {
+  label: string
+  sortKey: K
+  numeric?: boolean
+  sort: SortCtl<K>
+}) {
+  const dir = sort.dirOf(sortKey)
+  const showPriority = sort.terms.length > 1 && dir !== null
+  return (
+    <th
+      className={`${numeric ? styles.num : ''} ${styles.sortable} ${dir ? styles.sortActive : ''}`}
+      onClick={(e) => sort.toggle(sortKey, e.shiftKey)}
+      title="Click to sort · Shift-click to add a tie-breaker column"
+      aria-sort={dir === 'asc' ? 'ascending' : dir === 'desc' ? 'descending' : 'none'}
+    >
+      {label}
+      {dir && <span className={styles.sortArrow}>{dir === 'asc' ? '▲' : '▼'}</span>}
+      {showPriority && <span className={styles.sortPriority}>{sort.priorityOf(sortKey)}</span>}
+    </th>
+  )
+}
+
+/** Toggle button row shared by the scope and daily view switches. */
+function Toggle<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { id: T; label: string }[]
+  value: T
+  onChange: (id: T) => void
+}) {
+  return (
+    <div className={styles.toggle}>
+      {options.map((o) => (
+        <button
+          key={o.id}
+          className={`${styles.toggleBtn} ${value === o.id ? styles.toggleBtnActive : ''}`}
+          onClick={() => onChange(o.id)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ── Per-transaction table ──
 
+type TxnKey =
+  | 'ticker'
+  | 'ordered'
+  | 'closed'
+  | 'days'
+  | 'investment'
+  | 'profit'
+  | 'return'
+  | 'tir'
+  | 'xirr'
+
+function txnValue(r: TradeIrr, key: TxnKey) {
+  switch (key) {
+    case 'ticker':
+      return r.ticker
+    case 'ordered':
+      return r.dateOrdered
+    case 'closed':
+      return r.exitDate
+    case 'days':
+      return r.holdingDays
+    case 'investment':
+      return r.investmentBase
+    case 'profit':
+      return r.profitBase
+    case 'return':
+      return r.returnPct
+    case 'tir':
+      return r.tir
+    case 'xirr':
+      return r.xirr
+  }
+}
+
 function TransactionTable({ rows, ccy }: { rows: TradeIrr[]; ccy: string }) {
+  const sort = useMultiSort<TxnKey>([{ key: 'closed', dir: 'desc' }])
+  const sorted = useSortedRows(rows, sort.terms, txnValue)
   if (rows.length === 0) {
-    return <p className={styles.empty}>No transactions in this scope.</p>
+    return <p className={styles.empty}>No transactions in this view.</p>
   }
   return (
     <div className={styles.tableWrap}>
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>Ticker</th>
-            <th>Ordered</th>
-            <th>Closed</th>
-            <th className={styles.num}>Days</th>
-            <th className={styles.num}>Investment</th>
-            <th className={styles.num}>Profit</th>
-            <th className={styles.num}>Return %</th>
-            <th className={styles.num}>TIR</th>
-            <th className={styles.num}>XIRR</th>
+            <SortableTh label="Ticker" sortKey="ticker" sort={sort} />
+            <SortableTh label="Ordered" sortKey="ordered" sort={sort} />
+            <SortableTh label="Closed" sortKey="closed" sort={sort} />
+            <SortableTh label="Days" sortKey="days" numeric sort={sort} />
+            <SortableTh label="Investment" sortKey="investment" numeric sort={sort} />
+            <SortableTh label="Profit" sortKey="profit" numeric sort={sort} />
+            <SortableTh label="Return %" sortKey="return" numeric sort={sort} />
+            <SortableTh label="TIR" sortKey="tir" numeric sort={sort} />
+            <SortableTh label="XIRR" sortKey="xirr" numeric sort={sort} />
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
+          {sorted.map((r) => (
             <tr key={r.tradeId}>
               <td>
                 <span className={styles.ticker}>{r.ticker}</span>
@@ -91,25 +194,60 @@ function TransactionTable({ rows, ccy }: { rows: TradeIrr[]; ccy: string }) {
 
 // ── Per-ticker table ──
 
+type GroupKey =
+  | 'ticker'
+  | 'trades'
+  | 'investment'
+  | 'profit'
+  | 'return'
+  | 'avgDays'
+  | 'tir'
+  | 'xirr'
+
+function groupValue(g: GroupIrr, key: GroupKey) {
+  switch (key) {
+    case 'ticker':
+      return g.label
+    case 'trades':
+      return g.tradeCount
+    case 'investment':
+      return g.investmentBase
+    case 'profit':
+      return g.profitBase
+    case 'return':
+      return g.returnPct
+    case 'avgDays':
+      return g.avgHoldingDays
+    case 'tir':
+      return g.tir
+    case 'xirr':
+      return g.xirr
+  }
+}
+
 function TickerTable({ rows, ccy }: { rows: GroupIrr[]; ccy: string }) {
-  if (rows.length === 0) return null
+  const sort = useMultiSort<GroupKey>([{ key: 'profit', dir: 'desc' }])
+  const sorted = useSortedRows(rows, sort.terms, groupValue)
+  if (rows.length === 0) {
+    return <p className={styles.empty}>No tickers in this view.</p>
+  }
   return (
     <div className={styles.tableWrap}>
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>Ticker</th>
-            <th className={styles.num}>Trades</th>
-            <th className={styles.num}>Investment</th>
-            <th className={styles.num}>Profit</th>
-            <th className={styles.num}>Return %</th>
-            <th className={styles.num}>Avg Days</th>
-            <th className={styles.num}>TIR</th>
-            <th className={styles.num}>XIRR</th>
+            <SortableTh label="Ticker" sortKey="ticker" sort={sort} />
+            <SortableTh label="Trades" sortKey="trades" numeric sort={sort} />
+            <SortableTh label="Investment" sortKey="investment" numeric sort={sort} />
+            <SortableTh label="Profit" sortKey="profit" numeric sort={sort} />
+            <SortableTh label="Return %" sortKey="return" numeric sort={sort} />
+            <SortableTh label="Avg Days" sortKey="avgDays" numeric sort={sort} />
+            <SortableTh label="TIR" sortKey="tir" numeric sort={sort} />
+            <SortableTh label="XIRR" sortKey="xirr" numeric sort={sort} />
           </tr>
         </thead>
         <tbody>
-          {rows.map((g) => (
+          {sorted.map((g) => (
             <tr key={g.label}>
               <td>
                 <span className={styles.ticker}>{g.label}</span>
@@ -150,6 +288,7 @@ function PortfolioCard({ group, ccy }: { group: GroupIrr; ccy: string }) {
       value: fmtPct(group.returnPct),
       cls: signClass(group.returnPct),
     },
+    { label: 'Avg Days', value: group.avgHoldingDays.toFixed(1) },
     { label: 'TIR (annualized)', value: fmtPct(group.tir), cls: signClass(group.tir) },
     { label: 'XIRR (compound)', value: fmtXirr(group.xirr) },
   ]
@@ -167,6 +306,18 @@ function PortfolioCard({ group, ccy }: { group: GroupIrr; ccy: string }) {
 
 // ── A realized / unrealized scope ──
 
+const TICKER_VIEWS: { id: TickerView; label: string }[] = [
+  { id: 'mixed', label: 'Mixed' },
+  { id: 'winners', label: 'Winners' },
+  { id: 'losers', label: 'Losers' },
+]
+
+const TRADE_VIEWS: { id: TradeView; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'winners', label: 'Winners' },
+  { id: 'losers', label: 'Losers' },
+]
+
 function ScopeSection({
   title,
   scope,
@@ -176,6 +327,22 @@ function ScopeSection({
   scope: ScopeBlock
   ccy: string
 }) {
+  const [tickerView, setTickerView] = useState<TickerView>('mixed')
+  const [tradeView, setTradeView] = useState<TradeView>('all')
+
+  const tickerRows =
+    tickerView === 'winners'
+      ? scope.byTickerWinners
+      : tickerView === 'losers'
+        ? scope.byTickerLosers
+        : scope.byTicker
+
+  const txnRows = useMemo(() => {
+    if (tradeView === 'winners') return scope.transactions.filter((t) => t.isWinner)
+    if (tradeView === 'losers') return scope.transactions.filter((t) => t.profitNative < 0)
+    return scope.transactions
+  }, [scope.transactions, tradeView])
+
   return (
     <section className={styles.section}>
       <h3 className={styles.sectionTitle}>{title}</h3>
@@ -184,16 +351,28 @@ function ScopeSection({
       ) : (
         <p className={styles.empty}>No {title.toLowerCase()} trades yet.</p>
       )}
+
       {scope.byTicker.length > 0 && (
         <>
-          <h4 className={styles.subTitle}>By ticker</h4>
-          <TickerTable rows={scope.byTicker} ccy={ccy} />
+          <div className={styles.subHeader}>
+            <h4 className={styles.subTitle}>By ticker</h4>
+            <Toggle options={TICKER_VIEWS} value={tickerView} onChange={setTickerView} />
+          </div>
+          <p className={styles.note}>
+            Winners / losers re-aggregate each ticker from only its winning or losing
+            trades — so a ticker's winners can be read without its losers diluting them.
+          </p>
+          <TickerTable rows={tickerRows} ccy={ccy} />
         </>
       )}
+
       {scope.transactions.length > 0 && (
         <>
-          <h4 className={styles.subTitle}>By transaction</h4>
-          <TransactionTable rows={scope.transactions} ccy={ccy} />
+          <div className={styles.subHeader}>
+            <h4 className={styles.subTitle}>By transaction</h4>
+            <Toggle options={TRADE_VIEWS} value={tradeView} onChange={setTradeView} />
+          </div>
+          <TransactionTable rows={txnRows} ccy={ccy} />
         </>
       )}
     </section>
@@ -202,11 +381,191 @@ function ScopeSection({
 
 // ── Daily section ──
 
-const VIEWS: { id: DailyView; label: string }[] = [
+const DAILY_VIEWS: { id: DailyView; label: string }[] = [
   { id: 'mixed', label: 'Mixed' },
   { id: 'winners', label: 'Winners' },
   { id: 'losers', label: 'Losers' },
 ]
+
+type DailyKey =
+  | 'date'
+  | 'trades'
+  | 'investment'
+  | 'profit'
+  | 'return'
+  | 'avgDays'
+  | 'tir'
+  | 'enhReturn'
+  | 'enhTir'
+  | 'idle'
+
+function dailyValue(d: DailyPoint, key: DailyKey) {
+  switch (key) {
+    case 'date':
+      return d.date
+    case 'trades':
+      return d.tradeCount
+    case 'investment':
+      return d.investmentBase
+    case 'profit':
+      return d.profitBase
+    case 'return':
+      return d.returnPct
+    case 'avgDays':
+      return d.avgHoldingDays
+    case 'tir':
+      return d.tir
+    case 'enhReturn':
+      return d.enhancedReturnPct
+    case 'enhTir':
+      return d.enhancedTir
+    case 'idle':
+      return d.idlePoolBase
+  }
+}
+
+function DailyTable({
+  rows,
+  ccy,
+  showEnhanced,
+}: {
+  rows: DailyPoint[]
+  ccy: string
+  showEnhanced: boolean
+}) {
+  const sort = useMultiSort<DailyKey>([{ key: 'date', dir: 'asc' }])
+  const sorted = useSortedRows(rows, sort.terms, dailyValue)
+  return (
+    <div className={styles.tableWrap}>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <SortableTh label="Date" sortKey="date" sort={sort} />
+            <SortableTh label="Trades" sortKey="trades" numeric sort={sort} />
+            <SortableTh label="Investment" sortKey="investment" numeric sort={sort} />
+            <SortableTh label="Profit" sortKey="profit" numeric sort={sort} />
+            <SortableTh label="Return %" sortKey="return" numeric sort={sort} />
+            <SortableTh label="Avg Days" sortKey="avgDays" numeric sort={sort} />
+            <SortableTh label="Daily TIR" sortKey="tir" numeric sort={sort} />
+            {showEnhanced && (
+              <SortableTh label="Enhanced %" sortKey="enhReturn" numeric sort={sort} />
+            )}
+            {showEnhanced && (
+              <SortableTh label="Enhanced TIR" sortKey="enhTir" numeric sort={sort} />
+            )}
+            {showEnhanced && (
+              <SortableTh label="Idle Pool" sortKey="idle" numeric sort={sort} />
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((d) => (
+            <tr key={d.date}>
+              <td>{d.date}</td>
+              <td className={styles.num}>{d.tradeCount}</td>
+              <td className={styles.num}>{fmtMoney(d.investmentBase, ccy)}</td>
+              <td className={`${styles.num} ${signClass(d.profitBase)}`}>
+                {fmtMoney(d.profitBase, ccy)}
+              </td>
+              <td className={`${styles.num} ${signClass(d.returnPct)}`}>
+                {fmtPct(d.returnPct)}
+              </td>
+              <td className={styles.num}>{d.avgHoldingDays.toFixed(1)}</td>
+              <td className={`${styles.num} ${signClass(d.tir)}`}>{fmtPct(d.tir)}</td>
+              {showEnhanced && (
+                <td className={styles.num}>
+                  {d.enhancedReturnPct !== null ? fmtPct(d.enhancedReturnPct) : '—'}
+                </td>
+              )}
+              {showEnhanced && (
+                <td className={styles.num}>
+                  {d.enhancedTir !== null ? fmtPct(d.enhancedTir) : '—'}
+                </td>
+              )}
+              {showEnhanced && (
+                <td className={styles.num}>
+                  {d.idlePoolBase !== null ? fmtMoney(d.idlePoolBase, ccy) : '—'}
+                  {d.idleTradeCount !== null && (
+                    <span className={styles.muted}> ({d.idleTradeCount})</span>
+                  )}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+const fmtPctTick = (v: number) => `${(v * 100).toFixed(0)}%`
+const fmtDaysTick = (v: number) => `${v.toFixed(0)}d`
+
+/** Histograms, time series and rolling-normal charts for the daily series. */
+function DailyDistributions({ points }: { points: DailyPoint[] }) {
+  const { tirValues, dayValues, dates, series } = useMemo(() => {
+    const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date))
+    return {
+      tirValues: sorted.map((p) => p.tir),
+      dayValues: sorted.map((p) => p.avgHoldingDays),
+      dates: sorted.map((p) => p.date),
+      series: sorted.map((p) => ({
+        date: p.date,
+        tir: p.tir,
+        avgDays: p.avgHoldingDays,
+      })),
+    }
+  }, [points])
+
+  if (points.length === 0) {
+    return <p className={styles.empty}>No closed trades to chart for this view.</p>
+  }
+
+  return (
+    <div className={styles.charts}>
+      <h4 className={styles.subTitle}>Distributions</h4>
+      <div className={styles.chartGrid}>
+        <Histogram
+          values={tirValues}
+          title="Daily annualized TIR"
+          caption="Frequency of daily TIR, with the fitted normal curve and cumulative %."
+          formatValue={fmtPctTick}
+        />
+        <Histogram
+          values={dayValues}
+          title="Daily average holding days"
+          caption="Frequency of the per-day average holding period."
+          formatValue={fmtDaysTick}
+        />
+      </div>
+
+      <h4 className={styles.subTitle}>Through time</h4>
+      <TimeSeriesChart
+        points={series}
+        title="Daily TIR & average holding days"
+        caption="One point per day a trade closed."
+      />
+
+      <h4 className={styles.subTitle}>Normal-fit parameters by day</h4>
+      <div className={styles.chartGrid}>
+        <NormalParamsChart
+          dates={dates}
+          values={tirValues}
+          title="TIR — cumulative μ ± σ"
+          caption="The normal fit of daily TIR as it stabilizes with each new day."
+          formatValue={fmtPctTick}
+        />
+        <NormalParamsChart
+          dates={dates}
+          values={dayValues}
+          title="Avg days — cumulative μ ± σ"
+          caption="The normal fit of daily average holding days over time."
+          formatValue={fmtDaysTick}
+        />
+      </div>
+    </div>
+  )
+}
 
 function DailySection({
   daily,
@@ -227,73 +586,14 @@ function DailySection({
         by trade outcome. <strong>Enhanced</strong> charges each day a share of the
         idle capital pool (ordered + open trades) — shown for the mixed view only.
       </p>
-      <div className={styles.toggle}>
-        {VIEWS.map((v) => (
-          <button
-            key={v.id}
-            className={`${styles.toggleBtn} ${view === v.id ? styles.toggleBtnActive : ''}`}
-            onClick={() => setView(v.id)}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
+      <Toggle options={DAILY_VIEWS} value={view} onChange={setView} />
       {rows.length === 0 ? (
         <p className={styles.empty}>No closed trades for this view.</p>
       ) : (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th className={styles.num}>Trades</th>
-                <th className={styles.num}>Investment</th>
-                <th className={styles.num}>Profit</th>
-                <th className={styles.num}>Return %</th>
-                <th className={styles.num}>Avg Days</th>
-                <th className={styles.num}>Daily TIR</th>
-                {showEnhanced && <th className={styles.num}>Enhanced %</th>}
-                {showEnhanced && <th className={styles.num}>Enhanced TIR</th>}
-                {showEnhanced && <th className={styles.num}>Idle Pool</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((d) => (
-                <tr key={d.date}>
-                  <td>{d.date}</td>
-                  <td className={styles.num}>{d.tradeCount}</td>
-                  <td className={styles.num}>{fmtMoney(d.investmentBase, ccy)}</td>
-                  <td className={`${styles.num} ${signClass(d.profitBase)}`}>
-                    {fmtMoney(d.profitBase, ccy)}
-                  </td>
-                  <td className={`${styles.num} ${signClass(d.returnPct)}`}>
-                    {fmtPct(d.returnPct)}
-                  </td>
-                  <td className={styles.num}>{d.avgHoldingDays.toFixed(1)}</td>
-                  <td className={`${styles.num} ${signClass(d.tir)}`}>{fmtPct(d.tir)}</td>
-                  {showEnhanced && (
-                    <td className={styles.num}>
-                      {d.enhancedReturnPct !== null ? fmtPct(d.enhancedReturnPct) : '—'}
-                    </td>
-                  )}
-                  {showEnhanced && (
-                    <td className={styles.num}>
-                      {d.enhancedTir !== null ? fmtPct(d.enhancedTir) : '—'}
-                    </td>
-                  )}
-                  {showEnhanced && (
-                    <td className={styles.num}>
-                      {d.idlePoolBase !== null ? fmtMoney(d.idlePoolBase, ccy) : '—'}
-                      {d.idleTradeCount !== null && (
-                        <span className={styles.muted}> ({d.idleTradeCount})</span>
-                      )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <DailyTable rows={rows} ccy={ccy} showEnhanced={showEnhanced} />
+          <DailyDistributions points={rows} />
+        </>
       )}
     </section>
   )
@@ -319,7 +619,8 @@ export const DriversDashboard = observer(function DriversDashboard() {
         Measures the cash-making drivers of each trade. <strong>TIR</strong> is the
         simple annualized return (return % ÷ holding days × 365);{' '}
         <strong>XIRR</strong> is the true compound rate. The holding period runs from
-        the order date (capital committed) to close.
+        the order date (capital committed) to close. Click a column header to sort —
+        shift-click to add tie-breaker columns.
       </p>
 
       {error && <div className={styles.error}>{error}</div>}

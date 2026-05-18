@@ -1,27 +1,25 @@
+RSI extras
+	- histogram for the daily
+		- annualized return TIR
+		- avg days
+	- frequency distributions for
+		- annaualized TIR
+		- avg days
+	- graph both TIR and avg days through time (daily)
+	- graph normal distribution parameters for daily TIR and avg days on each day as well
+
+	Realized by Ticker
+		also decompose in mixed-winners-losersso it is possible to look at the winners of a ticker without cross-contamination from losers and vicecersa
+	Realized by Trade
+		also allow to see all-winners-losers, i say all because trades are independent
+	Tables in the Drivers section
+		make them multisortable by column
+	Unrealized and Unrealized
+		add an average of the avg_days
+
 Radar Presets
 	Ex: Flat View Clsest to TP and Drift Behing
 
-TIR/IRR:
-	- new tab
-	- two similar sections: realized and un-realized 
-	- goal is to measure cash making drivers
-		- so by modifying them we optimize the available cash
-
-	- TIR of each transaction 
-		measuring benefit from plan to close
-			- return %: benefit over invested amount
-			- return per day:  
-				(return %) / number of days from ordered to close
-			- annualized return:
-				return per day * (days in the year = 365)
-	- Daily
-		- annualized daily: derive daily annualized return for each day of the calendar
-			we may ponder-average the elapsed times
-		- enhanced**:
-			it attempts to cover for the fact that there's a lot more immobilized than what was resolved in the closed trades. So, it takes the total invested amount (the full immovilized) divides it between the number of ordered and open trades, this quantity is then multiplied by the number of closed trades in the day and added to the invested amount in those closed trades of the day.
-		- it is wanted to have a view for the winners, losers and mixed for the annualized daily, not the enhanced
-
-Una vez que una orden está "Close" podemos calcular el IRR/TIR de la siguiente forma: retorno €/Inversión € dividido entre los días entre Open y Close, multiplicado por 365... eso para cada ticker en cada operación, para un ticker con todas sus operaciones, y para toda la cartera...
 
 SMA - improvements:
 	- combinatory score (how many averages below bullish for each of the averages)
