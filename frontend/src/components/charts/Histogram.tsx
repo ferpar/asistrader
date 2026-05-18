@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { line, scaleLinear } from 'd3'
 import { XAxis, YAxis } from './Axes'
+import { ChartTooltip, useTooltip } from './ChartTooltip'
 import {
   cumulative,
   histogramBins,
@@ -35,6 +36,7 @@ export function Histogram({
   formatValue,
   binCount,
 }: HistogramProps) {
+  const { tooltip, show, hide } = useTooltip()
   const model = useMemo(() => {
     if (values.length === 0) return null
     const bins = histogramBins(values, binCount)
@@ -86,6 +88,7 @@ export function Histogram({
     <figure className={styles.figure}>
       <p className={styles.chartTitle}>{title}</p>
       {caption && <p className={styles.chartCaption}>{caption}</p>}
+      <div className={styles.chartFrame}>
       <svg
         className={styles.chart}
         viewBox={`0 0 ${W} ${H}`}
@@ -105,9 +108,22 @@ export function Histogram({
               y={by}
               width={bw}
               height={H - M.bottom - by}
-            >
-              <title>{`${formatValue(b.x0)} – ${formatValue(b.x1)}: ${b.count}`}</title>
-            </rect>
+              onMouseEnter={() =>
+                show({
+                  xPct: ((bx + bw / 2) / W) * 100,
+                  yPct: (by / H) * 100,
+                  title: `${formatValue(b.x0)} – ${formatValue(b.x1)}`,
+                  rows: [
+                    { label: 'Frequency', value: String(b.count) },
+                    {
+                      label: 'Cumulative',
+                      value: `${(cdf[i].fraction * 100).toFixed(0)}%`,
+                    },
+                  ],
+                })
+              }
+              onMouseLeave={hide}
+            />
           )
         })}
         {sigma > 0 && <path className={styles.normalCurve} d={curvePath} />}
@@ -127,6 +143,8 @@ export function Histogram({
           format={(v) => `${Math.round((v as number) * 100)}%`}
         />
       </svg>
+      <ChartTooltip tooltip={tooltip} />
+      </div>
       <div className={styles.legend}>
         <span className={styles.legendItem}>
           <span className={styles.swatch} style={{ background: 'var(--color-primary, #0969da)', opacity: 0.55 }} />

@@ -135,3 +135,68 @@
   color: var(--color-text-muted);
   font-size: 0.85rem;
 }
+
+/* Hover tooltip */
+.chartFrame {
+  position: relative;
+}
+
+.tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 10px));
+  z-index: 5;
+  pointer-events: none;
+  min-width: 110px;
+  padding: 6px 8px;
+  background-color: var(--color-surface, #fff);
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
+  font-size: 0.7rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.tooltipTitle {
+  font-weight: 600;
+  margin-bottom: 3px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tooltipRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.tooltipLabel {
+  color: var(--color-text-muted);
+}
+
+.tooltipValue {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hover affordances */
+.hitArea {
+  fill: transparent;
+  cursor: crosshair;
+}
+
+.hoverGuide {
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+  pointer-events: none;
+}
+
+.dotActive {
+  stroke: var(--color-surface, #fff);
+  stroke-width: 1.5;
+}
+
+.barActive {
+  opacity: 0.9;
+}

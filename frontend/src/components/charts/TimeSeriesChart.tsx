@@ -1,7 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { extent, line, scaleLinear, scaleTime, timeFormat } from 'd3'
 import { XAxis, YAxis } from './Axes'
+import { ChartTooltip, useTooltip } from './ChartTooltip'
 import styles from './charts.module.css'
+
+const COLOR_TIR = 'var(--color-primary, #0969da)'
+const COLOR_DAYS = 'var(--color-success, #1a7f37)'
 
 const W = 720
 const H = 300
@@ -25,6 +29,8 @@ interface TimeSeriesChartProps {
  * (right) plotted against the close date.
  */
 export function TimeSeriesChart({ points, title, caption }: TimeSeriesChartProps) {
+  const { tooltip, show, hide } = useTooltip()
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null)
   const data = useMemo(
     () =>
       points
@@ -62,6 +68,7 @@ export function TimeSeriesChart({ points, title, caption }: TimeSeriesChartProps
     <figure className={styles.figure}>
       <p className={styles.chartTitle}>{title}</p>
       {caption && <p className={styles.chartCaption}>{caption}</p>}
+      <div className={styles.chartFrame}>
       <svg
         className={styles.chart}
         viewBox={`0 0 ${W} ${H}`}
@@ -76,31 +83,36 @@ export function TimeSeriesChart({ points, title, caption }: TimeSeriesChartProps
           y1={yTir(0)}
           y2={yTir(0)}
         />
+        {hoverIdx !== null && (
+          <line
+            className={styles.hoverGuide}
+            x1={x(data[hoverIdx].t)}
+            x2={x(data[hoverIdx].t)}
+            y1={M.top}
+            y2={H - M.bottom}
+          />
+        )}
         <path className={styles.lineTir} d={tirPath} />
         <path className={styles.lineDays} d={daysPath} />
-        {data.map((d) => (
+        {data.map((d, i) => (
           <circle
             key={`tir-${d.date}`}
-            className={styles.dot}
+            className={i === hoverIdx ? styles.dotActive : styles.dot}
             cx={x(d.t)}
             cy={yTir(d.tir)}
-            r={2.25}
-            fill="var(--color-primary, #0969da)"
-          >
-            <title>{`${d.date} · TIR ${(d.tir * 100).toFixed(1)}%`}</title>
-          </circle>
+            r={i === hoverIdx ? 3.75 : 2.25}
+            fill={COLOR_TIR}
+          />
         ))}
-        {data.map((d) => (
+        {data.map((d, i) => (
           <circle
             key={`days-${d.date}`}
-            className={styles.dot}
+            className={i === hoverIdx ? styles.dotActive : styles.dot}
             cx={x(d.t)}
             cy={yDays(d.avgDays)}
-            r={2.25}
-            fill="var(--color-success, #1a7f37)"
-          >
-            <title>{`${d.date} · ${d.avgDays.toFixed(1)} days`}</title>
-          </circle>
+            r={i === hoverIdx ? 3.75 : 2.25}
+            fill={COLOR_DAYS}
+          />
         ))}
         <XAxis scale={x} top={H - M.bottom} ticks={7} format={fmtDate} />
         <YAxis
@@ -110,7 +122,50 @@ export function TimeSeriesChart({ points, title, caption }: TimeSeriesChartProps
           format={(v) => `${Math.round((v as number) * 100)}%`}
         />
         <YAxis scale={yDays} left={W - M.right} orient="right" ticks={5} />
+        {/* Transparent hover bands — one per point, splitting the gaps. */}
+        {data.map((d, i) => {
+          const px = x(d.t)
+          const left = i === 0 ? M.left : (x(data[i - 1].t) + px) / 2
+          const right =
+            i === data.length - 1 ? W - M.right : (px + x(data[i + 1].t)) / 2
+          return (
+            <rect
+              key={`hit-${d.date}`}
+              className={styles.hitArea}
+              x={left}
+              y={M.top}
+              width={Math.max(0, right - left)}
+              height={H - M.bottom - M.top}
+              onMouseEnter={() => {
+                setHoverIdx(i)
+                show({
+                  xPct: (px / W) * 100,
+                  yPct: (Math.min(yTir(d.tir), yDays(d.avgDays)) / H) * 100,
+                  title: d.date,
+                  rows: [
+                    {
+                      label: 'Daily TIR',
+                      value: `${(d.tir * 100).toFixed(2)}%`,
+                      color: COLOR_TIR,
+                    },
+                    {
+                      label: 'Avg days',
+                      value: d.avgDays.toFixed(1),
+                      color: COLOR_DAYS,
+                    },
+                  ],
+                })
+              }}
+              onMouseLeave={() => {
+                setHoverIdx(null)
+                hide()
+              }}
+            />
+          )
+        })}
       </svg>
+      <ChartTooltip tooltip={tooltip} />
+      </div>
       <div className={styles.legend}>
         <span className={styles.legendItem}>
           <span className={styles.swatch} style={{ background: 'var(--color-primary, #0969da)' }} />
