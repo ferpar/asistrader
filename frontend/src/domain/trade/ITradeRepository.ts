@@ -1,5 +1,5 @@
 import { TradeCreateRequest, TradeUpdateRequest, MarkLevelHitRequest } from '../../types/trade'
-import type { TradeWithMetrics, PriceData, EntryAlert, SLTPAlert, LayeredAlert, DetectionResult } from './types'
+import type { TradeWithMetrics, PriceData, EntryAlert, SLTPAlert, LayeredAlert, DetectionResult, AlertSignature } from './types'
 
 export interface DetectionResponse {
   entryAlerts: EntryAlert[]
@@ -17,6 +17,8 @@ export interface ITradeRepository {
   detectTradeHits(): Promise<DetectionResponse>
   markExitLevelHit(tradeId: number, levelId: number, request: MarkLevelHitRequest): Promise<TradeWithMetrics>
   revertExitLevelHit(tradeId: number, levelId: number): Promise<TradeWithMetrics>
+  dismissAlert(signature: AlertSignature): Promise<void>
+  restoreAlert(signature: AlertSignature): Promise<void>
 }
 
 export interface IPriceProvider {

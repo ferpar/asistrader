@@ -158,6 +158,9 @@ export interface SLTPAlert {
   auto_detect: boolean
   auto_closed: boolean
   message: string
+  alert_kind: string
+  level_key: string
+  dismissed: boolean
 }
 
 export interface EntryAlert {
@@ -169,6 +172,9 @@ export interface EntryAlert {
   auto_detect: boolean
   auto_opened: boolean
   message: string
+  alert_kind: string
+  level_key: string
+  dismissed: boolean
 }
 
 export interface LayeredAlert {
@@ -183,6 +189,17 @@ export interface LayeredAlert {
   auto_detect: boolean
   auto_processed: boolean
   message: string
+  alert_kind: string
+  level_key: string
+  dismissed: boolean
+}
+
+/** Identifies an alert for the dismissal blacklist. */
+export interface AlertDismissRequest {
+  trade_id: number
+  hit_date: string
+  alert_kind: string
+  level_key: string
 }
 
 export interface TradeDetectionResponse {

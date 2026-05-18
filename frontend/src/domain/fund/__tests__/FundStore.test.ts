@@ -31,7 +31,11 @@ function makeFundRepo(opts: {
   settings?: FundSettingsDTO
 } = {}): IFundRepository & { updateCalls: FundSettingsRequest[] } {
   const updateCalls: FundSettingsRequest[] = []
-  let current: FundSettingsDTO = opts.settings ?? { risk_pct: 0.02, base_currency: 'USD' }
+  let current: FundSettingsDTO = opts.settings ?? {
+    risk_pct: 0.02,
+    base_currency: 'USD',
+    detection_margin_pct: 0.005,
+  }
   return {
     updateCalls,
     async fetchEvents() {
@@ -57,6 +61,7 @@ function makeFundRepo(opts: {
       current = {
         risk_pct: req.risk_pct ?? current.risk_pct,
         base_currency: req.base_currency ?? current.base_currency,
+        detection_margin_pct: req.detection_margin_pct ?? current.detection_margin_pct,
       }
       return current
     },
@@ -74,7 +79,7 @@ function makeFxStore(rates: Record<string, FxRate[]> = {}): {
 describe('FundStore.loadSettings', () => {
   it('hydrates riskPct$ and baseCurrency$ from the API', async () => {
     const fundRepo = makeFundRepo({
-      settings: { risk_pct: 0.05, base_currency: 'EUR' },
+      settings: { risk_pct: 0.05, base_currency: 'EUR', detection_margin_pct: 0.005 },
     })
     const { store: fx } = makeFxStore()
     const fund = new FundStore(fundRepo, fx)
@@ -263,7 +268,7 @@ describe('FundStore.loadEvents — FX hydration side effect', () => {
 describe('FundStore.updateRiskPct', () => {
   it('persists risk_pct without touching base_currency', async () => {
     const fundRepo = makeFundRepo({
-      settings: { risk_pct: 0.02, base_currency: 'EUR' },
+      settings: { risk_pct: 0.02, base_currency: 'EUR', detection_margin_pct: 0.005 },
     })
     const { store: fx } = makeFxStore()
     const fund = new FundStore(fundRepo, fx)

@@ -187,6 +187,46 @@ def test_update_risk_pct_does_not_reset_base_currency(
     assert body["base_currency"] == "EUR"
 
 
+def test_get_settings_default_detection_margin(
+    client: TestClient, auth_headers: dict[str, str], sample_user: User
+) -> None:
+    """Settings expose the detection margin, defaulting to 0.5%."""
+    response = client.get("/api/fund/settings", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["detection_margin_pct"] == 0.005
+
+
+def test_update_detection_margin(
+    client: TestClient, auth_headers: dict[str, str], sample_user: User
+) -> None:
+    """PATCH detection_margin_pct updates and persists."""
+    response = client.patch(
+        "/api/fund/settings",
+        json={"detection_margin_pct": 0.02},
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["detection_margin_pct"] == 0.02
+    # risk_pct and base_currency retain their defaults.
+    assert response.json()["risk_pct"] == 0.02
+    assert response.json()["base_currency"] == "USD"
+
+    response = client.get("/api/fund/settings", headers=auth_headers)
+    assert response.json()["detection_margin_pct"] == 0.02
+
+
+def test_update_detection_margin_rejects_out_of_range(
+    client: TestClient, auth_headers: dict[str, str], sample_user: User
+) -> None:
+    """A margin above the 10% ceiling is rejected by validation."""
+    response = client.patch(
+        "/api/fund/settings",
+        json={"detection_margin_pct": 0.5},
+        headers=auth_headers,
+    )
+    assert response.status_code == 422
+
+
 def test_deposit_in_eur(
     client: TestClient, auth_headers: dict[str, str], sample_user: User
 ) -> None:

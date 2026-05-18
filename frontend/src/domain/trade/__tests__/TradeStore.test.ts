@@ -165,8 +165,8 @@ describe('TradeStore', () => {
   describe('detectTradeHits', () => {
     it('sets alerts and reloads on auto-actions', async () => {
       const detectionResult: DetectionResponse = {
-        entryAlerts: [{ tradeId: 1, ticker: 'AAPL', hitType: 'entry' as const, hitDate: '2025-01-15', entryPrice: Decimal.from(150), autoDetect: true, autoOpened: true, message: 'auto opened' }],
-        sltpAlerts: [{ tradeId: 2, ticker: 'MSFT', hitType: 'sl' as const, hitDate: '2025-01-15', hitPrice: Decimal.from(140), autoDetect: true, autoClosed: true, message: 'auto closed' }],
+        entryAlerts: [{ tradeId: 1, ticker: 'AAPL', hitType: 'entry' as const, hitDate: '2025-01-15', entryPrice: Decimal.from(150), autoDetect: true, autoOpened: true, message: 'auto opened', alertKind: 'entry', levelKey: 'entry', dismissed: false }],
+        sltpAlerts: [{ tradeId: 2, ticker: 'MSFT', hitType: 'sl' as const, hitDate: '2025-01-15', hitPrice: Decimal.from(140), autoDetect: true, autoClosed: true, message: 'auto closed', alertKind: 'sltp', levelKey: 'sl', dismissed: false }],
         layeredAlerts: [],
         result: {
           autoOpenedCount: 1,
@@ -220,45 +220,64 @@ describe('TradeStore', () => {
   })
 
   describe('dismiss alerts', () => {
-    it('dismisses entry alert by trade id', async () => {
-      const store = createStore()
-      store.entryAlerts$.set([
-        { tradeId: 1, ticker: 'AAPL', hitType: 'entry', hitDate: '2025-01-15', entryPrice: Decimal.from(150), autoDetect: false, autoOpened: false, message: 'hit' },
-        { tradeId: 2, ticker: 'MSFT', hitType: 'entry', hitDate: '2025-01-15', entryPrice: Decimal.from(300), autoDetect: false, autoOpened: false, message: 'hit' },
-      ])
-
-      store.dismissEntryAlert(1)
-
-      expect(store.entryAlerts$.get()).toHaveLength(1)
-      expect(store.entryAlerts$.get()[0].tradeId).toBe(2)
+    const entryAlert = (tradeId: number) => ({
+      tradeId, ticker: 'AAPL', hitType: 'entry' as const, hitDate: '2025-01-15',
+      entryPrice: Decimal.from(150), autoDetect: false, autoOpened: false,
+      message: 'hit', alertKind: 'entry', levelKey: 'entry', dismissed: false,
+    })
+    const sltpAlert = (tradeId: number) => ({
+      tradeId, ticker: 'MSFT', hitType: 'sl' as const, hitDate: '2025-01-15',
+      hitPrice: Decimal.from(140), autoDetect: false, autoClosed: false,
+      message: 'hit', alertKind: 'sltp', levelKey: 'sl', dismissed: false,
     })
 
-    it('dismisses sltp alert by trade id', async () => {
-      const store = createStore()
-      store.sltpAlerts$.set([
-        { tradeId: 1, ticker: 'AAPL', hitType: 'sl', hitDate: '2025-01-15', hitPrice: Decimal.from(140), autoDetect: false, autoClosed: false, message: 'hit' },
-      ])
+    it('flags an entry alert dismissed and persists it via the repo', async () => {
+      const dismissAlert = vi.fn().mockResolvedValue(undefined)
+      const store = createStore({ dismissAlert })
+      store.entryAlerts$.set([entryAlert(1), entryAlert(2)])
 
-      store.dismissSltpAlert(1)
+      await store.dismissAlert(store.entryAlerts$.get()[0])
 
-      expect(store.sltpAlerts$.get()).toHaveLength(0)
+      expect(dismissAlert).toHaveBeenCalledWith({
+        tradeId: 1, hitDate: '2025-01-15', alertKind: 'entry', levelKey: 'entry',
+      })
+      // Both alerts remain in the list; only the matching one is flagged.
+      expect(store.entryAlerts$.get().map(a => a.dismissed)).toEqual([true, false])
     })
 
-    it('dismisses all alerts', async () => {
+    it('flags an sltp alert dismissed', async () => {
       const store = createStore()
-      store.entryAlerts$.set([
-        { tradeId: 1, ticker: 'AAPL', hitType: 'entry', hitDate: '2025-01-15', entryPrice: Decimal.from(150), autoDetect: false, autoOpened: false, message: 'hit' },
-      ])
-      store.sltpAlerts$.set([
-        { tradeId: 2, ticker: 'MSFT', hitType: 'sl', hitDate: '2025-01-15', hitPrice: Decimal.from(140), autoDetect: false, autoClosed: false, message: 'hit' },
-      ])
-      store.lastDetectionResult$.set({ autoOpenedCount: 1, autoClosedCount: 0, partialCloseCount: 0, conflictCount: 0 })
+      store.sltpAlerts$.set([sltpAlert(1)])
 
-      store.dismissAllAlerts()
+      await store.dismissAlert(store.sltpAlerts$.get()[0])
 
-      expect(store.entryAlerts$.get()).toHaveLength(0)
-      expect(store.sltpAlerts$.get()).toHaveLength(0)
-      expect(store.lastDetectionResult$.get()).toBeNull()
+      expect(store.sltpAlerts$.get()[0].dismissed).toBe(true)
+    })
+
+    it('restores a dismissed alert and persists it via the repo', async () => {
+      const restoreAlert = vi.fn().mockResolvedValue(undefined)
+      const store = createStore({ restoreAlert })
+      store.sltpAlerts$.set([{ ...sltpAlert(1), dismissed: true }])
+
+      await store.restoreAlert(store.sltpAlerts$.get()[0])
+
+      expect(restoreAlert).toHaveBeenCalledWith({
+        tradeId: 1, hitDate: '2025-01-15', alertKind: 'sltp', levelKey: 'sl',
+      })
+      expect(store.sltpAlerts$.get()[0].dismissed).toBe(false)
+    })
+
+    it('dismisses every active alert', async () => {
+      const dismissAlert = vi.fn().mockResolvedValue(undefined)
+      const store = createStore({ dismissAlert })
+      store.entryAlerts$.set([entryAlert(1)])
+      store.sltpAlerts$.set([sltpAlert(2)])
+
+      await store.dismissAllAlerts()
+
+      expect(dismissAlert).toHaveBeenCalledTimes(2)
+      expect(store.entryAlerts$.get()[0].dismissed).toBe(true)
+      expect(store.sltpAlerts$.get()[0].dismissed).toBe(true)
     })
   })
 })

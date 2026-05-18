@@ -661,6 +661,10 @@ class EntryHitType(str, Enum):
     ENTRY = "entry"
 
 
+# Identifying fields for the dismissal blacklist. `alert_kind` + `level_key`
+# together with trade_id + hit_date form an alert's signature.
+
+
 class SLTPAlert(BaseModel):
     """Schema for an SL/TP alert."""
 
@@ -672,6 +676,9 @@ class SLTPAlert(BaseModel):
     auto_detect: bool
     auto_closed: bool
     message: str
+    alert_kind: str = "sltp"
+    level_key: str = ""
+    dismissed: bool = False
 
 
 class EntryAlert(BaseModel):
@@ -685,6 +692,9 @@ class EntryAlert(BaseModel):
     auto_detect: bool
     auto_opened: bool
     message: str
+    alert_kind: str = "entry"
+    level_key: str = "entry"
+    dismissed: bool = False
 
 
 class LayeredAlert(BaseModel):
@@ -701,6 +711,18 @@ class LayeredAlert(BaseModel):
     auto_detect: bool
     auto_processed: bool
     message: str
+    alert_kind: str = "layered"
+    level_key: str = ""
+    dismissed: bool = False
+
+
+class AlertDismissRequest(BaseModel):
+    """Request schema for dismissing or restoring a detection alert."""
+
+    trade_id: int
+    hit_date: date
+    alert_kind: str  # "entry" | "sltp" | "layered"
+    level_key: str
 
 
 class TradeDetectionResponse(BaseModel):
@@ -797,6 +819,7 @@ class RiskSettingsRequest(BaseModel):
 
     risk_pct: float | None = Field(default=None, gt=0, le=1.0)
     base_currency: str | None = None
+    detection_margin_pct: float | None = Field(default=None, gt=0, le=0.1)
 
 
 class RiskSettingsResponse(BaseModel):
@@ -804,6 +827,7 @@ class RiskSettingsResponse(BaseModel):
 
     risk_pct: float
     base_currency: str
+    detection_margin_pct: float
 
 
 class RepairCurrenciesResponse(BaseModel):

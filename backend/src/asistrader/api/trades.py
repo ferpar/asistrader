@@ -5,10 +5,12 @@ from sqlalchemy.orm import Session
 
 from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
-from asistrader.models.db import Trade, User
+from asistrader.models.db import AlertDismissal, AlertKind, Trade, User
 from asistrader.services.fund_service import FundError
 from asistrader.models.schemas import (
+    AlertDismissRequest,
     MarkLevelHitRequest,
+    MessageResponse,
     TradeCreateRequest,
     TradeDetectionResponse,
     TradeListResponse,
@@ -235,6 +237,79 @@ def detect_trade_hits(
         auto_closed_count=result["auto_closed_count"],
         partial_close_count=result["partial_close_count"],
         conflict_count=result["conflict_count"],
+    )
+
+
+def _resolve_alert_kind(value: str) -> AlertKind:
+    """Parse a request alert_kind string into an AlertKind, or 400."""
+    try:
+        return AlertKind(value)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid alert_kind: {value}")
+
+
+@router.post("/alerts/dismiss", response_model=MessageResponse)
+def dismiss_alert(
+    request: AlertDismissRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    """Dismiss a detection alert so it stays hidden on future check-alerts runs.
+
+    Idempotent: dismissing an already-dismissed alert is a no-op.
+    """
+    kind = _resolve_alert_kind(request.alert_kind)
+    trade = get_trade_by_id(db, request.trade_id, user_id=current_user.id)
+    if not trade:
+        raise HTTPException(status_code=404, detail=f"Trade with id {request.trade_id} not found")
+
+    existing = (
+        db.query(AlertDismissal)
+        .filter(
+            AlertDismissal.trade_id == request.trade_id,
+            AlertDismissal.hit_date == request.hit_date,
+            AlertDismissal.alert_kind == kind,
+            AlertDismissal.level_key == request.level_key,
+        )
+        .first()
+    )
+    if existing is None:
+        db.add(
+            AlertDismissal(
+                user_id=current_user.id,
+                trade_id=trade.id,
+                ticker=trade.ticker,
+                hit_date=request.hit_date,
+                alert_kind=kind,
+                level_key=request.level_key,
+            )
+        )
+        db.commit()
+    return MessageResponse(message="Alert dismissed")
+
+
+@router.delete("/alerts/dismiss", response_model=MessageResponse)
+def restore_alert(
+    request: AlertDismissRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    """Restore a dismissed alert so it reappears on the next check-alerts run."""
+    kind = _resolve_alert_kind(request.alert_kind)
+    deleted = (
+        db.query(AlertDismissal)
+        .filter(
+            AlertDismissal.user_id == current_user.id,
+            AlertDismissal.trade_id == request.trade_id,
+            AlertDismissal.hit_date == request.hit_date,
+            AlertDismissal.alert_kind == kind,
+            AlertDismissal.level_key == request.level_key,
+        )
+        .delete()
+    )
+    db.commit()
+    return MessageResponse(
+        message="Alert restored" if deleted else "No matching dismissal found"
     )
 
 

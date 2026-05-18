@@ -89,6 +89,9 @@ export function mapEntryAlert(dto: EntryAlertDTO): EntryAlert {
     autoDetect: dto.auto_detect,
     autoOpened: dto.auto_opened,
     message: dto.message,
+    alertKind: dto.alert_kind,
+    levelKey: dto.level_key,
+    dismissed: dto.dismissed,
   }
 }
 
@@ -102,6 +105,9 @@ export function mapSLTPAlert(dto: SLTPAlertDTO): SLTPAlert {
     autoDetect: dto.auto_detect,
     autoClosed: dto.auto_closed,
     message: dto.message,
+    alertKind: dto.alert_kind,
+    levelKey: dto.level_key,
+    dismissed: dto.dismissed,
   }
 }
 
@@ -118,6 +124,9 @@ export function mapLayeredAlert(dto: LayeredAlertDTO): LayeredAlert {
     autoDetect: dto.auto_detect,
     autoProcessed: dto.auto_processed,
     message: dto.message,
+    alertKind: dto.alert_kind,
+    levelKey: dto.level_key,
+    dismissed: dto.dismissed,
   }
 }
 

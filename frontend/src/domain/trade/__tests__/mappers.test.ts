@@ -196,6 +196,9 @@ describe('mapEntryAlert', () => {
       auto_detect: true,
       auto_opened: true,
       message: 'auto opened',
+      alert_kind: 'entry',
+      level_key: 'entry',
+      dismissed: false,
     }
 
     const result = mapEntryAlert(dto)
@@ -209,6 +212,9 @@ describe('mapEntryAlert', () => {
     expect(result.autoDetect).toBe(true)
     expect(result.autoOpened).toBe(true)
     expect(result.message).toBe('auto opened')
+    expect(result.alertKind).toBe('entry')
+    expect(result.levelKey).toBe('entry')
+    expect(result.dismissed).toBe(false)
   })
 })
 
@@ -223,6 +229,9 @@ describe('mapSLTPAlert', () => {
       auto_detect: true,
       auto_closed: true,
       message: 'auto closed',
+      alert_kind: 'sltp',
+      level_key: 'sl',
+      dismissed: true,
     }
 
     const result = mapSLTPAlert(dto)
@@ -231,6 +240,9 @@ describe('mapSLTPAlert', () => {
     expect(result.hitPrice).toBeInstanceOf(Decimal)
     expect(result.hitPrice.toNumber()).toBe(140)
     expect(result.autoClosed).toBe(true)
+    expect(result.alertKind).toBe('sltp')
+    expect(result.levelKey).toBe('sl')
+    expect(result.dismissed).toBe(true)
   })
 })
 
@@ -248,6 +260,9 @@ describe('mapLayeredAlert', () => {
       auto_detect: false,
       auto_processed: true,
       message: 'TP1 hit',
+      alert_kind: 'layered',
+      level_key: 'tp:1',
+      dismissed: false,
     }
 
     const result = mapLayeredAlert(dto)
@@ -259,6 +274,9 @@ describe('mapLayeredAlert', () => {
     expect(result.unitsClosed).toBe(5)
     expect(result.remainingUnits).toBe(10)
     expect(result.autoProcessed).toBe(true)
+    expect(result.alertKind).toBe('layered')
+    expect(result.levelKey).toBe('tp:1')
+    expect(result.dismissed).toBe(false)
   })
 })
 
@@ -274,6 +292,9 @@ describe('mapDetectionResponse', () => {
         auto_detect: true,
         auto_opened: true,
         message: 'opened',
+        alert_kind: 'entry',
+        level_key: 'entry',
+        dismissed: false,
       }],
       sltp_alerts: [{
         trade_id: 2,
@@ -284,6 +305,9 @@ describe('mapDetectionResponse', () => {
         auto_detect: true,
         auto_closed: true,
         message: 'closed',
+        alert_kind: 'sltp',
+        level_key: 'sl',
+        dismissed: false,
       }],
       layered_alerts: [],
       auto_opened_count: 1,

@@ -6,6 +6,8 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from asistrader.models.db import (
+    AlertDismissal,
+    AlertKind,
     ExitLevel,
     ExitLevelStatus,
     ExitLevelType,
@@ -21,6 +23,14 @@ from asistrader.models.schemas import EntryAlert, EntryHitType, SLTPAlert, SLTPH
 # While False, alerts still fire but auto_open_trade / auto_close_trade
 # side effects are skipped.
 AUTO_TRADE_ENABLED = False
+
+# Default confirmation buffer: a candle must penetrate an SL/TP/entry level
+# by this fraction before a hit is confirmed. This suppresses grazes within
+# the noise band between data sources (Yahoo vs. TradingView), trading away
+# some genuine near-touches for fewer false positives. The per-user setting
+# (user_fund_settings.detection_margin_pct) overrides this; the constant is
+# the fallback for callers/tests that don't supply a margin.
+DETECTION_MARGIN_PCT = 0.005
 
 
 @dataclass
@@ -60,18 +70,21 @@ def is_long_trade(trade: Trade) -> bool:
 
 
 def check_sltp_hit_for_day(
-    trade: Trade, market_day: MarketData
+    trade: Trade, market_day: MarketData, margin: float = DETECTION_MARGIN_PCT
 ) -> SLTPHitType | None:
     """
     Check if SL or TP was hit on a specific market day.
 
+    A `margin` confirmation buffer requires the candle to penetrate the level
+    by that fraction before the hit counts (see DETECTION_MARGIN_PCT).
+
     For long positions:
-      - SL hit if low <= stop_loss
-      - TP hit if high >= take_profit
+      - SL hit if low <= stop_loss * (1 - margin)
+      - TP hit if high >= take_profit * (1 + margin)
 
     For short positions:
-      - SL hit if high >= stop_loss
-      - TP hit if low <= take_profit
+      - SL hit if high >= stop_loss * (1 + margin)
+      - TP hit if low <= take_profit * (1 - margin)
 
     Returns:
       - SLTPHitType.SL if only SL hit
@@ -85,11 +98,11 @@ def check_sltp_hit_for_day(
     long = is_long_trade(trade)
 
     if long:
-        sl_hit = market_day.low <= trade.stop_loss
-        tp_hit = market_day.high >= trade.take_profit
+        sl_hit = market_day.low <= trade.stop_loss * (1 - margin)
+        tp_hit = market_day.high >= trade.take_profit * (1 + margin)
     else:
-        sl_hit = market_day.high >= trade.stop_loss
-        tp_hit = market_day.low <= trade.take_profit
+        sl_hit = market_day.high >= trade.stop_loss * (1 + margin)
+        tp_hit = market_day.low <= trade.take_profit * (1 - margin)
 
     if sl_hit and tp_hit:
         return SLTPHitType.BOTH
@@ -100,7 +113,9 @@ def check_sltp_hit_for_day(
     return None
 
 
-def detect_sltp_hit(db: Session, trade: Trade) -> SLTPHit | None:
+def detect_sltp_hit(
+    db: Session, trade: Trade, margin: float = DETECTION_MARGIN_PCT
+) -> SLTPHit | None:
     """
     Scan market data strictly after trade's date_actual to find first SL/TP hit.
 
@@ -124,7 +139,7 @@ def detect_sltp_hit(db: Session, trade: Trade) -> SLTPHit | None:
     )
 
     for day in market_data:
-        hit_type = check_sltp_hit_for_day(trade, day)
+        hit_type = check_sltp_hit_for_day(trade, day, margin)
         if hit_type:
             # Determine hit price based on hit type
             if hit_type == SLTPHitType.SL:
@@ -170,12 +185,17 @@ def auto_close_trade(
     handle_trade_close(db, trade)
 
 
-def check_entry_hit_for_day(trade: Trade, market_day: MarketData) -> bool:
+def check_entry_hit_for_day(
+    trade: Trade, market_day: MarketData, margin: float = DETECTION_MARGIN_PCT
+) -> bool:
     """
     Check if entry price was hit on a specific market day.
 
-    For long positions (SL < entry): Entry hit if low <= entry_price
-    For short positions (SL > entry): Entry hit if high >= entry_price
+    A `margin` confirmation buffer requires the candle to penetrate the entry
+    price by that fraction before the hit counts (see DETECTION_MARGIN_PCT).
+
+    For long positions (SL < entry): Entry hit if low <= entry_price * (1 - margin)
+    For short positions (SL > entry): Entry hit if high >= entry_price * (1 + margin)
 
     Returns True if entry was hit, False otherwise.
     """
@@ -184,12 +204,14 @@ def check_entry_hit_for_day(trade: Trade, market_day: MarketData) -> bool:
 
     long = is_long_trade(trade)
     if long:
-        return market_day.low <= trade.entry_price
+        return market_day.low <= trade.entry_price * (1 - margin)
     else:
-        return market_day.high >= trade.entry_price
+        return market_day.high >= trade.entry_price * (1 + margin)
 
 
-def detect_entry_hit(db: Session, trade: Trade) -> EntryHit | None:
+def detect_entry_hit(
+    db: Session, trade: Trade, margin: float = DETECTION_MARGIN_PCT
+) -> EntryHit | None:
     """
     Scan market data strictly after trade's date_planned to find first entry hit.
 
@@ -215,7 +237,7 @@ def detect_entry_hit(db: Session, trade: Trade) -> EntryHit | None:
     )
 
     for day in market_data:
-        if check_entry_hit_for_day(trade, day):
+        if check_entry_hit_for_day(trade, day, margin):
             return EntryHit(hit_date=day.date, entry_price=trade.entry_price)
 
     return None
@@ -233,7 +255,7 @@ def auto_open_trade(db: Session, trade: Trade, hit: EntryHit) -> None:
 
 
 def process_ordered_trades(
-    db: Session, user_id: int
+    db: Session, user_id: int, margin: float = DETECTION_MARGIN_PCT
 ) -> tuple[list[EntryAlert], int]:
     """
     Process all ORDERED trades for a user to detect entry price hits.
@@ -258,7 +280,7 @@ def process_ordered_trades(
     auto_opened_count = 0
 
     for trade in ordered_trades:
-        hit = detect_entry_hit(db, trade)
+        hit = detect_entry_hit(db, trade, margin)
         if not hit:
             continue
 
@@ -292,17 +314,21 @@ def check_layered_level_hit(
     trade: Trade,
     level: ExitLevel,
     market_day: MarketData,
+    margin: float = DETECTION_MARGIN_PCT,
 ) -> bool:
     """
     Check if a layered exit level was hit on a specific market day.
 
+    A `margin` confirmation buffer requires the candle to penetrate the level
+    by that fraction before the hit counts (see DETECTION_MARGIN_PCT).
+
     For long positions:
-      - SL hit if low <= SL price
-      - TP hit if high >= TP price
+      - SL hit if low <= SL price * (1 - margin)
+      - TP hit if high >= TP price * (1 + margin)
 
     For short positions:
-      - SL hit if high >= SL price
-      - TP hit if low <= TP price
+      - SL hit if high >= SL price * (1 + margin)
+      - TP hit if low <= TP price * (1 - margin)
 
     Returns True if the level was hit.
     """
@@ -313,19 +339,20 @@ def check_layered_level_hit(
 
     if level.level_type == ExitLevelType.SL:
         if long:
-            return market_day.low <= level.price
+            return market_day.low <= level.price * (1 - margin)
         else:
-            return market_day.high >= level.price
+            return market_day.high >= level.price * (1 + margin)
     else:  # TP
         if long:
-            return market_day.high >= level.price
+            return market_day.high >= level.price * (1 + margin)
         else:
-            return market_day.low <= level.price
+            return market_day.low <= level.price * (1 - margin)
 
 
 def detect_layered_hits(
     db: Session,
     trade: Trade,
+    margin: float = DETECTION_MARGIN_PCT,
 ) -> list[LayeredLevelHit]:
     """
     Detect all exit level hits for a trade.
@@ -338,6 +365,7 @@ def detect_layered_hits(
     Args:
         db: Database session
         trade: Trade to check
+        margin: Confirmation buffer fraction (see DETECTION_MARGIN_PCT)
 
     Returns:
         List of LayeredLevelHit objects for all hit levels
@@ -376,7 +404,7 @@ def detect_layered_hits(
             if level.status != ExitLevelStatus.PENDING:
                 continue
 
-            if check_layered_level_hit(trade, level, day):
+            if check_layered_level_hit(trade, level, day, margin):
                 # Calculate units to close - percentage is of total units, not remaining
                 units_to_close = int(trade.units * level.units_pct)
                 if units_to_close < 1:
@@ -408,7 +436,9 @@ def detect_layered_hits(
     return hits
 
 
-def process_layered_hits(db: Session, trade: Trade) -> list[LayeredLevelHit]:
+def process_layered_hits(
+    db: Session, trade: Trade, margin: float = DETECTION_MARGIN_PCT
+) -> list[LayeredLevelHit]:
     """
     Process all layered exit level hits for a trade.
 
@@ -417,13 +447,14 @@ def process_layered_hits(db: Session, trade: Trade) -> list[LayeredLevelHit]:
     Args:
         db: Database session
         trade: Trade to process
+        margin: Confirmation buffer fraction (see DETECTION_MARGIN_PCT)
 
     Returns:
         List of processed LayeredLevelHit objects
     """
     from asistrader.services.exit_level_service import mark_level_hit
 
-    hits = detect_layered_hits(db, trade)
+    hits = detect_layered_hits(db, trade, margin)
     if not hits:
         return []
 
@@ -474,7 +505,7 @@ def process_layered_hits(db: Session, trade: Trade) -> list[LayeredLevelHit]:
 
 
 def process_open_trades(
-    db: Session, user_id: int
+    db: Session, user_id: int, margin: float = DETECTION_MARGIN_PCT
 ) -> tuple[list[SLTPAlert], list[LayeredAlert], int, int, int]:
     """
     Process all OPEN trades for a user to detect SL/TP hits.
@@ -504,7 +535,7 @@ def process_open_trades(
     for trade in open_trades:
         if trade.is_layered:
             # Process layered trade
-            hits = process_layered_hits(db, trade)
+            hits = process_layered_hits(db, trade, margin)
             for hit in hits:
                 partial_close_count += 1
                 hit_label = "Take Profit" if hit.level.level_type == ExitLevelType.TP else "Stop Loss"
@@ -532,7 +563,7 @@ def process_open_trades(
                 )
         else:
             # Process simple trade (existing logic)
-            hit = detect_sltp_hit(db, trade)
+            hit = detect_sltp_hit(db, trade, margin)
             if not hit:
                 continue
 
@@ -567,6 +598,58 @@ def process_open_trades(
     return sltp_alerts, layered_alerts, auto_closed_count, partial_close_count, conflict_count
 
 
+def annotate_dismissals(
+    db: Session,
+    user_id: int,
+    entry_alerts: list[EntryAlert],
+    sltp_alerts: list[SLTPAlert],
+    layered_alerts: list[LayeredAlert],
+) -> None:
+    """Set alert_kind / level_key / dismissed on each alert, in place.
+
+    An alert's signature is (trade_id, hit_date, alert_kind, level_key). An
+    alert is marked dismissed if a matching AlertDismissal row exists for
+    this user. Dismissed alerts are kept in their lists (just flagged) so
+    the frontend can show them in a reviewable section.
+    """
+    dismissed = {
+        (d.trade_id, d.hit_date, d.alert_kind, d.level_key)
+        for d in db.query(AlertDismissal)
+        .filter(AlertDismissal.user_id == user_id)
+        .all()
+    }
+
+    for entry in entry_alerts:
+        entry.alert_kind = AlertKind.ENTRY.value
+        entry.level_key = "entry"
+        entry.dismissed = (
+            entry.trade_id,
+            entry.hit_date,
+            AlertKind.ENTRY,
+            "entry",
+        ) in dismissed
+
+    for sltp in sltp_alerts:
+        sltp.alert_kind = AlertKind.SLTP.value
+        sltp.level_key = sltp.hit_type.value
+        sltp.dismissed = (
+            sltp.trade_id,
+            sltp.hit_date,
+            AlertKind.SLTP,
+            sltp.level_key,
+        ) in dismissed
+
+    for layered in layered_alerts:
+        layered.alert_kind = AlertKind.LAYERED.value
+        layered.level_key = f"{layered.level_type}:{layered.level_index}"
+        layered.dismissed = (
+            layered.trade_id,
+            layered.hit_date,
+            AlertKind.LAYERED,
+            layered.level_key,
+        ) in dismissed
+
+
 def process_all_trades(db: Session, user_id: int) -> dict:
     """
     Process both PLAN and OPEN trades for a user.
@@ -583,12 +666,22 @@ def process_all_trades(db: Session, user_id: int) -> dict:
       - partial_close_count: number of partial closes for layered trades
       - conflict_count: number of trades with both SL and TP hit same day
     """
+    # Per-user confirmation buffer (falls back to DETECTION_MARGIN_PCT).
+    from asistrader.services.fund_service import get_detection_margin
+
+    margin = get_detection_margin(db, user_id)
+
     # Process PLAN trades for entry hits
-    entry_alerts, auto_opened_count = process_ordered_trades(db, user_id)
+    entry_alerts, auto_opened_count = process_ordered_trades(db, user_id, margin)
 
     # Process OPEN trades for SL/TP hits
     # Note: This includes trades that were just auto-opened above
-    sltp_alerts, layered_alerts, auto_closed_count, partial_close_count, conflict_count = process_open_trades(db, user_id)
+    sltp_alerts, layered_alerts, auto_closed_count, partial_close_count, conflict_count = process_open_trades(db, user_id, margin)
+
+    # Tag each alert with its signature and whether it was previously
+    # dismissed (the blacklist). Dismissed alerts are still returned so the
+    # frontend can surface them in a reviewable "Discarded" section.
+    annotate_dismissals(db, user_id, entry_alerts, sltp_alerts, layered_alerts)
 
     return {
         "entry_alerts": entry_alerts,

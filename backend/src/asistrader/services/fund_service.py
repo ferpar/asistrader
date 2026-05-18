@@ -11,6 +11,7 @@ from asistrader.services import fx_service
 
 DEFAULT_RISK_PCT = 0.02
 DEFAULT_BASE_CURRENCY = "USD"
+DEFAULT_DETECTION_MARGIN_PCT = 0.005
 
 logger = logging.getLogger(__name__)
 
@@ -332,6 +333,26 @@ def update_risk_pct(db: Session, user_id: int, risk_pct: float) -> float:
         settings.risk_pct = risk_pct
     db.commit()
     return risk_pct
+
+
+def get_detection_margin(db: Session, user_id: int) -> float:
+    """Get user's trade-detection confirmation buffer (default 0.005)."""
+    settings = db.query(UserFundSettings).filter(UserFundSettings.user_id == user_id).first()
+    if settings is None or settings.detection_margin_pct is None:
+        return DEFAULT_DETECTION_MARGIN_PCT
+    return settings.detection_margin_pct
+
+
+def update_detection_margin(db: Session, user_id: int, margin_pct: float) -> float:
+    """Update user's detection margin. Creates UserFundSettings if not exists."""
+    settings = db.query(UserFundSettings).filter(UserFundSettings.user_id == user_id).first()
+    if settings is None:
+        settings = UserFundSettings(user_id=user_id, detection_margin_pct=margin_pct)
+        db.add(settings)
+    else:
+        settings.detection_margin_pct = margin_pct
+    db.commit()
+    return margin_pct
 
 
 # ── Risk Check ──

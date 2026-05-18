@@ -69,6 +69,14 @@ export interface LiveMetrics {
   unrealizedPnLPct: Decimal | null
 }
 
+/** The fields that identify an alert for the dismissal blacklist. */
+export interface AlertSignature {
+  tradeId: number
+  hitDate: string
+  alertKind: string
+  levelKey: string
+}
+
 export interface EntryAlert {
   tradeId: number
   ticker: string
@@ -78,6 +86,9 @@ export interface EntryAlert {
   autoDetect: boolean
   autoOpened: boolean
   message: string
+  alertKind: string
+  levelKey: string
+  dismissed: boolean
 }
 
 export interface SLTPAlert {
@@ -89,6 +100,9 @@ export interface SLTPAlert {
   autoDetect: boolean
   autoClosed: boolean
   message: string
+  alertKind: string
+  levelKey: string
+  dismissed: boolean
 }
 
 export interface LayeredAlert {
@@ -103,6 +117,9 @@ export interface LayeredAlert {
   autoDetect: boolean
   autoProcessed: boolean
   message: string
+  alertKind: string
+  levelKey: string
+  dismissed: boolean
 }
 
 export interface DetectionResult {

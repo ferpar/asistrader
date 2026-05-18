@@ -8,14 +8,21 @@ export function useTradeAlerts() {
   const sltpAlerts = store.sltpAlerts$.get()
   const detecting = store.detecting$.get()
   const lastResult = store.lastDetectionResult$.get()
-  const hasAlerts = entryAlerts.length > 0 || sltpAlerts.length > 0
+
+  const activeEntryAlerts = entryAlerts.filter(a => !a.dismissed)
+  const activeSltpAlerts = sltpAlerts.filter(a => !a.dismissed)
+  const dismissedEntryAlerts = entryAlerts.filter(a => a.dismissed)
+  const dismissedSltpAlerts = sltpAlerts.filter(a => a.dismissed)
+
+  const hasAlerts = activeEntryAlerts.length > 0 || activeSltpAlerts.length > 0
+  const hasDismissed = dismissedEntryAlerts.length > 0 || dismissedSltpAlerts.length > 0
 
   const handleDetect = async () => {
     await store.detectTradeHits()
   }
 
-  const dismissEntry = (tradeId: number) => store.dismissEntryAlert(tradeId)
-  const dismissSltp = (tradeId: number) => store.dismissSltpAlert(tradeId)
+  const dismiss = (alert: EntryAlert | SLTPAlert) => store.dismissAlert(alert)
+  const restore = (alert: EntryAlert | SLTPAlert) => store.restoreAlert(alert)
   const dismissAll = () => store.dismissAllAlerts()
 
   const getEntryAlertClass = (alert: EntryAlert): string => {
@@ -43,12 +50,17 @@ export function useTradeAlerts() {
   return {
     entryAlerts,
     sltpAlerts,
+    activeEntryAlerts,
+    activeSltpAlerts,
+    dismissedEntryAlerts,
+    dismissedSltpAlerts,
     detecting,
     lastResult,
     hasAlerts,
+    hasDismissed,
     handleDetect,
-    dismissEntry,
-    dismissSltp,
+    dismiss,
+    restore,
     dismissAll,
     getEntryAlertClass,
     getSltpAlertClass,

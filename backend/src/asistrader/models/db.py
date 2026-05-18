@@ -80,6 +80,14 @@ class FundEventType(str, PyEnum):
     LOSS = "loss"
 
 
+class AlertKind(str, PyEnum):
+    """Kind of trade-detection alert (used by the dismissal blacklist)."""
+
+    ENTRY = "entry"
+    SLTP = "sltp"
+    LAYERED = "layered"
+
+
 class Bias(str, PyEnum):
     """Ticker bias enum."""
 
@@ -111,6 +119,7 @@ class User(Base):
     refresh_tokens = relationship("RefreshToken", back_populates="user_rel")
     fund_events = relationship("FundEvent", back_populates="user_rel")
     fund_settings = relationship("UserFundSettings", back_populates="user_rel", uselist=False)
+    alert_dismissals = relationship("AlertDismissal", back_populates="user_rel")
 
 
 class RefreshToken(Base):
@@ -226,6 +235,9 @@ class Trade(Base):
     strategy_rel = relationship("Strategy", back_populates="trades")
     user_rel = relationship("User", back_populates="trades")
     exit_levels = relationship("ExitLevel", back_populates="trade_rel", cascade="all, delete-orphan")
+    alert_dismissals = relationship(
+        "AlertDismissal", back_populates="trade_rel", cascade="all, delete-orphan"
+    )
     fund_events = relationship("FundEvent", back_populates="trade_rel")
 
     @property
@@ -414,6 +426,11 @@ class UserFundSettings(Base):
     base_currency = Column(
         String(3), nullable=False, default="USD", server_default="USD"
     )
+    # Confirmation buffer for trade auto-detection: a candle must penetrate
+    # an SL/TP/entry level by this fraction before a hit is confirmed.
+    detection_margin_pct = Column(
+        Float, nullable=False, default=0.005, server_default="0.005"
+    )
 
     user_rel = relationship("User", back_populates="fund_settings")
 
@@ -436,3 +453,45 @@ class FxRate(Base):
         UniqueConstraint("currency", "date", name="uq_fx_rates_currency_date"),
         Index("ix_fx_rates_currency_date", "currency", "date"),
     )
+
+
+class AlertDismissal(Base):
+    """A discarded trade-detection alert.
+
+    Records that the user dismissed a specific alert so it stays hidden on
+    subsequent check-alerts runs. Keyed on (trade, hit date, alert kind,
+    level) — dismissing one alert never suppresses an unrelated one.
+    """
+
+    __tablename__ = "alert_dismissal"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    trade_id = Column(Integer, ForeignKey("trades.id"), nullable=False)
+    ticker = Column(String, nullable=False)
+    hit_date = Column(Date, nullable=False)
+    alert_kind = Column(
+        Enum(AlertKind, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+    )
+    # Identifies the level within the trade: "entry"; "sl"/"tp"/"both" for
+    # simple trades; "sl:1"/"tp:2" (level_type:order_index) for layered.
+    level_key = Column(String, nullable=False)
+    dismissed_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "trade_id",
+            "hit_date",
+            "alert_kind",
+            "level_key",
+            name="uq_alert_dismissal_signature",
+        ),
+        Index("ix_alert_dismissal_user_id", "user_id"),
+        Index("ix_alert_dismissal_trade_id", "trade_id"),
+    )
+
+    user_rel = relationship("User", back_populates="alert_dismissals")
+    trade_rel = relationship("Trade", back_populates="alert_dismissals")

@@ -1,6 +1,6 @@
 import { TradeCreateRequest, TradeUpdateRequest, TradeListResponse, TradeResponse, BatchPriceResponse, MarkLevelHitRequest } from '../../types/trade'
 import { ITradeRepository, IPriceProvider, DetectionResponse } from './ITradeRepository'
-import type { TradeWithMetrics, PriceData } from './types'
+import type { TradeWithMetrics, PriceData, AlertSignature } from './types'
 import { mapTrade, mapPriceData, mapDetectionResponse } from './mappers'
 import type { TradeDetectionResponseDTO } from '../../types/trade'
 import { buildHeaders } from '../shared/httpHelpers'
@@ -112,6 +112,35 @@ export class HttpTradeRepository implements ITradeRepository {
     }
     const data: TradeResponse = await response.json()
     return mapTrade(data.trade)
+  }
+
+  async dismissAlert(signature: AlertSignature): Promise<void> {
+    await this.sendAlertDismissal('POST', signature, 'dismiss alert')
+  }
+
+  async restoreAlert(signature: AlertSignature): Promise<void> {
+    await this.sendAlertDismissal('DELETE', signature, 'restore alert')
+  }
+
+  private async sendAlertDismissal(
+    method: 'POST' | 'DELETE',
+    signature: AlertSignature,
+    action: string,
+  ): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/trades/alerts/dismiss`, {
+      method,
+      headers: buildHeaders(this.getToken, true),
+      body: JSON.stringify({
+        trade_id: signature.tradeId,
+        hit_date: signature.hitDate,
+        alert_kind: signature.alertKind,
+        level_key: signature.levelKey,
+      }),
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.detail || `Failed to ${action}: ${response.statusText}`)
+    }
   }
 }
 

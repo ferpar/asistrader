@@ -30,6 +30,7 @@ export class FundStore {
   readonly includeVoided$ = observable(false)
   readonly riskPct$ = observable<Decimal>(Decimal.from(0.02))
   readonly baseCurrency$ = observable<string>(DEFAULT_BASE_CURRENCY)
+  readonly detectionMarginPct$ = observable<number>(0.005)
   readonly fxLoaded$ = observable(false)
 
   /** Latest balance result. `null` until the first compute lands. */
@@ -102,6 +103,9 @@ export class FundStore {
       const settings = await this.repo.fetchSettings()
       this.riskPct$.set(Decimal.from(settings.risk_pct))
       this.baseCurrency$.set(settings.base_currency || DEFAULT_BASE_CURRENCY)
+      if (settings.detection_margin_pct != null) {
+        this.detectionMarginPct$.set(settings.detection_margin_pct)
+      }
     } catch {
       // Use defaults
     }
@@ -130,6 +134,11 @@ export class FundStore {
   async updateRiskPct(riskPct: number): Promise<void> {
     const settings = await this.repo.updateSettings({ risk_pct: riskPct })
     this.riskPct$.set(Decimal.from(settings.risk_pct))
+  }
+
+  async updateDetectionMargin(marginPct: number): Promise<void> {
+    const settings = await this.repo.updateSettings({ detection_margin_pct: marginPct })
+    this.detectionMarginPct$.set(settings.detection_margin_pct)
   }
 
   async updateBaseCurrency(baseCurrency: string): Promise<void> {

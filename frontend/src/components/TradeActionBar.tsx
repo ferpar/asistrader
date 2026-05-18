@@ -7,8 +7,12 @@ import styles from './TradeActionBar.module.css'
 
 export const TradeActionBar = observer(function TradeActionBar() {
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showDiscarded, setShowDiscarded] = useState(false)
   const sync = useMarketDataSync()
   const alerts = useTradeAlerts()
+
+  const discardedCount =
+    alerts.dismissedEntryAlerts.length + alerts.dismissedSltpAlerts.length
 
   return (
     <>
@@ -61,6 +65,14 @@ export const TradeActionBar = observer(function TradeActionBar() {
               Dismiss All
             </button>
           )}
+          {discardedCount > 0 && (
+            <button
+              className={styles.btnDismissAll}
+              onClick={() => setShowDiscarded(v => !v)}
+            >
+              {showDiscarded ? 'Hide' : 'Show'} discarded ({discardedCount})
+            </button>
+          )}
         </div>
       </div>
 
@@ -75,18 +87,40 @@ export const TradeActionBar = observer(function TradeActionBar() {
 
       {alerts.hasAlerts && (
         <div className={styles.alertList}>
-          {alerts.entryAlerts.map(alert => (
+          {alerts.activeEntryAlerts.map(alert => (
             <div key={`entry-${alert.tradeId}`} className={`${styles.alertItem} ${styles[alerts.getEntryAlertClass(alert)]}`}>
               <span className={styles.alertIcon}>{alerts.getEntryAlertIcon(alert)}</span>
               <span className={styles.alertMessage}>{alert.message}</span>
-              <button className={styles.btnDismiss} onClick={() => alerts.dismissEntry(alert.tradeId)}>x</button>
+              <button className={styles.btnDismiss} onClick={() => alerts.dismiss(alert)}>x</button>
             </div>
           ))}
-          {alerts.sltpAlerts.map(alert => (
+          {alerts.activeSltpAlerts.map(alert => (
             <div key={`sltp-${alert.tradeId}`} className={`${styles.alertItem} ${styles[alerts.getSltpAlertClass(alert)]}`}>
               <span className={styles.alertIcon}>{alerts.getSltpAlertIcon(alert)}</span>
               <span className={styles.alertMessage}>{alert.message}</span>
-              <button className={styles.btnDismiss} onClick={() => alerts.dismissSltp(alert.tradeId)}>x</button>
+              <button className={styles.btnDismiss} onClick={() => alerts.dismiss(alert)}>x</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showDiscarded && discardedCount > 0 && (
+        <div className={styles.alertList}>
+          <span className={styles.discardedLabel}>
+            Discarded alerts — restore one to have it reappear on the next check.
+          </span>
+          {alerts.dismissedEntryAlerts.map(alert => (
+            <div key={`d-entry-${alert.tradeId}`} className={`${styles.alertItem} ${styles.alertItemDismissed}`}>
+              <span className={styles.alertIcon}>{alerts.getEntryAlertIcon(alert)}</span>
+              <span className={styles.alertMessage}>{alert.message}</span>
+              <button className={styles.btnRestore} onClick={() => alerts.restore(alert)}>Restore</button>
+            </div>
+          ))}
+          {alerts.dismissedSltpAlerts.map(alert => (
+            <div key={`d-sltp-${alert.tradeId}`} className={`${styles.alertItem} ${styles.alertItemDismissed}`}>
+              <span className={styles.alertIcon}>{alerts.getSltpAlertIcon(alert)}</span>
+              <span className={styles.alertMessage}>{alert.message}</span>
+              <button className={styles.btnRestore} onClick={() => alerts.restore(alert)}>Restore</button>
             </div>
           ))}
         </div>

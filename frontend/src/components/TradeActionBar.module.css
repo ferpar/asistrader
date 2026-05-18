@@ -189,6 +189,36 @@
   color: var(--color-text);
 }
 
+/* Discarded (dismissed) alerts */
+.discardedLabel {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.alertItemDismissed {
+  background-color: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-muted);
+  opacity: 0.8;
+}
+
+.btnRestore {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.btnRestore:hover {
+  color: var(--color-text);
+  background-color: var(--color-surface-hover);
+}
+
 /* Alert type variants */
 .alertSl {
   background-color: var(--color-error-light);

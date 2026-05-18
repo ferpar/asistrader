@@ -8,8 +8,11 @@ export const RiskSettings = observer(function RiskSettings() {
   const store = useFundStore()
   const currentPct = store.riskPct$.get().toNumber()
   const baseCurrency = store.baseCurrency$.get()
+  const marginPct = store.detectionMarginPct$.get()
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
+  const [editingMargin, setEditingMargin] = useState(false)
+  const [marginValue, setMarginValue] = useState('')
 
   const handleEdit = () => {
     setValue((currentPct * 100).toFixed(1))
@@ -31,6 +34,25 @@ export const RiskSettings = observer(function RiskSettings() {
 
   const handleBaseCurrencyChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     await store.updateBaseCurrency(e.target.value)
+  }
+
+  const handleEditMargin = () => {
+    setMarginValue((marginPct * 100).toFixed(2))
+    setEditingMargin(true)
+  }
+
+  const handleSaveMargin = async () => {
+    const pct = parseFloat(marginValue) / 100
+    // Backend accepts a margin in (0, 0.1]; ignore out-of-range input.
+    if (pct > 0 && pct <= 0.1) {
+      await store.updateDetectionMargin(pct)
+    }
+    setEditingMargin(false)
+  }
+
+  const handleMarginKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleSaveMargin()
+    if (e.key === 'Escape') setEditingMargin(false)
   }
 
   return (
@@ -68,6 +90,34 @@ export const RiskSettings = observer(function RiskSettings() {
           <option key={c} value={c}>{c}</option>
         ))}
       </select>
+
+      <span
+        className={styles.label}
+        title="A candle must penetrate an SL/TP/entry level by this margin before a hit is detected. Higher = fewer false positives."
+      >
+        Detection margin:
+      </span>
+      {editingMargin ? (
+        <span className={styles.editRow}>
+          <input
+            type="number"
+            value={marginValue}
+            onChange={(e) => setMarginValue(e.target.value)}
+            onKeyDown={handleMarginKeyDown}
+            onBlur={handleSaveMargin}
+            step="0.05"
+            min="0.01"
+            max="10"
+            className={styles.input}
+            autoFocus
+          />
+          <span className={styles.unit}>%</span>
+        </span>
+      ) : (
+        <button className={styles.valueBtn} onClick={handleEditMargin}>
+          {(marginPct * 100).toFixed(2)}%
+        </button>
+      )}
     </div>
   )
 })

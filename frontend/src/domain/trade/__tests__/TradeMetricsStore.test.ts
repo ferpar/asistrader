@@ -31,8 +31,8 @@ const stubFundRepo: IFundRepository = {
   async createWithdrawal() { throw new Error('nope') },
   async createManualEvent() { throw new Error('nope') },
   async voidEvent() { throw new Error('nope') },
-  async fetchSettings() { return { risk_pct: 0.02, base_currency: 'USD' } },
-  async updateSettings() { return { risk_pct: 0.02, base_currency: 'USD' } },
+  async fetchSettings() { return { risk_pct: 0.02, base_currency: 'USD', detection_margin_pct: 0.005 } },
+  async updateSettings() { return { risk_pct: 0.02, base_currency: 'USD', detection_margin_pct: 0.005 } },
 }
 
 const stubTradeRepo = {} as unknown as ITradeRepository

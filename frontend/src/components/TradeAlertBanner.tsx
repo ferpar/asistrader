@@ -6,8 +6,8 @@ import styles from './TradeAlertBanner.module.css'
 export const TradeAlertBanner = observer(function TradeAlertBanner() {
   const store = useTradeStore()
 
-  const entryAlerts = store.entryAlerts$.get()
-  const sltpAlerts = store.sltpAlerts$.get()
+  const entryAlerts = store.entryAlerts$.get().filter(a => !a.dismissed)
+  const sltpAlerts = store.sltpAlerts$.get().filter(a => !a.dismissed)
   const loading = store.detecting$.get()
   const lastResult = store.lastDetectionResult$.get()
 
@@ -88,7 +88,7 @@ export const TradeAlertBanner = observer(function TradeAlertBanner() {
               <span className={styles.alertMessage}>{alert.message}</span>
               <button
                 className={styles.btnDismiss}
-                onClick={() => store.dismissEntryAlert(alert.tradeId)}
+                onClick={() => store.dismissAlert(alert)}
               >
                 x
               </button>
@@ -103,7 +103,7 @@ export const TradeAlertBanner = observer(function TradeAlertBanner() {
               <span className={styles.alertMessage}>{alert.message}</span>
               <button
                 className={styles.btnDismiss}
-                onClick={() => store.dismissSltpAlert(alert.tradeId)}
+                onClick={() => store.dismissAlert(alert)}
               >
                 x
               </button>

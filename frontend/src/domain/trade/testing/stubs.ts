@@ -20,6 +20,8 @@ export function createStubTradeRepository(overrides?: Partial<ITradeRepository>)
     }),
     markExitLevelHit: async () => { throw new Error('not implemented') },
     revertExitLevelHit: async () => { throw new Error('not implemented') },
+    dismissAlert: async () => {},
+    restoreAlert: async () => {},
     ...overrides,
   }
 }

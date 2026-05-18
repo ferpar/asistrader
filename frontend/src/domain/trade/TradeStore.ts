@@ -1,7 +1,7 @@
 import { observable, computed } from '@legendapp/state'
 import { ExtendedFilter, TradeCreateRequest, TradeUpdateRequest, MarkLevelHitRequest } from '../../types/trade'
 import { ITradeRepository, DetectionResponse } from './ITradeRepository'
-import type { TradeWithMetrics, EntryAlert, SLTPAlert, DetectionResult } from './types'
+import type { TradeWithMetrics, EntryAlert, SLTPAlert, DetectionResult, AlertSignature } from './types'
 
 export class TradeStore {
   readonly trades$ = observable<TradeWithMetrics[]>([])
@@ -91,18 +91,45 @@ export class TradeStore {
     this.filter$.set(filter)
   }
 
-  dismissEntryAlert(tradeId: number): void {
-    this.entryAlerts$.set(prev => prev.filter(a => a.tradeId !== tradeId))
+  private alertSignature(alert: EntryAlert | SLTPAlert): AlertSignature {
+    return {
+      tradeId: alert.tradeId,
+      hitDate: alert.hitDate,
+      alertKind: alert.alertKind,
+      levelKey: alert.levelKey,
+    }
   }
 
-  dismissSltpAlert(tradeId: number): void {
-    this.sltpAlerts$.set(prev => prev.filter(a => a.tradeId !== tradeId))
+  private setAlertDismissed(sig: AlertSignature, dismissed: boolean): void {
+    const matches = (a: EntryAlert | SLTPAlert): boolean =>
+      a.tradeId === sig.tradeId &&
+      a.hitDate === sig.hitDate &&
+      a.alertKind === sig.alertKind &&
+      a.levelKey === sig.levelKey
+    this.entryAlerts$.set(prev => prev.map(a => (matches(a) ? { ...a, dismissed } : a)))
+    this.sltpAlerts$.set(prev => prev.map(a => (matches(a) ? { ...a, dismissed } : a)))
   }
 
-  dismissAllAlerts(): void {
-    this.entryAlerts$.set([])
-    this.sltpAlerts$.set([])
-    this.lastDetectionResult$.set(null)
+  /** Persist a dismissal so the alert stays hidden on future check-alerts runs. */
+  async dismissAlert(alert: EntryAlert | SLTPAlert): Promise<void> {
+    const sig = this.alertSignature(alert)
+    await this.repo.dismissAlert(sig)
+    this.setAlertDismissed(sig, true)
+  }
+
+  /** Restore a dismissed alert so it reappears on the next check-alerts run. */
+  async restoreAlert(alert: EntryAlert | SLTPAlert): Promise<void> {
+    const sig = this.alertSignature(alert)
+    await this.repo.restoreAlert(sig)
+    this.setAlertDismissed(sig, false)
+  }
+
+  /** Dismiss every alert that is currently still active. */
+  async dismissAllAlerts(): Promise<void> {
+    const active = [...this.entryAlerts$.get(), ...this.sltpAlerts$.get()].filter(
+      a => !a.dismissed,
+    )
+    await Promise.all(active.map(a => this.dismissAlert(a)))
   }
 
   async markExitLevelHit(tradeId: number, levelId: number, request: MarkLevelHitRequest): Promise<void> {

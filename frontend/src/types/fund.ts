@@ -50,9 +50,11 @@ export interface ManualEventRequest {
 export interface FundSettingsDTO {
   risk_pct: number
   base_currency: string
+  detection_margin_pct: number
 }
 
 export interface FundSettingsRequest {
   risk_pct?: number
   base_currency?: string
+  detection_margin_pct?: number
 }
