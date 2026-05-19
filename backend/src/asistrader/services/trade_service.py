@@ -4,7 +4,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session, joinedload
 
-from asistrader.models.db import ExitLevelStatus, Trade, TradeStatus
+from asistrader.models.db import ExitLevelStatus, OrderType, TimeInEffect, Trade, TradeStatus
 
 
 def get_all_trades(db: Session, user_id: int | None = None) -> list[Trade]:
@@ -35,6 +35,9 @@ def create_trade(
     user_id: int | None = None,
     auto_detect: bool = False,
     exit_levels: list[dict] | None = None,
+    order_type: OrderType | None = None,
+    time_in_effect: TimeInEffect | None = None,
+    gtd_date: date | None = None,
 ) -> Trade:
     """
     Create a new trade with status=PLAN.
@@ -88,6 +91,9 @@ def create_trade(
         auto_detect=auto_detect,
         is_layered=is_layered,
         remaining_units=units,
+        order_type=order_type,
+        time_in_effect=time_in_effect,
+        gtd_date=gtd_date,
     )
     db.add(trade)
     db.commit()

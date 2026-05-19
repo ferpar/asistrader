@@ -229,3 +229,73 @@ def test_revert_to_ordered_missing_returns_404(
         headers=auth_headers,
     )
     assert response.status_code == 404
+
+
+def test_create_trade_persists_and_returns_order_fields(
+    client: TestClient,
+    db_session: Session,
+    sample_ticker: Ticker,
+    sample_user: User,
+    auth_headers: dict[str, str],
+) -> None:
+    """`order_type`, `time_in_effect`, and `gtd_date` must round-trip through
+    the create endpoint: persisted to the DB and present in the response.
+
+    Regression for the bug where the create route silently dropped these
+    fields and `_trade_to_schema` never read them, so the edit modal always
+    showed "None" regardless of what the user picked on creation.
+    """
+    response = client.post(
+        "/api/trades",
+        json={
+            "ticker": sample_ticker.symbol,
+            "entry_price": 100.0,
+            "stop_loss": 95.0,
+            "take_profit": 115.0,
+            "units": 10,
+            "date_planned": "2025-01-15",
+            "order_type": "stop",
+            "time_in_effect": "gtd",
+            "gtd_date": "2025-02-15",
+        },
+        headers=auth_headers,
+    )
+    assert response.status_code == 201, response.json()
+
+    # 1. Response carries the fields.
+    body = response.json()["trade"]
+    assert body["order_type"] == "stop"
+    assert body["time_in_effect"] == "gtd"
+    assert body["gtd_date"] == "2025-02-15"
+
+    # 2. Fields actually hit the database.
+    trade = db_session.query(Trade).filter(Trade.id == body["id"]).one()
+    assert trade.order_type.value == "stop"
+    assert trade.time_in_effect.value == "gtd"
+    assert trade.gtd_date == date(2025, 2, 15)
+
+
+def test_create_trade_without_order_fields_returns_nulls(
+    client: TestClient,
+    sample_ticker: Ticker,
+    sample_user: User,
+    auth_headers: dict[str, str],
+) -> None:
+    """Order fields are optional: omitting them yields nulls, not 400s."""
+    response = client.post(
+        "/api/trades",
+        json={
+            "ticker": sample_ticker.symbol,
+            "entry_price": 100.0,
+            "stop_loss": 95.0,
+            "take_profit": 115.0,
+            "units": 10,
+            "date_planned": "2025-01-15",
+        },
+        headers=auth_headers,
+    )
+    assert response.status_code == 201, response.json()
+    body = response.json()["trade"]
+    assert body["order_type"] is None
+    assert body["time_in_effect"] is None
+    assert body["gtd_date"] is None

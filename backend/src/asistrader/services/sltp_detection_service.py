@@ -13,6 +13,7 @@ from asistrader.models.db import (
     ExitLevelType,
     ExitType,
     MarketData,
+    OrderType,
     Trade,
     TradeStatus,
 )
@@ -185,6 +186,27 @@ def auto_close_trade(
     handle_trade_close(db, trade)
 
 
+def entry_fills_on_rise(trade: Trade) -> bool:
+    """
+    Which side of the entry price the candle must penetrate to fill the order.
+
+    A limit order fills when the market moves toward it favorably; a stop
+    order fills on the opposite move (a breakout/breakdown through the level).
+    Combined with direction:
+
+        long  + limit -> fall to entry  (low <= entry)
+        long  + stop  -> rise to entry  (high >= entry)
+        short + limit -> rise to entry  (high >= entry)
+        short + stop  -> fall to entry  (low <= entry)
+
+    `order_type` of None or MARKET defaults to limit semantics, preserving the
+    original detection behavior for trades created before order_type was
+    persisted.
+    """
+    is_stop = trade.order_type == OrderType.STOP
+    return is_long_trade(trade) == is_stop
+
+
 def check_entry_hit_for_day(
     trade: Trade, market_day: MarketData, margin: float = DETECTION_MARGIN_PCT
 ) -> bool:
@@ -193,20 +215,17 @@ def check_entry_hit_for_day(
 
     A `margin` confirmation buffer requires the candle to penetrate the entry
     price by that fraction before the hit counts (see DETECTION_MARGIN_PCT).
-
-    For long positions (SL < entry): Entry hit if low <= entry_price * (1 - margin)
-    For short positions (SL > entry): Entry hit if high >= entry_price * (1 + margin)
+    The side of penetration depends on direction *and* order type — see
+    `entry_fills_on_rise` for the truth table.
 
     Returns True if entry was hit, False otherwise.
     """
     if market_day.low is None or market_day.high is None:
         return False
 
-    long = is_long_trade(trade)
-    if long:
-        return market_day.low <= trade.entry_price * (1 - margin)
-    else:
+    if entry_fills_on_rise(trade):
         return market_day.high >= trade.entry_price * (1 + margin)
+    return market_day.low <= trade.entry_price * (1 - margin)
 
 
 def detect_entry_hit(
