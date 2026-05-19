@@ -1,18 +1,21 @@
 import { useState } from 'react'
 import { observer } from '@legendapp/state/react'
 import { TradeCreationForm } from './TradeCreationForm'
+import { AlertsModal } from './AlertsModal'
 import { useMarketDataSync } from '../hooks/useMarketDataSync'
 import { useTradeAlerts } from '../hooks/useTradeAlerts'
 import styles from './TradeActionBar.module.css'
 
 export const TradeActionBar = observer(function TradeActionBar() {
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showDiscarded, setShowDiscarded] = useState(false)
+  const [showAlertsModal, setShowAlertsModal] = useState(false)
   const sync = useMarketDataSync()
   const alerts = useTradeAlerts()
 
-  const discardedCount =
-    alerts.dismissedEntryAlerts.length + alerts.dismissedSltpAlerts.length
+  const handleCheckAlerts = async () => {
+    await alerts.handleDetect()
+    setShowAlertsModal(true)
+  }
 
   return (
     <>
@@ -44,9 +47,14 @@ export const TradeActionBar = observer(function TradeActionBar() {
         </div>
 
         <div className={styles.alertGroup}>
-          <button className={styles.btnDetect} onClick={alerts.handleDetect} disabled={alerts.detecting}>
+          <button className={styles.btnDetect} onClick={handleCheckAlerts} disabled={alerts.detecting}>
             {alerts.detecting ? 'Checking...' : 'Check Alerts'}
           </button>
+          {(alerts.hasAlerts || alerts.hasDismissed) && (
+            <button className={styles.btnDismissAll} onClick={() => setShowAlertsModal(true)}>
+              View alerts ({alerts.activeCount})
+            </button>
+          )}
           {alerts.lastResult && (
             <span className={styles.alertSummary}>
               {alerts.lastResult.autoOpenedCount > 0 && (
@@ -60,19 +68,6 @@ export const TradeActionBar = observer(function TradeActionBar() {
               )}
             </span>
           )}
-          {alerts.hasAlerts && (
-            <button className={styles.btnDismissAll} onClick={alerts.dismissAll}>
-              Dismiss All
-            </button>
-          )}
-          {discardedCount > 0 && (
-            <button
-              className={styles.btnDismissAll}
-              onClick={() => setShowDiscarded(v => !v)}
-            >
-              {showDiscarded ? 'Hide' : 'Show'} discarded ({discardedCount})
-            </button>
-          )}
         </div>
       </div>
 
@@ -85,48 +80,8 @@ export const TradeActionBar = observer(function TradeActionBar() {
         <div className={`${styles.syncResult} ${styles.syncError}`}>{sync.error}</div>
       )}
 
-      {alerts.hasAlerts && (
-        <div className={styles.alertList}>
-          {alerts.activeEntryAlerts.map(alert => (
-            <div key={`entry-${alert.tradeId}`} className={`${styles.alertItem} ${styles[alerts.getEntryAlertClass(alert)]}`}>
-              <span className={styles.alertIcon}>{alerts.getEntryAlertIcon(alert)}</span>
-              <span className={styles.alertMessage}>{alert.message}</span>
-              <button className={styles.btnDismiss} onClick={() => alerts.dismiss(alert)}>x</button>
-            </div>
-          ))}
-          {alerts.activeSltpAlerts.map(alert => (
-            <div key={`sltp-${alert.tradeId}`} className={`${styles.alertItem} ${styles[alerts.getSltpAlertClass(alert)]}`}>
-              <span className={styles.alertIcon}>{alerts.getSltpAlertIcon(alert)}</span>
-              <span className={styles.alertMessage}>{alert.message}</span>
-              <button className={styles.btnDismiss} onClick={() => alerts.dismiss(alert)}>x</button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {showDiscarded && discardedCount > 0 && (
-        <div className={styles.alertList}>
-          <span className={styles.discardedLabel}>
-            Discarded alerts — restore one to have it reappear on the next check.
-          </span>
-          {alerts.dismissedEntryAlerts.map(alert => (
-            <div key={`d-entry-${alert.tradeId}`} className={`${styles.alertItem} ${styles.alertItemDismissed}`}>
-              <span className={styles.alertIcon}>{alerts.getEntryAlertIcon(alert)}</span>
-              <span className={styles.alertMessage}>{alert.message}</span>
-              <button className={styles.btnRestore} onClick={() => alerts.restore(alert)}>Restore</button>
-            </div>
-          ))}
-          {alerts.dismissedSltpAlerts.map(alert => (
-            <div key={`d-sltp-${alert.tradeId}`} className={`${styles.alertItem} ${styles.alertItemDismissed}`}>
-              <span className={styles.alertIcon}>{alerts.getSltpAlertIcon(alert)}</span>
-              <span className={styles.alertMessage}>{alert.message}</span>
-              <button className={styles.btnRestore} onClick={() => alerts.restore(alert)}>Restore</button>
-            </div>
-          ))}
-        </div>
-      )}
-
       {showCreateModal && <TradeCreationForm onClose={() => setShowCreateModal(false)} />}
+      {showAlertsModal && <AlertsModal onClose={() => setShowAlertsModal(false)} />}
     </>
   )
 })

@@ -128,3 +128,6 @@ export interface DetectionResult {
   partialCloseCount: number
   conflictCount: number
 }
+
+/** Any of the three alert kinds — all share the dismissal-signature fields. */
+export type AnyAlert = EntryAlert | SLTPAlert | LayeredAlert

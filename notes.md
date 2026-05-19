@@ -1,25 +1,5 @@
-RSI extras
-	- histogram for the daily
-		- annualized return TIR
-		- avg days
-	- frequency distributions for
-		- annaualized TIR
-		- avg days
-	- graph both TIR and avg days through time (daily)
-	- graph normal distribution parameters for daily TIR and avg days on each day as well
-
-	Realized by Ticker
-		also decompose in mixed-winners-losersso it is possible to look at the winners of a ticker without cross-contamination from losers and vicecersa
-	Realized by Trade
-		also allow to see all-winners-losers, i say all because trades are independent
-	Tables in the Drivers section
-		make them multisortable by column
-	Unrealized and Unrealized
-		add an average of the avg_days
-
 Radar Presets
 	Ex: Flat View Clsest to TP and Drift Behing
-
 
 SMA - improvements:
 	- combinatory score (how many averages below bullish for each of the averages)
@@ -32,13 +12,12 @@ radar screen with
  	- macro indicators
 
 auto trading complete version
-	- fix precision 
+	DONE - fix precision 
 	- final iteration: auto open, and close
 	
-
 strategies / techniques
 	ability for selecting multiple strategies
-	harmonics - paul at datadash
+==>	harmonics - paul at datadash <== this could be an easy win for radar
 	francesco spinoglio, leverage positions concentration
 	stochastic separation (probability bands)
 	divergence
@@ -172,3 +151,22 @@ DONE - fix auto trading
 
 DONE - find a way to automatically update the tickers data
 	DONE - send request on every frontend run?
+
+DONE - IRR extras
+	- histogram for the daily
+		- annualized return TIR
+		- avg days
+	- frequency distributions for
+		- annaualized TIR
+		- avg days
+	- graph both TIR and avg days through time (daily)
+	- graph normal distribution parameters for daily TIR and avg days on each day as well
+
+	Realized by Ticker
+		also decompose in mixed-winners-losersso it is possible to look at the winners of a ticker without cross-contamination from losers and vicecersa
+	Realized by Trade
+		also allow to see all-winners-losers, i say all because trades are independent
+	Tables in the Drivers section
+		make them multisortable by column
+	Unrealized and Unrealized
+		add an average of the avg_days

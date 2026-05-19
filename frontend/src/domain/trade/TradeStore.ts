@@ -1,7 +1,7 @@
 import { observable, computed } from '@legendapp/state'
 import { ExtendedFilter, TradeCreateRequest, TradeUpdateRequest, MarkLevelHitRequest } from '../../types/trade'
 import { ITradeRepository, DetectionResponse } from './ITradeRepository'
-import type { TradeWithMetrics, EntryAlert, SLTPAlert, DetectionResult, AlertSignature } from './types'
+import type { TradeWithMetrics, EntryAlert, SLTPAlert, LayeredAlert, AnyAlert, DetectionResult, AlertSignature } from './types'
 
 export class TradeStore {
   readonly trades$ = observable<TradeWithMetrics[]>([])
@@ -11,6 +11,7 @@ export class TradeStore {
 
   readonly entryAlerts$ = observable<EntryAlert[]>([])
   readonly sltpAlerts$ = observable<SLTPAlert[]>([])
+  readonly layeredAlerts$ = observable<LayeredAlert[]>([])
   readonly detecting$ = observable(false)
   readonly lastDetectionResult$ = observable<DetectionResult | null>(null)
 
@@ -77,8 +78,10 @@ export class TradeStore {
       const detection = await this.repo.detectTradeHits()
       this.entryAlerts$.set(detection.entryAlerts)
       this.sltpAlerts$.set(detection.sltpAlerts)
+      this.layeredAlerts$.set(detection.layeredAlerts)
       this.lastDetectionResult$.set(detection.result)
-      if (detection.result.autoOpenedCount > 0 || detection.result.autoClosedCount > 0) {
+      const { autoOpenedCount, autoClosedCount, partialCloseCount } = detection.result
+      if (autoOpenedCount > 0 || autoClosedCount > 0 || partialCloseCount > 0) {
         await this.loadTrades()
       }
       return detection
@@ -91,7 +94,7 @@ export class TradeStore {
     this.filter$.set(filter)
   }
 
-  private alertSignature(alert: EntryAlert | SLTPAlert): AlertSignature {
+  private alertSignature(alert: AnyAlert): AlertSignature {
     return {
       tradeId: alert.tradeId,
       hitDate: alert.hitDate,
@@ -101,24 +104,25 @@ export class TradeStore {
   }
 
   private setAlertDismissed(sig: AlertSignature, dismissed: boolean): void {
-    const matches = (a: EntryAlert | SLTPAlert): boolean =>
+    const matches = (a: AnyAlert): boolean =>
       a.tradeId === sig.tradeId &&
       a.hitDate === sig.hitDate &&
       a.alertKind === sig.alertKind &&
       a.levelKey === sig.levelKey
     this.entryAlerts$.set(prev => prev.map(a => (matches(a) ? { ...a, dismissed } : a)))
     this.sltpAlerts$.set(prev => prev.map(a => (matches(a) ? { ...a, dismissed } : a)))
+    this.layeredAlerts$.set(prev => prev.map(a => (matches(a) ? { ...a, dismissed } : a)))
   }
 
   /** Persist a dismissal so the alert stays hidden on future check-alerts runs. */
-  async dismissAlert(alert: EntryAlert | SLTPAlert): Promise<void> {
+  async dismissAlert(alert: AnyAlert): Promise<void> {
     const sig = this.alertSignature(alert)
     await this.repo.dismissAlert(sig)
     this.setAlertDismissed(sig, true)
   }
 
   /** Restore a dismissed alert so it reappears on the next check-alerts run. */
-  async restoreAlert(alert: EntryAlert | SLTPAlert): Promise<void> {
+  async restoreAlert(alert: AnyAlert): Promise<void> {
     const sig = this.alertSignature(alert)
     await this.repo.restoreAlert(sig)
     this.setAlertDismissed(sig, false)
@@ -126,9 +130,11 @@ export class TradeStore {
 
   /** Dismiss every alert that is currently still active. */
   async dismissAllAlerts(): Promise<void> {
-    const active = [...this.entryAlerts$.get(), ...this.sltpAlerts$.get()].filter(
-      a => !a.dismissed,
-    )
+    const active: AnyAlert[] = [
+      ...this.entryAlerts$.get(),
+      ...this.sltpAlerts$.get(),
+      ...this.layeredAlerts$.get(),
+    ].filter(a => !a.dismissed)
     await Promise.all(active.map(a => this.dismissAlert(a)))
   }
 
