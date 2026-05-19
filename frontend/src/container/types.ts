@@ -9,8 +9,12 @@ import { FxStore } from '../domain/fx/FxStore'
 import { RadarStore } from '../domain/radar/RadarStore'
 import { BenchmarkStore } from '../domain/benchmark/BenchmarkStore'
 import { IrrStore } from '../domain/irr/IrrStore'
+import { AuthStore } from '../domain/auth/AuthStore'
+import { RouterStore } from '../domain/router/RouterStore'
 
 export interface AppContainer {
+  authStore: AuthStore
+  routerStore: RouterStore
   tradeStore: TradeStore
   liveMetricsStore: LiveMetricsStore
   tradeMetricsStore: TradeMetricsStore

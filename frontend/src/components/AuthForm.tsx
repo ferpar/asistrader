@@ -1,12 +1,12 @@
 import { useState, FormEvent } from 'react'
-import { useAuth } from '../context/AuthContext'
+import { useAuthStore } from '../container/ContainerContext'
 import { useAuthValidation } from '../hooks/useAuthValidation'
 import { AuthValidationError } from '../types/auth'
 import formStyles from '../styles/forms.module.css'
 import styles from './AuthForm.module.css'
 
 export function AuthForm() {
-  const { login, register } = useAuth()
+  const authStore = useAuthStore()
   const [isRegister, setIsRegister] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -37,9 +37,9 @@ export function AuthForm() {
 
     try {
       if (isRegister) {
-        await register({ email, password })
+        await authStore.register({ email, password })
       } else {
-        await login({ email, password })
+        await authStore.login({ email, password })
       }
     } catch (err) {
       setServerError(err instanceof Error ? err.message : 'An error occurred')

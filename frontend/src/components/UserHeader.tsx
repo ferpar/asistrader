@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import { useAuth } from '../context/AuthContext'
+import { observer } from '@legendapp/state/react'
+import { useAuthStore } from '../container/ContainerContext'
 import styles from './UserHeader.module.css'
 
-export function UserHeader() {
-  const { user, logout } = useAuth()
+export const UserHeader = observer(function UserHeader() {
+  const authStore = useAuthStore()
+  const user = authStore.user$.get()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
     try {
-      await logout()
+      await authStore.logout()
     } finally {
       setIsLoggingOut(false)
     }
@@ -29,4 +31,4 @@ export function UserHeader() {
       </button>
     </div>
   )
-}
+})

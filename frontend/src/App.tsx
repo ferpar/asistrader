@@ -1,18 +1,38 @@
-import { useState, useEffect } from 'react'
-import { useAuth } from './context/AuthContext'
+import { useEffect } from 'react'
+import { observer } from '@legendapp/state/react'
 import { Layout } from './components/Layout'
 import { AuthForm } from './components/AuthForm'
 import { TradeDashboard, FundDashboard, RadarDashboard, DriversDashboard } from './pages'
-import { useFundStore } from './container/ContainerContext'
+import { useAuthStore, useFundStore, useRouterStore } from './container/ContainerContext'
+import { DEFAULT_ROUTE, LOGIN_ROUTE, type AppPage } from './domain/router/RouterStore'
 import './styles/global.css'
 import layoutStyles from './components/Layout.module.css'
 
-export type AppPage = 'trades' | 'fund' | 'radar' | 'drivers'
+const PAGES: Record<AppPage, JSX.Element> = {
+  trades: <TradeDashboard />,
+  fund: <FundDashboard />,
+  radar: <RadarDashboard />,
+  drivers: <DriversDashboard />,
+}
 
-function App() {
-  const { isAuthenticated, isLoading } = useAuth()
-  const [page, setPage] = useState<AppPage>('trades')
+/**
+ * Root component and the single auth+router orchestrator: it observes both
+ * stores and decides what to render. The RouterStore stays auth-agnostic, so
+ * the redirect rules (bounce anonymous visitors to `/login`, restore their
+ * intended page after sign-in) live here.
+ */
+const App = observer(function App() {
+  const authStore = useAuthStore()
+  const routerStore = useRouterStore()
   const fundStore = useFundStore()
+
+  const bootstrapping = authStore.bootstrapping$.get()
+  const isAuthenticated = authStore.isAuthenticated()
+  const route = routerStore.route$.get()
+
+  useEffect(() => {
+    authStore.init()
+  }, [authStore])
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -20,7 +40,21 @@ function App() {
     }
   }, [isAuthenticated, fundStore])
 
-  if (isLoading) {
+  // Keep the URL in step with the auth state. Rendering below never depends on
+  // this having run — it only corrects the address bar.
+  useEffect(() => {
+    if (bootstrapping) return
+    if (!isAuthenticated && route !== LOGIN_ROUTE) {
+      routerStore.intendedRoute = route
+      routerStore.navigate(LOGIN_ROUTE)
+    } else if (isAuthenticated && route === LOGIN_ROUTE) {
+      const target = routerStore.intendedRoute ?? DEFAULT_ROUTE
+      routerStore.intendedRoute = null
+      routerStore.navigate(target)
+    }
+  }, [bootstrapping, isAuthenticated, route, routerStore])
+
+  if (bootstrapping) {
     return (
       <div className={layoutStyles.app}>
         <div className={layoutStyles.authLoading}>Loading...</div>
@@ -36,19 +70,15 @@ function App() {
     )
   }
 
+  // Authenticated. While `route` is briefly `login` (just after sign-in, before
+  // the effect above redirects) fall back to the intended page or the default.
+  const page: AppPage = route === LOGIN_ROUTE ? routerStore.intendedRoute ?? DEFAULT_ROUTE : route
+
   return (
-    <Layout currentPage={page} onNavigate={setPage}>
-      {page === 'trades' ? (
-        <TradeDashboard />
-      ) : page === 'fund' ? (
-        <FundDashboard />
-      ) : page === 'radar' ? (
-        <RadarDashboard />
-      ) : (
-        <DriversDashboard />
-      )}
+    <Layout currentPage={page} onNavigate={(next) => routerStore.navigate(next)}>
+      {PAGES[page]}
     </Layout>
   )
-}
+})
 
 export default App

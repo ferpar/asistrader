@@ -18,10 +18,14 @@ import { HttpBenchmarkRepository } from '../domain/benchmark/HttpBenchmarkReposi
 import { BenchmarkStore } from '../domain/benchmark/BenchmarkStore'
 import { HttpIrrRepository } from '../domain/irr/HttpIrrRepository'
 import { IrrStore } from '../domain/irr/IrrStore'
+import { AuthStore } from '../domain/auth/AuthStore'
+import { RouterStore } from '../domain/router/RouterStore'
 import { AppContainer } from './types'
 
 export function createAppContainer(): AppContainer {
   const baseUrl = import.meta.env.VITE_API_URL || ''
+  const authStore = new AuthStore()
+  const routerStore = new RouterStore()
   const tradeRepo = new HttpTradeRepository(baseUrl, getAccessToken)
   const priceProvider = new HttpPriceProvider(baseUrl, getAccessToken)
   const tradeStore = new TradeStore(tradeRepo)
@@ -48,6 +52,8 @@ export function createAppContainer(): AppContainer {
   const irrRepo = new HttpIrrRepository(baseUrl, getAccessToken)
   const irrStore = new IrrStore(irrRepo)
   return {
+    authStore,
+    routerStore,
     tradeStore,
     liveMetricsStore,
     tradeMetricsStore,

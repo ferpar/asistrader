@@ -31,6 +31,14 @@ export function useContainer(): AppContainer {
   return container
 }
 
+export function useAuthStore() {
+  return useContainer().authStore
+}
+
+export function useRouterStore() {
+  return useContainer().routerStore
+}
+
 export function useTradeStore() {
   return useContainer().tradeStore
 }

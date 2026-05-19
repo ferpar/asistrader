@@ -1,5 +1,5 @@
 import { ReactNode } from 'react'
-import type { AppPage } from '../App'
+import type { AppPage } from '../domain/router/RouterStore'
 import { ThemeToggle } from './ThemeToggle'
 import { UserHeader } from './UserHeader'
 import styles from './Layout.module.css'
