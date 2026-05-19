@@ -2,7 +2,7 @@
 
 from datetime import date, datetime
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -124,6 +124,50 @@ class StrategyResponse(BaseModel):
     """Response schema for single strategy operations."""
 
     strategy: StrategySchema
+    message: str
+
+
+class RadarPresetSchema(BaseModel):
+    """Schema for a saved radar preset.
+
+    `config` is an open sparse partial of the frontend RadarViewState; the
+    backend stores and returns it verbatim without inspecting radar keys.
+    """
+
+    id: int
+    name: str
+    config: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class RadarPresetCreateRequest(BaseModel):
+    """Request schema for creating a radar preset."""
+
+    name: str
+    config: dict[str, Any] = Field(default_factory=dict)
+
+
+class RadarPresetUpdateRequest(BaseModel):
+    """Request schema for updating a radar preset (rename and/or overwrite config)."""
+
+    name: str | None = None
+    config: dict[str, Any] | None = None
+
+
+class RadarPresetListResponse(BaseModel):
+    """Response schema for the radar preset list endpoint."""
+
+    presets: list[RadarPresetSchema]
+    count: int
+
+
+class RadarPresetResponse(BaseModel):
+    """Response schema for single radar preset operations."""
+
+    preset: RadarPresetSchema
     message: str
 
 

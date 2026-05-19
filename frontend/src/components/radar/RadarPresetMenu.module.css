@@ -1,0 +1,72 @@
+.menu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  padding-right: 4px;
+  border-right: 2px solid var(--color-border);
+  margin-right: 4px;
+}
+
+.select {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  min-width: 180px;
+}
+
+.btn {
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.btn:hover:not(:disabled) {
+  background-color: var(--color-surface);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.danger {
+  color: var(--color-danger, #c0392b);
+}
+
+.dirty {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-warning, #b8860b);
+  white-space: nowrap;
+}
+
+.spacer {
+  margin-left: auto;
+}
+
+.error {
+  flex-basis: 100%;
+  font-size: 0.8rem;
+  color: var(--color-danger, #c0392b);
+}

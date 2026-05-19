@@ -1,6 +1,7 @@
 import { observable } from '@legendapp/state'
 import type { IRadarRepository } from './IRadarRepository'
-import type { TickerIndicators, RsiIndicator } from './types'
+import type { IRadarPresetRepository } from './IRadarPresetRepository'
+import type { TickerIndicators, RsiIndicator, RadarPreset } from './types'
 import type { MarketDataRowDTO } from '../../types/radar'
 import type { IBenchmarkRepository } from '../benchmark/IBenchmarkRepository'
 import type { BenchmarkIndicators } from '../benchmark/types'
@@ -11,7 +12,12 @@ import {
   computeLinearRegressionStructure,
   computeRsi,
 } from './indicators'
-import { DEFAULT_VIEW_STATE, type RadarViewState } from './filterSort'
+import {
+  DEFAULT_VIEW_STATE,
+  diffFromDefault,
+  mergeWithDefault,
+  type RadarViewState,
+} from './filterSort'
 
 type TickerBulkResult = { data: Record<string, MarketDataRowDTO[]>; errors: Record<string, string> }
 type BenchmarkBulkResult = { data: Record<string, BenchmarkMarketDataRowDTO[]>; errors: Record<string, string> }
@@ -37,13 +43,7 @@ function loadViewFromStorage(): RadarViewState {
   try {
     const raw = localStorage.getItem(VIEW_STORAGE_KEY)
     if (!raw) return DEFAULT_VIEW_STATE
-    const parsed = JSON.parse(raw) as Partial<RadarViewState>
-    return {
-      ticker: { ...DEFAULT_VIEW_STATE.ticker, ...(parsed.ticker ?? {}) },
-      trade: { ...DEFAULT_VIEW_STATE.trade, ...(parsed.trade ?? {}) },
-      sort: { ...DEFAULT_VIEW_STATE.sort, ...(parsed.sort ?? {}) },
-      flatView: parsed.flatView ?? DEFAULT_VIEW_STATE.flatView,
-    }
+    return mergeWithDefault(JSON.parse(raw))
   } catch {
     return DEFAULT_VIEW_STATE
   }
@@ -125,11 +125,14 @@ export class RadarStore {
   readonly loading$ = observable(false)
   readonly error$ = observable<string | null>(null)
   readonly view$ = observable<RadarViewState>(loadViewFromStorage())
+  readonly presets$ = observable<RadarPreset[]>([])
+  readonly presetsError$ = observable<string | null>(null)
   private lastSyncTime = 0
 
   constructor(
     private readonly repo: IRadarRepository,
     private readonly benchmarkRepo: IBenchmarkRepository,
+    private readonly presetRepo: IRadarPresetRepository,
   ) {}
 
   private allSymbols(): string[] {
@@ -307,6 +310,79 @@ export class RadarStore {
       localStorage.removeItem(VIEW_STORAGE_KEY)
     } catch {
       // non-fatal
+    }
+  }
+
+  // --- Presets ---------------------------------------------------------
+
+  private sortPresets(presets: RadarPreset[]): RadarPreset[] {
+    return [...presets].sort((a, b) => a.name.localeCompare(b.name))
+  }
+
+  async loadPresets(): Promise<void> {
+    this.presetsError$.set(null)
+    try {
+      this.presets$.set(this.sortPresets(await this.presetRepo.fetchPresets()))
+    } catch (err) {
+      this.presetsError$.set(err instanceof Error ? err.message : 'Failed to load presets')
+    }
+  }
+
+  /** Save the current live view as a new named preset (sparse diff from defaults). */
+  async savePreset(name: string): Promise<RadarPreset> {
+    this.presetsError$.set(null)
+    try {
+      const config = diffFromDefault(this.view$.get())
+      const preset = await this.presetRepo.createPreset(name.trim(), config)
+      this.presets$.set(this.sortPresets([...this.presets$.get(), preset]))
+      return preset
+    } catch (err) {
+      this.presetsError$.set(err instanceof Error ? err.message : 'Failed to save preset')
+      throw err
+    }
+  }
+
+  /** Apply a preset: elided settings reset to their current defaults. */
+  applyPreset(preset: RadarPreset): void {
+    this.setView(mergeWithDefault(preset.config))
+  }
+
+  /** Overwrite an existing preset's config with the current live view. */
+  async overwritePreset(id: number): Promise<void> {
+    this.presetsError$.set(null)
+    try {
+      const config = diffFromDefault(this.view$.get())
+      const updated = await this.presetRepo.updatePreset(id, { config })
+      this.presets$.set(
+        this.sortPresets(this.presets$.get().map((p) => (p.id === id ? updated : p))),
+      )
+    } catch (err) {
+      this.presetsError$.set(err instanceof Error ? err.message : 'Failed to update preset')
+      throw err
+    }
+  }
+
+  async renamePreset(id: number, name: string): Promise<void> {
+    this.presetsError$.set(null)
+    try {
+      const updated = await this.presetRepo.updatePreset(id, { name: name.trim() })
+      this.presets$.set(
+        this.sortPresets(this.presets$.get().map((p) => (p.id === id ? updated : p))),
+      )
+    } catch (err) {
+      this.presetsError$.set(err instanceof Error ? err.message : 'Failed to rename preset')
+      throw err
+    }
+  }
+
+  async deletePreset(id: number): Promise<void> {
+    this.presetsError$.set(null)
+    try {
+      await this.presetRepo.deletePreset(id)
+      this.presets$.set(this.presets$.get().filter((p) => p.id !== id))
+    } catch (err) {
+      this.presetsError$.set(err instanceof Error ? err.message : 'Failed to delete preset')
+      throw err
     }
   }
 }

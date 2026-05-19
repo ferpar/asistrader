@@ -16,3 +16,9 @@ export {
   type TickerSortContext,
 } from './sort'
 export { applyGroupedView, applyFlatView } from './view'
+export {
+  diffFromDefault,
+  mergeWithDefault,
+  viewMatchesConfig,
+  type RadarPresetConfig,
+} from './presetConfig'

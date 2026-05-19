@@ -9,6 +9,7 @@ from asistrader.api.fund import router as fund_router
 from asistrader.api.fx import router as fx_router
 from asistrader.api.irr import router as irr_router
 from asistrader.api.market_data import router as market_data_router
+from asistrader.api.radar_presets import router as radar_presets_router
 from asistrader.api.strategies import router as strategies_router
 from asistrader.api.tickers import router as tickers_router
 from asistrader.api.trades import router as trades_router
@@ -37,6 +38,7 @@ app.include_router(market_data_router)
 app.include_router(benchmarks_router)
 app.include_router(fx_router)
 app.include_router(irr_router)
+app.include_router(radar_presets_router)
 
 
 @app.get("/health")
