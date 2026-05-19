@@ -85,7 +85,8 @@ export interface EntryAlert {
   entryPrice: Decimal
   autoDetect: boolean
   autoOpened: boolean
-  message: string
+  currency: string | null
+  priceHint: number | null
   alertKind: string
   levelKey: string
   dismissed: boolean
@@ -99,7 +100,8 @@ export interface SLTPAlert {
   hitPrice: Decimal
   autoDetect: boolean
   autoClosed: boolean
-  message: string
+  currency: string | null
+  priceHint: number | null
   alertKind: string
   levelKey: string
   dismissed: boolean
@@ -116,7 +118,8 @@ export interface LayeredAlert {
   remainingUnits: number
   autoDetect: boolean
   autoProcessed: boolean
-  message: string
+  currency: string | null
+  priceHint: number | null
   alertKind: string
   levelKey: string
   dismissed: boolean

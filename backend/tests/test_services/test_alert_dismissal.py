@@ -24,7 +24,7 @@ def _sltp_alert(trade_id: int = 1, hit_date: date = date(2025, 1, 20)) -> SLTPAl
     return SLTPAlert(
         trade_id=trade_id, ticker="TEST", hit_type=SLTPHitType.SL,
         hit_date=hit_date, hit_price=95.0, auto_detect=False,
-        auto_closed=False, message="SL hit",
+        auto_closed=False,
     )
 
 
@@ -32,7 +32,7 @@ def _entry_alert(trade_id: int = 1, hit_date: date = date(2025, 1, 20)) -> Entry
     return EntryAlert(
         trade_id=trade_id, ticker="TEST", hit_type=EntryHitType.ENTRY,
         hit_date=hit_date, entry_price=100.0, auto_detect=False,
-        auto_opened=False, message="Entry hit",
+        auto_opened=False,
     )
 
 
@@ -41,7 +41,6 @@ def _layered_alert(trade_id: int = 1) -> LayeredAlert:
         trade_id=trade_id, ticker="TEST", level_type="tp", level_index=1,
         hit_date=date(2025, 1, 20), hit_price=110.0, units_closed=50,
         remaining_units=50, auto_detect=False, auto_processed=False,
-        message="TP1 hit",
     )
 
 

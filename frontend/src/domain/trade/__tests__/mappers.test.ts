@@ -195,7 +195,8 @@ describe('mapEntryAlert', () => {
       entry_price: 150,
       auto_detect: true,
       auto_opened: true,
-      message: 'auto opened',
+      currency: 'GBP',
+      price_hint: 2,
       alert_kind: 'entry',
       level_key: 'entry',
       dismissed: false,
@@ -211,7 +212,8 @@ describe('mapEntryAlert', () => {
     expect(result.entryPrice.toNumber()).toBe(150)
     expect(result.autoDetect).toBe(true)
     expect(result.autoOpened).toBe(true)
-    expect(result.message).toBe('auto opened')
+    expect(result.currency).toBe('GBP')
+    expect(result.priceHint).toBe(2)
     expect(result.alertKind).toBe('entry')
     expect(result.levelKey).toBe('entry')
     expect(result.dismissed).toBe(false)
@@ -228,7 +230,8 @@ describe('mapSLTPAlert', () => {
       hit_price: 140,
       auto_detect: true,
       auto_closed: true,
-      message: 'auto closed',
+      currency: 'JPY',
+      price_hint: 0,
       alert_kind: 'sltp',
       level_key: 'sl',
       dismissed: true,
@@ -240,6 +243,8 @@ describe('mapSLTPAlert', () => {
     expect(result.hitPrice).toBeInstanceOf(Decimal)
     expect(result.hitPrice.toNumber()).toBe(140)
     expect(result.autoClosed).toBe(true)
+    expect(result.currency).toBe('JPY')
+    expect(result.priceHint).toBe(0)
     expect(result.alertKind).toBe('sltp')
     expect(result.levelKey).toBe('sl')
     expect(result.dismissed).toBe(true)
@@ -259,7 +264,8 @@ describe('mapLayeredAlert', () => {
       remaining_units: 10,
       auto_detect: false,
       auto_processed: true,
-      message: 'TP1 hit',
+      currency: 'GBp',
+      price_hint: 2,
       alert_kind: 'layered',
       level_key: 'tp:1',
       dismissed: false,
@@ -274,6 +280,8 @@ describe('mapLayeredAlert', () => {
     expect(result.unitsClosed).toBe(5)
     expect(result.remainingUnits).toBe(10)
     expect(result.autoProcessed).toBe(true)
+    expect(result.currency).toBe('GBp')
+    expect(result.priceHint).toBe(2)
     expect(result.alertKind).toBe('layered')
     expect(result.levelKey).toBe('tp:1')
     expect(result.dismissed).toBe(false)
@@ -291,7 +299,8 @@ describe('mapDetectionResponse', () => {
         entry_price: 150,
         auto_detect: true,
         auto_opened: true,
-        message: 'opened',
+        currency: 'USD',
+        price_hint: 2,
         alert_kind: 'entry',
         level_key: 'entry',
         dismissed: false,
@@ -304,7 +313,8 @@ describe('mapDetectionResponse', () => {
         hit_price: 140,
         auto_detect: true,
         auto_closed: true,
-        message: 'closed',
+        currency: 'USD',
+        price_hint: 2,
         alert_kind: 'sltp',
         level_key: 'sl',
         dismissed: false,

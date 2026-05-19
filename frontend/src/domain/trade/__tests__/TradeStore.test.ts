@@ -165,8 +165,8 @@ describe('TradeStore', () => {
   describe('detectTradeHits', () => {
     it('sets alerts and reloads on auto-actions', async () => {
       const detectionResult: DetectionResponse = {
-        entryAlerts: [{ tradeId: 1, ticker: 'AAPL', hitType: 'entry' as const, hitDate: '2025-01-15', entryPrice: Decimal.from(150), autoDetect: true, autoOpened: true, message: 'auto opened', alertKind: 'entry', levelKey: 'entry', dismissed: false }],
-        sltpAlerts: [{ tradeId: 2, ticker: 'MSFT', hitType: 'sl' as const, hitDate: '2025-01-15', hitPrice: Decimal.from(140), autoDetect: true, autoClosed: true, message: 'auto closed', alertKind: 'sltp', levelKey: 'sl', dismissed: false }],
+        entryAlerts: [{ tradeId: 1, ticker: 'AAPL', hitType: 'entry' as const, hitDate: '2025-01-15', entryPrice: Decimal.from(150), autoDetect: true, autoOpened: true, currency: 'USD', priceHint: 2, alertKind: 'entry', levelKey: 'entry', dismissed: false }],
+        sltpAlerts: [{ tradeId: 2, ticker: 'MSFT', hitType: 'sl' as const, hitDate: '2025-01-15', hitPrice: Decimal.from(140), autoDetect: true, autoClosed: true, currency: 'USD', priceHint: 2, alertKind: 'sltp', levelKey: 'sl', dismissed: false }],
         layeredAlerts: [],
         result: {
           autoOpenedCount: 1,
@@ -223,12 +223,12 @@ describe('TradeStore', () => {
     const entryAlert = (tradeId: number) => ({
       tradeId, ticker: 'AAPL', hitType: 'entry' as const, hitDate: '2025-01-15',
       entryPrice: Decimal.from(150), autoDetect: false, autoOpened: false,
-      message: 'hit', alertKind: 'entry', levelKey: 'entry', dismissed: false,
+      currency: 'USD', priceHint: 2, alertKind: 'entry', levelKey: 'entry', dismissed: false,
     })
     const sltpAlert = (tradeId: number) => ({
       tradeId, ticker: 'MSFT', hitType: 'sl' as const, hitDate: '2025-01-15',
       hitPrice: Decimal.from(140), autoDetect: false, autoClosed: false,
-      message: 'hit', alertKind: 'sltp', levelKey: 'sl', dismissed: false,
+      currency: 'USD', priceHint: 2, alertKind: 'sltp', levelKey: 'sl', dismissed: false,
     })
 
     it('flags an entry alert dismissed and persists it via the repo', async () => {

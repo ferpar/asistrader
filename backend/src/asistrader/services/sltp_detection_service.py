@@ -290,9 +290,6 @@ def process_ordered_trades(
             auto_open_trade(db, trade, hit)
             auto_opened = True
             auto_opened_count += 1
-            message = f"{trade.ticker}: Entry hit on {hit.hit_date}. Trade auto-opened."
-        else:
-            message = f"{trade.ticker}: Entry hit on {hit.hit_date} at ${trade.entry_price:.2f}. Review to open."
 
         entry_alerts.append(
             EntryAlert(
@@ -303,7 +300,8 @@ def process_ordered_trades(
                 entry_price=hit.entry_price,
                 auto_detect=trade.auto_detect,
                 auto_opened=auto_opened,
-                message=message,
+                currency=trade.ticker_rel.currency if trade.ticker_rel else None,
+                price_hint=trade.ticker_rel.price_hint if trade.ticker_rel else None,
             )
         )
 
@@ -538,14 +536,6 @@ def process_open_trades(
             hits = process_layered_hits(db, trade, margin)
             for hit in hits:
                 partial_close_count += 1
-                hit_label = "Take Profit" if hit.level.level_type == ExitLevelType.TP else "Stop Loss"
-                level_num = hit.level.order_index
-
-                if trade.status == TradeStatus.CLOSE:
-                    message = f"{trade.ticker}: {hit_label} {level_num} hit on {hit.hit_date}. Trade fully closed."
-                else:
-                    message = f"{trade.ticker}: {hit_label} {level_num} hit on {hit.hit_date}. Closed {hit.units_to_close} units at ${hit.level.price:.2f}."
-
                 layered_alerts.append(
                     LayeredAlert(
                         trade_id=trade.id,
@@ -558,7 +548,8 @@ def process_open_trades(
                         remaining_units=trade.remaining_units or 0,
                         auto_detect=trade.auto_detect,
                         auto_processed=trade.auto_detect,
-                        message=message,
+                        currency=trade.ticker_rel.currency if trade.ticker_rel else None,
+                        price_hint=trade.ticker_rel.price_hint if trade.ticker_rel else None,
                     )
                 )
         else:
@@ -571,16 +562,10 @@ def process_open_trades(
 
             if hit.hit_type == SLTPHitType.BOTH:
                 conflict_count += 1
-                message = f"{trade.ticker}: Both SL and TP hit on {hit.hit_date}. Manual resolution required."
             elif AUTO_TRADE_ENABLED and trade.auto_detect:
                 auto_close_trade(db, trade, hit)
                 auto_closed = True
                 auto_closed_count += 1
-                hit_label = "Stop Loss" if hit.hit_type == SLTPHitType.SL else "Take Profit"
-                message = f"{trade.ticker}: {hit_label} hit on {hit.hit_date}. Trade auto-closed at ${hit.hit_price:.2f}."
-            else:
-                hit_label = "Stop Loss" if hit.hit_type == SLTPHitType.SL else "Take Profit"
-                message = f"{trade.ticker}: {hit_label} hit on {hit.hit_date} at ${hit.hit_price:.2f}. Consider closing manually."
 
             sltp_alerts.append(
                 SLTPAlert(
@@ -591,7 +576,8 @@ def process_open_trades(
                     hit_price=hit.hit_price,
                     auto_detect=trade.auto_detect,
                     auto_closed=auto_closed,
-                    message=message,
+                    currency=trade.ticker_rel.currency if trade.ticker_rel else None,
+                    price_hint=trade.ticker_rel.price_hint if trade.ticker_rel else None,
                 )
             )
 

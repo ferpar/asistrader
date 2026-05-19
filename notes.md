@@ -12,7 +12,6 @@ radar screen with
  	- macro indicators
 
 auto trading complete version
-	DONE - fix precision 
 	- final iteration: auto open, and close
 	
 strategies / techniques

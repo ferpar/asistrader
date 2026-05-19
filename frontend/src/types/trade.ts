@@ -157,7 +157,8 @@ export interface SLTPAlert {
   hit_price: number
   auto_detect: boolean
   auto_closed: boolean
-  message: string
+  currency: string | null
+  price_hint: number | null
   alert_kind: string
   level_key: string
   dismissed: boolean
@@ -171,7 +172,8 @@ export interface EntryAlert {
   entry_price: number
   auto_detect: boolean
   auto_opened: boolean
-  message: string
+  currency: string | null
+  price_hint: number | null
   alert_kind: string
   level_key: string
   dismissed: boolean
@@ -188,7 +190,8 @@ export interface LayeredAlert {
   remaining_units: number
   auto_detect: boolean
   auto_processed: boolean
-  message: string
+  currency: string | null
+  price_hint: number | null
   alert_kind: string
   level_key: string
   dismissed: boolean

@@ -719,7 +719,8 @@ class SLTPAlert(BaseModel):
     hit_price: float
     auto_detect: bool
     auto_closed: bool
-    message: str
+    currency: str | None = None
+    price_hint: int | None = None
     alert_kind: str = "sltp"
     level_key: str = ""
     dismissed: bool = False
@@ -735,7 +736,8 @@ class EntryAlert(BaseModel):
     entry_price: float
     auto_detect: bool
     auto_opened: bool
-    message: str
+    currency: str | None = None
+    price_hint: int | None = None
     alert_kind: str = "entry"
     level_key: str = "entry"
     dismissed: bool = False
@@ -754,7 +756,8 @@ class LayeredAlert(BaseModel):
     remaining_units: int
     auto_detect: bool
     auto_processed: bool
-    message: str
+    currency: str | None = None
+    price_hint: int | None = None
     alert_kind: str = "layered"
     level_key: str = ""
     dismissed: bool = False

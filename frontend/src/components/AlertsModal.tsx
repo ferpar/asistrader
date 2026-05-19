@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { observer } from '@legendapp/state/react'
 import { useTradeAlerts, alertKey } from '../hooks/useTradeAlerts'
 import type { AnyAlert, EntryAlert, SLTPAlert, LayeredAlert } from '../domain/trade/types'
+import { buildAlertMessage } from '../utils/alertMessage'
 import styles from './AlertsModal.module.css'
 
 interface AlertsModalProps {
@@ -129,7 +130,7 @@ export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModa
                           <span className={styles.icon}>{rowIcon(alert)}</span>
                           <span className={styles.ticker}>{alert.ticker}</span>
                           <span className={styles.date}>{alert.hitDate}</span>
-                          <span className={styles.message}>{alert.message}</span>
+                          <span className={styles.message}>{buildAlertMessage(alert)}</span>
                           {showDiscarded ? (
                             <button
                               className={styles.btnRestore}

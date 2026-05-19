@@ -1,6 +1,7 @@
 import { observer } from '@legendapp/state/react'
 import { useTradeStore } from '../container/ContainerContext'
 import type { EntryAlert, SLTPAlert } from '../domain/trade/types'
+import { buildAlertMessage } from '../utils/alertMessage'
 import styles from './TradeAlertBanner.module.css'
 
 export const TradeAlertBanner = observer(function TradeAlertBanner() {
@@ -85,7 +86,7 @@ export const TradeAlertBanner = observer(function TradeAlertBanner() {
               className={`${styles.sltpAlert} ${getEntryAlertClass(alert)}`}
             >
               <span className={styles.alertIcon}>{getEntryAlertIcon(alert)}</span>
-              <span className={styles.alertMessage}>{alert.message}</span>
+              <span className={styles.alertMessage}>{buildAlertMessage(alert)}</span>
               <button
                 className={styles.btnDismiss}
                 onClick={() => store.dismissAlert(alert)}
@@ -100,7 +101,7 @@ export const TradeAlertBanner = observer(function TradeAlertBanner() {
               className={`${styles.sltpAlert} ${getSltpAlertClass(alert)}`}
             >
               <span className={styles.alertIcon}>{getSltpAlertIcon(alert)}</span>
-              <span className={styles.alertMessage}>{alert.message}</span>
+              <span className={styles.alertMessage}>{buildAlertMessage(alert)}</span>
               <button
                 className={styles.btnDismiss}
                 onClick={() => store.dismissAlert(alert)}
