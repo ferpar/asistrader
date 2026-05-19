@@ -6,6 +6,7 @@ import { TradeCreationForm } from '../components/TradeCreationForm'
 import { RadarTickerCard } from '../components/radar/RadarTickerCard'
 import { RadarBenchmarkCard } from '../components/radar/RadarBenchmarkCard'
 import { RadarFilterBar } from '../components/radar/RadarFilterBar'
+import { RadarPresetMenu } from '../components/radar/RadarPresetMenu'
 import { RadarFlatTradeRow } from '../components/radar/RadarFlatTradeRow'
 import { useRadarView } from '../hooks/useRadarView'
 import styles from './RadarDashboard.module.css'
@@ -137,6 +138,7 @@ export const RadarDashboard = observer(function RadarDashboard() {
       </div>
 
       <div className={styles.section}>
+        <RadarPresetMenu />
         <RadarFilterBar value={radar.view} onChange={radar.setView} onReset={radar.resetView} />
         {renderTickersSection()}
       </div>

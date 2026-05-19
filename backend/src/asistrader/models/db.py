@@ -3,7 +3,7 @@
 from datetime import date, datetime, timezone
 from enum import Enum as PyEnum
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Enum, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Column, Date, DateTime, Enum, Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -120,6 +120,7 @@ class User(Base):
     fund_events = relationship("FundEvent", back_populates="user_rel")
     fund_settings = relationship("UserFundSettings", back_populates="user_rel", uselist=False)
     alert_dismissals = relationship("AlertDismissal", back_populates="user_rel")
+    radar_presets = relationship("RadarPreset", back_populates="user_rel")
 
 
 class RefreshToken(Base):
@@ -495,3 +496,36 @@ class AlertDismissal(Base):
 
     user_rel = relationship("User", back_populates="alert_dismissals")
     trade_rel = relationship("Trade", back_populates="alert_dismissals")
+
+
+class RadarPreset(Base):
+    """A saved, named radar view configuration.
+
+    `config` is an *open* sparse partial of the frontend `RadarViewState`:
+    it stores only the settings that differ from the radar defaults, so any
+    setting the radar gains later is simply absent and resolves to its new
+    default on apply. The backend treats it as an opaque JSON blob and does
+    not validate radar-specific keys — the frontend owns the merge.
+    """
+
+    __tablename__ = "radar_preset"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String, nullable=False)
+    config = Column(JSON, nullable=False, default=dict)
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_radar_preset_user_name"),
+        Index("ix_radar_preset_user_id", "user_id"),
+    )
+
+    user_rel = relationship("User", back_populates="radar_presets")

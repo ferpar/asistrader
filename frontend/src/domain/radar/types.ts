@@ -69,3 +69,12 @@ export interface TickerIndicators {
   datedCloses: DatedClose[]
   error: string | null
 }
+
+/** A saved, named radar view configuration owned by the current user. */
+export interface RadarPreset {
+  id: number
+  name: string
+  config: import('./filterSort').RadarPresetConfig
+  createdAt: string
+  updatedAt: string
+}
