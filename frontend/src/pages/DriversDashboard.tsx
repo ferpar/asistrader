@@ -116,6 +116,7 @@ type TxnKey =
   | 'days'
   | 'investment'
   | 'profit'
+  | 'fxDrift'
   | 'return'
   | 'tir'
   | 'xirr'
@@ -134,6 +135,8 @@ function txnValue(r: TradeIrr, key: TxnKey) {
       return r.investmentBase
     case 'profit':
       return r.profitBase
+    case 'fxDrift':
+      return r.fxDriftBase
     case 'return':
       return r.returnPct
     case 'tir':
@@ -160,6 +163,7 @@ function TransactionTable({ rows, ccy }: { rows: TradeIrr[]; ccy: string }) {
             <SortableTh label="Days" sortKey="days" numeric sort={sort} />
             <SortableTh label="Investment" sortKey="investment" numeric sort={sort} />
             <SortableTh label="Profit" sortKey="profit" numeric sort={sort} />
+            <SortableTh label="FX drift" sortKey="fxDrift" numeric sort={sort} />
             <SortableTh label="Return %" sortKey="return" numeric sort={sort} />
             <SortableTh label="TIR" sortKey="tir" numeric sort={sort} />
             <SortableTh label="XIRR" sortKey="xirr" numeric sort={sort} />
@@ -170,6 +174,7 @@ function TransactionTable({ rows, ccy }: { rows: TradeIrr[]; ccy: string }) {
             <tr key={r.tradeId}>
               <td>
                 <span className={styles.ticker}>{r.ticker}</span>
+                <span className={styles.muted}> · {r.currency}</span>
                 {r.tickerName && <span className={styles.muted}> · {r.tickerName}</span>}
               </td>
               <td>{r.dateOrdered ?? '—'}</td>
@@ -178,6 +183,9 @@ function TransactionTable({ rows, ccy }: { rows: TradeIrr[]; ccy: string }) {
               <td className={styles.num}>{fmtMoney(r.investmentBase, ccy)}</td>
               <td className={`${styles.num} ${signClass(r.profitBase)}`}>
                 {fmtMoney(r.profitBase, ccy)}
+              </td>
+              <td className={`${styles.num} ${signClass(r.fxDriftBase)}`}>
+                {r.currency === ccy ? '—' : fmtMoney(r.fxDriftBase, ccy)}
               </td>
               <td className={`${styles.num} ${signClass(r.returnPct)}`}>
                 {fmtPct(r.returnPct)}
@@ -199,6 +207,7 @@ type GroupKey =
   | 'trades'
   | 'investment'
   | 'profit'
+  | 'fxDrift'
   | 'return'
   | 'avgDays'
   | 'tir'
@@ -214,6 +223,8 @@ function groupValue(g: GroupIrr, key: GroupKey) {
       return g.investmentBase
     case 'profit':
       return g.profitBase
+    case 'fxDrift':
+      return g.fxDriftBase
     case 'return':
       return g.returnPct
     case 'avgDays':
@@ -240,6 +251,7 @@ function TickerTable({ rows, ccy }: { rows: GroupIrr[]; ccy: string }) {
             <SortableTh label="Trades" sortKey="trades" numeric sort={sort} />
             <SortableTh label="Investment" sortKey="investment" numeric sort={sort} />
             <SortableTh label="Profit" sortKey="profit" numeric sort={sort} />
+            <SortableTh label="FX drift" sortKey="fxDrift" numeric sort={sort} />
             <SortableTh label="Return %" sortKey="return" numeric sort={sort} />
             <SortableTh label="Avg Days" sortKey="avgDays" numeric sort={sort} />
             <SortableTh label="TIR" sortKey="tir" numeric sort={sort} />
@@ -251,12 +263,16 @@ function TickerTable({ rows, ccy }: { rows: GroupIrr[]; ccy: string }) {
             <tr key={g.label}>
               <td>
                 <span className={styles.ticker}>{g.label}</span>
+                {g.currency && <span className={styles.muted}> · {g.currency}</span>}
                 {g.tickerName && <span className={styles.muted}> · {g.tickerName}</span>}
               </td>
               <td className={styles.num}>{g.tradeCount}</td>
               <td className={styles.num}>{fmtMoney(g.investmentBase, ccy)}</td>
               <td className={`${styles.num} ${signClass(g.profitBase)}`}>
                 {fmtMoney(g.profitBase, ccy)}
+              </td>
+              <td className={`${styles.num} ${signClass(g.fxDriftBase)}`}>
+                {g.currency === ccy ? '—' : fmtMoney(g.fxDriftBase, ccy)}
               </td>
               <td className={`${styles.num} ${signClass(g.returnPct)}`}>
                 {fmtPct(g.returnPct)}
@@ -275,6 +291,7 @@ function TickerTable({ rows, ccy }: { rows: GroupIrr[]; ccy: string }) {
 // ── Portfolio summary card ──
 
 function PortfolioCard({ group, ccy }: { group: GroupIrr; ccy: string }) {
+  const sameCcy = group.currency !== null && group.currency === ccy
   const metrics: { label: string; value: string; cls?: string }[] = [
     { label: 'Trades', value: String(group.tradeCount) },
     { label: 'Invested', value: fmtMoney(group.investmentBase, ccy) },
@@ -282,6 +299,11 @@ function PortfolioCard({ group, ccy }: { group: GroupIrr; ccy: string }) {
       label: 'Profit',
       value: fmtMoney(group.profitBase, ccy),
       cls: signClass(group.profitBase),
+    },
+    {
+      label: 'FX drift',
+      value: sameCcy ? '—' : fmtMoney(group.fxDriftBase, ccy),
+      cls: sameCcy ? '' : signClass(group.fxDriftBase),
     },
     {
       label: 'Return %',
@@ -306,29 +328,49 @@ function PortfolioCard({ group, ccy }: { group: GroupIrr; ccy: string }) {
 
 // ── A realized / unrealized scope ──
 
-const TICKER_VIEWS: { id: TickerView; label: string }[] = [
+const TICKER_VIEWS_REALIZED: { id: TickerView; label: string }[] = [
   { id: 'mixed', label: 'Mixed' },
   { id: 'winners', label: 'Winners' },
   { id: 'losers', label: 'Losers' },
 ]
 
-const TRADE_VIEWS: { id: TradeView; label: string }[] = [
+const TICKER_VIEWS_UNREALIZED: { id: TickerView; label: string }[] = [
+  { id: 'mixed', label: 'Mixed' },
+  { id: 'winners', label: 'Winning' },
+  { id: 'losers', label: 'Losing' },
+]
+
+const TRADE_VIEWS_REALIZED: { id: TradeView; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'winners', label: 'Winners' },
   { id: 'losers', label: 'Losers' },
+]
+
+const TRADE_VIEWS_UNREALIZED: { id: TradeView; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'winners', label: 'Winning' },
+  { id: 'losers', label: 'Losing' },
 ]
 
 function ScopeSection({
   title,
   scope,
   ccy,
+  unrealized = false,
 }: {
   title: string
   scope: ScopeBlock
   ccy: string
+  /** Switches the winners/losers toggle to present-tense Winning/Losing for
+   *  open positions, where the outcome isn't locked in. */
+  unrealized?: boolean
 }) {
   const [tickerView, setTickerView] = useState<TickerView>('mixed')
   const [tradeView, setTradeView] = useState<TradeView>('all')
+
+  const tickerViews = unrealized ? TICKER_VIEWS_UNREALIZED : TICKER_VIEWS_REALIZED
+  const tradeViews = unrealized ? TRADE_VIEWS_UNREALIZED : TRADE_VIEWS_REALIZED
+  const winLossNoun = unrealized ? 'Winning / losing' : 'Winners / losers'
 
   const tickerRows =
     tickerView === 'winners'
@@ -356,11 +398,11 @@ function ScopeSection({
         <>
           <div className={styles.subHeader}>
             <h4 className={styles.subTitle}>By ticker</h4>
-            <Toggle options={TICKER_VIEWS} value={tickerView} onChange={setTickerView} />
+            <Toggle options={tickerViews} value={tickerView} onChange={setTickerView} />
           </div>
           <p className={styles.note}>
-            Winners / losers re-aggregate each ticker from only its winning or losing
-            trades — so a ticker's winners can be read without its losers diluting them.
+            {winLossNoun} re-aggregate each ticker from only its winning or losing
+            trades — so the two sides can be read without diluting each other.
           </p>
           <TickerTable rows={tickerRows} ccy={ccy} />
         </>
@@ -370,7 +412,7 @@ function ScopeSection({
         <>
           <div className={styles.subHeader}>
             <h4 className={styles.subTitle}>By transaction</h4>
-            <Toggle options={TRADE_VIEWS} value={tradeView} onChange={setTradeView} />
+            <Toggle options={tradeViews} value={tradeView} onChange={setTradeView} />
           </div>
           <TransactionTable rows={txnRows} ccy={ccy} />
         </>
@@ -637,6 +679,7 @@ export const DriversDashboard = observer(function DriversDashboard() {
             title="Unrealized"
             scope={analysis.unrealized}
             ccy={analysis.baseCurrency}
+            unrealized
           />
           <DailySection daily={analysis.daily} ccy={analysis.baseCurrency} />
         </>

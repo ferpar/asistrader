@@ -23,12 +23,16 @@ export interface TradeIrr {
   /** True compound (money-weighted) IRR. Null when off the chart / undefined. */
   xirr: number | null
   isWinner: boolean
+  /** Slice of profitBase attributable to FX moves; 0 when currency == base. */
+  fxDriftBase: number
 }
 
 /** Aggregated IRR for a ticker (all its trades) or the whole portfolio. */
 export interface GroupIrr {
   label: string
   tickerName: string | null
+  /** Native currency of the ticker; null for the portfolio summary. */
+  currency: string | null
   tradeCount: number
   investmentBase: number
   profitBase: number
@@ -36,6 +40,7 @@ export interface GroupIrr {
   avgHoldingDays: number
   tir: number
   xirr: number | null
+  fxDriftBase: number
 }
 
 export interface ScopeBlock {
@@ -104,11 +109,13 @@ export interface TradeIrrDto {
   tir: number
   xirr: number | null
   is_winner: boolean
+  fx_drift_base: number
 }
 
 export interface GroupIrrDto {
   label: string
   ticker_name: string | null
+  currency: string | null
   trade_count: number
   investment_base: number
   profit_base: number
@@ -116,6 +123,7 @@ export interface GroupIrrDto {
   avg_holding_days: number
   tir: number
   xirr: number | null
+  fx_drift_base: number
 }
 
 export interface ScopeBlockDto {

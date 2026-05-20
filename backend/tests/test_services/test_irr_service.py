@@ -9,7 +9,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from asistrader.models.db import Ticker, Trade, TradeStatus, User
+from asistrader.models.db import FxRate, Ticker, Trade, TradeStatus, User
 from asistrader.services import irr_service
 from asistrader.services.irr_service import (
     _holding_days,
@@ -234,3 +234,84 @@ def test_unrealized_scope_marks_at_current_price(
     assert txn.profit_native == pytest.approx(100.0)  # (110-100)*10
     assert txn.return_pct == pytest.approx(0.10)
     assert analysis.realized.portfolio is None  # no closed trades
+
+
+def test_fx_drift_decomposes_base_profit(db_session, sample_user):
+    """A trade in a non-base currency exposes how much of profit_base came
+    from FX vs the underlying instrument, while the winner classification
+    stays anchored to native-currency performance (the actual trade call).
+    """
+    db_session.add(Ticker(symbol="EUX", name="Euro stock", currency="EUR"))
+    start = date(2025, 1, 1)
+    end = date(2025, 6, 1)
+    # EUR was strong at order, weak at close: a +100 EUR gain still produces
+    # a base-currency loss after the rate halves.
+    db_session.add(FxRate(currency="EUR", date=start, rate_to_usd=1.50))
+    db_session.add(FxRate(currency="EUR", date=end, rate_to_usd=0.50))
+    db_session.add(
+        Trade(
+            ticker="EUX",
+            status=TradeStatus.CLOSE,
+            amount=1000.0,
+            units=10,
+            entry_price=100.0,
+            exit_price=110.0,  # +10 EUR/unit -> +100 EUR native profit
+            date_planned=start,
+            date_ordered=start,
+            exit_date=end,
+            user_id=sample_user.id,
+        )
+    )
+    db_session.commit()
+
+    analysis = compute_analysis(db_session, sample_user.id)
+
+    txn = analysis.realized.transactions[0]
+    # Native is what defines the trade outcome: this is a winner.
+    assert txn.profit_native == pytest.approx(100.0)
+    assert txn.is_winner is True
+    # Base values: inv = 1000 * 1.5 = 1500 USD; proceeds = 1100 * 0.5 = 550;
+    # profit_base = -950. Pure trading at start FX = 100 * 1.5 = 150; drift
+    # is the rest: -950 - 150 = -1100.
+    assert txn.investment_base == pytest.approx(1500.0)
+    assert txn.profit_base == pytest.approx(-950.0)
+    assert txn.fx_drift_base == pytest.approx(-1100.0)
+    # The split puts a native-winner on the winners side even when base loses.
+    assert {g.label for g in analysis.realized.by_ticker_winners} == {"EUX"}
+    assert analysis.realized.by_ticker_losers == []
+    # GroupIrr surfaces the per-ticker currency and the summed drift.
+    ticker_group = analysis.realized.by_ticker_winners[0]
+    assert ticker_group.currency == "EUR"
+    assert ticker_group.fx_drift_base == pytest.approx(-1100.0)
+    # Portfolio aggregates drift across currencies; its currency stays None.
+    pf = analysis.realized.portfolio
+    assert pf is not None
+    assert pf.currency is None
+    assert pf.fx_drift_base == pytest.approx(-1100.0)
+
+
+def test_fx_drift_is_zero_for_base_currency_trades(db_session, sample_user):
+    """Same-currency trades have no FX exposure, so drift is zero."""
+    db_session.add(Ticker(symbol="USX", name="USD stock", currency="USD"))
+    db_session.add(
+        Trade(
+            ticker="USX",
+            status=TradeStatus.CLOSE,
+            amount=1000.0,
+            units=10,
+            entry_price=100.0,
+            exit_price=110.0,
+            date_planned=date(2025, 1, 1),
+            date_ordered=date(2025, 1, 1),
+            exit_date=date(2025, 6, 1),
+            user_id=sample_user.id,
+        )
+    )
+    db_session.commit()
+
+    analysis = compute_analysis(db_session, sample_user.id)
+
+    assert analysis.realized.transactions[0].fx_drift_base == 0.0
+    assert analysis.realized.by_ticker_winners[0].fx_drift_base == 0.0
+    assert analysis.realized.portfolio is not None
+    assert analysis.realized.portfolio.fx_drift_base == 0.0

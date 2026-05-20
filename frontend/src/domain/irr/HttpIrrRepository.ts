@@ -31,6 +31,7 @@ function mapTrade(dto: TradeIrrDto): TradeIrr {
     tir: dto.tir,
     xirr: dto.xirr,
     isWinner: dto.is_winner,
+    fxDriftBase: dto.fx_drift_base,
   }
 }
 
@@ -38,6 +39,7 @@ function mapGroup(dto: GroupIrrDto): GroupIrr {
   return {
     label: dto.label,
     tickerName: dto.ticker_name,
+    currency: dto.currency,
     tradeCount: dto.trade_count,
     investmentBase: dto.investment_base,
     profitBase: dto.profit_base,
@@ -45,6 +47,7 @@ function mapGroup(dto: GroupIrrDto): GroupIrr {
     avgHoldingDays: dto.avg_holding_days,
     tir: dto.tir,
     xirr: dto.xirr,
+    fxDriftBase: dto.fx_drift_base,
   }
 }
 

@@ -13,6 +13,9 @@ broker) to ``exit_date`` for closed trades, or to today for still-open trades.
 Cross-currency aggregation is done in the user's base currency; each cash flow
 is converted at its own economic date. Per-trade ``return_pct`` is kept in the
 trade's native currency so it reflects pure trading performance, FX-neutral.
+Winners/losers are likewise classified on native profit. ``fx_drift_base``
+exposes the slice of base-currency profit that came from the currency moving,
+so a native-winner that lost money in base reads as: winner + negative drift.
 
 Realized scope  = closed trades.
 Unrealized scope = open trades, marked at the current market price.
@@ -58,6 +61,10 @@ class TradeIrr(BaseModel):
     tir: float
     xirr: float | None = None
     is_winner: bool
+    # Slice of profit_base attributable to FX moves between order and close
+    # dates: profit_base − profit_native × fx_at_start. Zero when the trade's
+    # currency matches the base currency.
+    fx_drift_base: float
 
 
 class GroupIrr(BaseModel):
@@ -65,6 +72,9 @@ class GroupIrr(BaseModel):
 
     label: str
     ticker_name: str | None = None
+    # Native currency of the underlying ticker; None for the portfolio summary,
+    # which spans every currency and is denominated in base.
+    currency: str | None = None
     trade_count: int
     investment_base: float
     profit_base: float
@@ -72,6 +82,8 @@ class GroupIrr(BaseModel):
     avg_holding_days: float
     tir: float
     xirr: float | None = None
+    # Sum of the constituent trades' FX drift in base currency.
+    fx_drift_base: float = 0.0
 
 
 class ScopeBlock(BaseModel):
@@ -211,6 +223,7 @@ class _Rec:
     tir: float
     xirr: float | None
     is_winner: bool
+    fx_drift_base: float
 
 
 def _to_base(
@@ -245,6 +258,16 @@ def _build_rec(
     proceeds_base = _to_base(db, proceeds_native, ccy, base, end)
     profit_base = proceeds_base - inv_base
 
+    # FX drift: the slice of profit_base that came from the currency moving,
+    # not from the underlying instrument. Decomposition:
+    #   pure_trading_base = profit_native × fx_at_start
+    #   fx_drift_base     = profit_base − pure_trading_base
+    # The implicit start FX rate is inv_base / inv_native (already computed).
+    if ccy == base or not inv_native:
+        fx_drift_base = 0.0
+    else:
+        fx_drift_base = profit_base - profit_native * (inv_base / inv_native)
+
     return _Rec(
         trade=trade,
         ccy=ccy,
@@ -260,6 +283,7 @@ def _build_rec(
         tir=_simple_tir(return_pct, days),
         xirr=_two_flow_xirr(inv_native, proceeds_native, days),
         is_winner=profit_native > 0,
+        fx_drift_base=fx_drift_base,
     )
 
 
@@ -282,10 +306,16 @@ def _rec_to_trade_irr(rec: _Rec) -> TradeIrr:
         tir=rec.tir,
         xirr=rec.xirr,
         is_winner=rec.is_winner,
+        fx_drift_base=rec.fx_drift_base,
     )
 
 
-def _group(label: str, recs: list[_Rec], ticker_name: str | None = None) -> GroupIrr:
+def _group(
+    label: str,
+    recs: list[_Rec],
+    ticker_name: str | None = None,
+    currency: str | None = None,
+) -> GroupIrr:
     """Aggregate a set of trades into one IRR figure (capital-weighted)."""
     inv = sum(r.inv_base for r in recs)
     profit = sum(r.profit_base for r in recs)
@@ -298,6 +328,7 @@ def _group(label: str, recs: list[_Rec], ticker_name: str | None = None) -> Grou
     return GroupIrr(
         label=label,
         ticker_name=ticker_name,
+        currency=currency,
         trade_count=len(recs),
         investment_base=inv,
         profit_base=profit,
@@ -305,6 +336,7 @@ def _group(label: str, recs: list[_Rec], ticker_name: str | None = None) -> Grou
         avg_holding_days=avg_days,
         tir=_simple_tir(return_pct, avg_days) if avg_days else 0.0,
         xirr=_xirr(cashflows),
+        fx_drift_base=sum(r.fx_drift_base for r in recs),
     )
 
 
@@ -320,6 +352,7 @@ def _by_ticker(recs: list[_Rec]) -> list[GroupIrr]:
             ticker_name=trecs[0].trade.ticker_rel.name
             if trecs[0].trade.ticker_rel
             else None,
+            currency=trecs[0].ccy,
         )
         for ticker, trecs in sorted(grouped.items())
     ]
