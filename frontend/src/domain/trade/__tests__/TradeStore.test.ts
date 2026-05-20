@@ -165,8 +165,8 @@ describe('TradeStore', () => {
   describe('detectTradeHits', () => {
     it('sets alerts and reloads on auto-actions', async () => {
       const detectionResult: DetectionResponse = {
-        entryAlerts: [{ tradeId: 1, ticker: 'AAPL', hitType: 'entry' as const, hitDate: '2025-01-15', entryPrice: Decimal.from(150), autoDetect: true, autoOpened: true, currency: 'USD', priceHint: 2, alertKind: 'entry', levelKey: 'entry', dismissed: false }],
-        sltpAlerts: [{ tradeId: 2, ticker: 'MSFT', hitType: 'sl' as const, hitDate: '2025-01-15', hitPrice: Decimal.from(140), autoDetect: true, autoClosed: true, currency: 'USD', priceHint: 2, alertKind: 'sltp', levelKey: 'sl', dismissed: false }],
+        entryAlerts: [{ tradeId: 1, ticker: 'AAPL', hitType: 'entry' as const, hitDate: '2025-01-15', entryPrice: Decimal.from(150), autoDetect: true, autoOpened: true, currency: 'USD', priceHint: 2, alertKind: 'entry', levelKey: 'entry', dismissed: false, hitKind: 'intraday', barOpen: null, prevClose: null }],
+        sltpAlerts: [{ tradeId: 2, ticker: 'MSFT', hitType: 'sl' as const, hitDate: '2025-01-15', hitPrice: Decimal.from(140), autoDetect: true, autoClosed: true, currency: 'USD', priceHint: 2, alertKind: 'sltp', levelKey: 'sl', dismissed: false, hitKind: 'intraday', barOpen: null, prevClose: null, alsoWouldHaveHit: [] }],
         layeredAlerts: [],
         result: {
           autoOpenedCount: 1,
@@ -224,11 +224,13 @@ describe('TradeStore', () => {
       tradeId, ticker: 'AAPL', hitType: 'entry' as const, hitDate: '2025-01-15',
       entryPrice: Decimal.from(150), autoDetect: false, autoOpened: false,
       currency: 'USD', priceHint: 2, alertKind: 'entry', levelKey: 'entry', dismissed: false,
+      hitKind: 'intraday' as const, barOpen: null, prevClose: null,
     })
     const sltpAlert = (tradeId: number) => ({
       tradeId, ticker: 'MSFT', hitType: 'sl' as const, hitDate: '2025-01-15',
       hitPrice: Decimal.from(140), autoDetect: false, autoClosed: false,
       currency: 'USD', priceHint: 2, alertKind: 'sltp', levelKey: 'sl', dismissed: false,
+      hitKind: 'intraday' as const, barOpen: null, prevClose: null, alsoWouldHaveHit: [],
     })
 
     it('flags an entry alert dismissed and persists it via the repo', async () => {

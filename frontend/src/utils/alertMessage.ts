@@ -1,4 +1,4 @@
-import type { AnyAlert, EntryAlert, SLTPAlert, LayeredAlert } from '../domain/trade/types'
+import type { AnyAlert, EntryAlert, HitKind, SLTPAlert, LayeredAlert } from '../domain/trade/types'
 import { formatPrice } from './priceFormat'
 
 /**
@@ -19,11 +19,39 @@ function price(alert: { currency: string | null; priceHint: number | null }, val
   return formatPrice(value, alert.currency, alert.priceHint)
 }
 
-function buildEntryMessage(a: EntryAlert): string {
-  if (a.autoOpened) {
-    return `${a.ticker}: Entry hit on ${a.hitDate}. Trade auto-opened.`
+/**
+ * Short suffix conveying *how* the hit was detected. Surfaces gap fills,
+ * gap-on-entry, and unverifiable open-day candidates so users don't have to
+ * open the trace modal to understand a suspect alert.
+ */
+export function hitKindSuffix(
+  kind: HitKind,
+  ctx: { currency: string | null; priceHint: number | null; barOpen: { toNumber(): number } | null; prevClose: { toNumber(): number } | null },
+): string {
+  switch (kind) {
+    case 'intraday':
+      return ''
+    case 'gap':
+      if (ctx.barOpen && ctx.prevClose) {
+        return ` (gap from ${price(ctx, ctx.prevClose.toNumber())} to ${price(ctx, ctx.barOpen.toNumber())})`
+      }
+      return ' (gap fill)'
+    case 'gap_on_entry':
+      if (ctx.barOpen) {
+        return ` (gap on entry day, open ${price(ctx, ctx.barOpen.toNumber())})`
+      }
+      return ' (gap on entry day)'
+    case 'unverifiable':
+      return ' (unverifiable — touched on entry day)'
   }
-  return `${a.ticker}: Entry hit on ${a.hitDate} at ${price(a, a.entryPrice.toNumber())}. Review to open.`
+}
+
+function buildEntryMessage(a: EntryAlert): string {
+  const suffix = hitKindSuffix(a.hitKind, a)
+  if (a.autoOpened) {
+    return `${a.ticker}: Entry hit on ${a.hitDate}. Trade auto-opened${suffix}.`
+  }
+  return `${a.ticker}: Entry hit on ${a.hitDate} at ${price(a, a.entryPrice.toNumber())}${suffix}. Review to open.`
 }
 
 function buildSltpMessage(a: SLTPAlert): string {
@@ -31,16 +59,21 @@ function buildSltpMessage(a: SLTPAlert): string {
     return `${a.ticker}: Both SL and TP hit on ${a.hitDate}. Manual resolution required.`
   }
   const label = a.hitType === 'sl' ? 'Stop Loss' : 'Take Profit'
+  const suffix = hitKindSuffix(a.hitKind, a)
+  const alsoSuffix = a.alsoWouldHaveHit.length > 0
+    ? ` — ${a.alsoWouldHaveHit.join(',').toUpperCase()} would have also hit`
+    : ''
   if (a.autoClosed) {
-    return `${a.ticker}: ${label} hit on ${a.hitDate}. Trade auto-closed at ${price(a, a.hitPrice.toNumber())}.`
+    return `${a.ticker}: ${label} hit on ${a.hitDate}. Trade auto-closed at ${price(a, a.hitPrice.toNumber())}${suffix}${alsoSuffix}.`
   }
-  return `${a.ticker}: ${label} hit on ${a.hitDate} at ${price(a, a.hitPrice.toNumber())}. Consider closing manually.`
+  return `${a.ticker}: ${label} hit on ${a.hitDate} at ${price(a, a.hitPrice.toNumber())}${suffix}${alsoSuffix}. Consider closing manually.`
 }
 
 function buildLayeredMessage(a: LayeredAlert): string {
   const label = a.levelType === 'tp' ? 'Take Profit' : 'Stop Loss'
+  const suffix = hitKindSuffix(a.hitKind, a)
   if (a.remainingUnits === 0) {
-    return `${a.ticker}: ${label} ${a.levelIndex} hit on ${a.hitDate}. Trade fully closed.`
+    return `${a.ticker}: ${label} ${a.levelIndex} hit on ${a.hitDate}. Trade fully closed${suffix}.`
   }
-  return `${a.ticker}: ${label} ${a.levelIndex} hit on ${a.hitDate}. Closed ${a.unitsClosed} units at ${price(a, a.hitPrice.toNumber())}.`
+  return `${a.ticker}: ${label} ${a.levelIndex} hit on ${a.hitDate}. Closed ${a.unitsClosed} units at ${price(a, a.hitPrice.toNumber())}${suffix}.`
 }

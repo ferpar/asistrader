@@ -149,6 +149,8 @@ export interface ValidationResult {
 export type SLTPHitType = 'sl' | 'tp' | 'both'
 export type EntryHitType = 'entry'
 
+export type HitKind = 'intraday' | 'gap' | 'gap_on_entry' | 'unverifiable'
+
 export interface SLTPAlert {
   trade_id: number
   ticker: string
@@ -162,6 +164,10 @@ export interface SLTPAlert {
   alert_kind: string
   level_key: string
   dismissed: boolean
+  hit_kind: HitKind
+  bar_open: number | null
+  prev_close: number | null
+  also_would_have_hit: string[]
 }
 
 export interface EntryAlert {
@@ -177,6 +183,9 @@ export interface EntryAlert {
   alert_kind: string
   level_key: string
   dismissed: boolean
+  hit_kind: HitKind
+  bar_open: number | null
+  prev_close: number | null
 }
 
 export interface LayeredAlert {
@@ -195,6 +204,10 @@ export interface LayeredAlert {
   alert_kind: string
   level_key: string
   dismissed: boolean
+  hit_kind: HitKind
+  bar_open: number | null
+  prev_close: number | null
+  also_would_have_hit: string[]
 }
 
 /** Identifies an alert for the dismissal blacklist. */

@@ -58,8 +58,60 @@
   width: 8rem;
 }
 
+.field input[type="search"] {
+  width: 10rem;
+}
+
 .field select {
   min-width: 18rem;
+}
+
+.fieldLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.pickerRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+}
+
+.statusChips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.statusChips .fieldLabel {
+  width: 100%;
+  margin-bottom: 0.1rem;
+}
+
+.chip {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg);
+  color: var(--color-text-muted);
+  border-radius: 999px;
+  cursor: pointer;
+  text-transform: capitalize;
+  font-family: inherit;
+}
+
+.chip:hover {
+  color: var(--color-text);
+}
+
+.chipActive {
+  background-color: var(--color-text);
+  color: var(--color-bg);
+  border-color: var(--color-text);
 }
 
 .clearBtn {

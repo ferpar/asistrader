@@ -101,6 +101,9 @@ export function mapEntryAlert(dto: EntryAlertDTO): EntryAlert {
     alertKind: dto.alert_kind,
     levelKey: dto.level_key,
     dismissed: dto.dismissed,
+    hitKind: dto.hit_kind,
+    barOpen: dto.bar_open !== null ? Decimal.from(dto.bar_open) : null,
+    prevClose: dto.prev_close !== null ? Decimal.from(dto.prev_close) : null,
   }
 }
 
@@ -118,6 +121,10 @@ export function mapSLTPAlert(dto: SLTPAlertDTO): SLTPAlert {
     alertKind: dto.alert_kind,
     levelKey: dto.level_key,
     dismissed: dto.dismissed,
+    hitKind: dto.hit_kind,
+    barOpen: dto.bar_open !== null ? Decimal.from(dto.bar_open) : null,
+    prevClose: dto.prev_close !== null ? Decimal.from(dto.prev_close) : null,
+    alsoWouldHaveHit: dto.also_would_have_hit ?? [],
   }
 }
 
@@ -138,6 +145,10 @@ export function mapLayeredAlert(dto: LayeredAlertDTO): LayeredAlert {
     alertKind: dto.alert_kind,
     levelKey: dto.level_key,
     dismissed: dto.dismissed,
+    hitKind: dto.hit_kind,
+    barOpen: dto.bar_open !== null ? Decimal.from(dto.bar_open) : null,
+    prevClose: dto.prev_close !== null ? Decimal.from(dto.prev_close) : null,
+    alsoWouldHaveHit: dto.also_would_have_hit ?? [],
   }
 }
 

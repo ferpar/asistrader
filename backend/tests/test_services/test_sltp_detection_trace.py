@@ -22,7 +22,7 @@ from asistrader.models.db import (
     TradeStatus,
     User,
 )
-from asistrader.models.schemas import SLTPHitType
+from asistrader.models.schemas import HitKind, SLTPHitType
 from asistrader.services.sltp_detection_service import (
     detect_entry_hit_with_trace,
     detect_layered_hits_with_trace,
@@ -125,6 +125,9 @@ class TestSLTPTraceShape:
 
         hit, trace = detect_sltp_hit_with_trace(db_session, sample_trade)
         assert hit is not None and hit.hit_type == SLTPHitType.SL
+        # Intraday fill: hit_price is the SL level itself (95), not the bar's low.
+        assert hit.hit_kind == HitKind.INTRADAY
+        assert hit.hit_price == 95
         bar = trace.bars[-1]
         assert bar.decision == "hit"
         assert bar.chosen_keys == ["sl"]
@@ -149,6 +152,11 @@ class TestSLTPTraceShape:
 
         hit, trace = detect_sltp_hit_with_trace(db_session, sample_trade)
         assert hit is not None and hit.hit_type == SLTPHitType.SL
+        # Gap fill: hit_price is the bar's open (90), not the SL level (95).
+        assert hit.hit_kind == HitKind.GAP
+        assert hit.hit_price == 90
+        assert hit.bar_open == 90
+        assert hit.prev_close == 100
         bar = trace.bars[-1]
         assert bar.decision == "hit"
         assert bar.reason == "gap_open_past_level"
@@ -157,21 +165,38 @@ class TestSLTPTraceShape:
         assert sl.pierced is True
         assert sl.gap is True
 
-    def test_both_pierced_same_day(
+    def test_both_pierced_resolved_by_open_distance(
         self, db_session: Session, sample_trade: Trade, sample_ticker: Ticker
     ) -> None:
-        # Bar's range spans both SL=95 and TP=115.
+        # Bar's range spans both SL=95 and TP=115. Open=100, equidistant
+        # from SL=95 (5 away) and TP=115 (15 away) — SL is closer.
         _add_bar(
             db_session, sample_ticker, date(2025, 1, 17),
             open=100, high=120, low=90, close=100,
         )
 
         hit, trace = detect_sltp_hit_with_trace(db_session, sample_trade)
-        assert hit is not None and hit.hit_type == SLTPHitType.BOTH
+        assert hit is not None
+        # Open at 100 is closer to SL=95 than to TP=115 → SL wins.
+        assert hit.hit_type == SLTPHitType.SL
+        assert hit.also_would_have_hit == ["tp"]
         bar = trace.bars[-1]
-        assert bar.decision == "both_hit"
-        assert set(bar.chosen_keys) == {"sl", "tp"}
-        assert bar.reason == "both_pierced"
+        assert bar.decision == "hit"
+        assert bar.chosen_keys[0] == "sl"
+        assert "open_closer_to_sl" in bar.reason
+
+    def test_both_pierced_tp_wins_when_open_closer(
+        self, db_session: Session, sample_trade: Trade, sample_ticker: Ticker
+    ) -> None:
+        # Open=113 — much closer to TP=115 than to SL=95 → TP wins.
+        _add_bar(
+            db_session, sample_ticker, date(2025, 1, 17),
+            open=113, high=120, low=90, close=100,
+        )
+        hit, _ = detect_sltp_hit_with_trace(db_session, sample_trade)
+        assert hit is not None
+        assert hit.hit_type == SLTPHitType.TP
+        assert hit.also_would_have_hit == ["sl"]
 
     def test_no_data_bar_records_decision(
         self, db_session: Session, sample_trade: Trade, sample_ticker: Ticker
@@ -207,6 +232,43 @@ class TestSLTPTraceShape:
         )
         # Whether or not a hit fires depends on fixtures; assert side wiring.
         assert trace.side == "short"
+
+
+class TestAsymmetricMargin:
+    """Margin suppresses intraday grazes but never gap fills."""
+
+    def test_gap_at_exact_level_is_still_a_hit(
+        self, db_session: Session, sample_trade: Trade, sample_ticker: Ticker,
+    ) -> None:
+        # prev_close=100 (above SL=95); next bar opens AT 95.0 — no margin
+        # penetration, but a gap fill (price was above, now at the level).
+        _add_bar(
+            db_session, sample_ticker, sample_trade.date_actual,
+            open=100, high=101, low=99, close=100,
+        )
+        _add_bar(
+            db_session, sample_ticker, date(2025, 1, 17),
+            open=95, high=95.5, low=95, close=95.2,
+        )
+
+        hit, _ = detect_sltp_hit_with_trace(db_session, sample_trade)
+        assert hit is not None
+        assert hit.hit_kind == HitKind.GAP
+        # Gap fill at the bar's open (95), not at the margin-buffered
+        # threshold — the margin doesn't apply to gap hits.
+        assert hit.hit_price == 95
+
+    def test_intraday_graze_within_margin_still_suppressed(
+        self, db_session: Session, sample_trade: Trade, sample_ticker: Ticker,
+    ) -> None:
+        # SL=95, margin=0.005 → threshold 94.525. Low at 94.7 grazes
+        # without piercing; not a hit.
+        _add_bar(
+            db_session, sample_ticker, date(2025, 1, 17),
+            open=99, high=100, low=94.7, close=98,
+        )
+        hit, _ = detect_sltp_hit_with_trace(db_session, sample_trade)
+        assert hit is None
 
 
 class TestEntryTraceShape:

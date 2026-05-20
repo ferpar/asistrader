@@ -30,6 +30,35 @@ export const DetectionSandbox = observer(function DetectionSandbox() {
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
+  // Trade-picker filters. Default to the two statuses the detector actually
+  // produces hits for (OPEN, ORDERED); other statuses are reachable via the
+  // status chips for trace inspection but hidden by default to cut noise.
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(
+    () => new Set(['open', 'ordered']),
+  )
+  const [idQuery, setIdQuery] = useState('')
+
+  const filteredTrades = trades.filter(t => {
+    if (!statusFilter.has(t.status)) return false
+    if (idQuery) {
+      const q = idQuery.trim()
+      if (q && !String(t.id).includes(q) && !String(t.number ?? '').includes(q)) {
+        return false
+      }
+    }
+    return true
+  })
+
+  // Keep the currently-selected trade visible in the dropdown even if it
+  // falls outside the active filter, so the user doesn't get a phantom
+  // "no selection" state when narrowing filters.
+  const dropdownTrades = (() => {
+    if (tradeId === null) return filteredTrades
+    if (filteredTrades.some(t => t.id === tradeId)) return filteredTrades
+    const selected = trades.find(t => t.id === tradeId)
+    return selected ? [selected, ...filteredTrades] : filteredTrades
+  })()
+
   // Debounce the fetch so typing in number inputs doesn't fire a request on
   // every keystroke. 300ms feels responsive without being chatty.
   const debounceRef = useRef<number | null>(null)
@@ -65,20 +94,53 @@ export const DetectionSandbox = observer(function DetectionSandbox() {
       </p>
 
       <div className={styles.controls}>
-        <label className={styles.field}>
-          <span>Trade</span>
-          <select
-            value={tradeId ?? ''}
-            onChange={e => setTradeId(e.target.value ? Number(e.target.value) : null)}
-          >
-            <option value="">— pick a trade —</option>
-            {trades.map(t => (
-              <option key={t.id} value={t.id}>
-                {tradeLabel(t)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className={styles.pickerRow}>
+          <label className={styles.field}>
+            <span>Trade</span>
+            <select
+              value={tradeId ?? ''}
+              onChange={e => setTradeId(e.target.value ? Number(e.target.value) : null)}
+            >
+              <option value="">— pick a trade ({filteredTrades.length}) —</option>
+              {dropdownTrades.map(t => (
+                <option key={t.id} value={t.id}>
+                  {tradeLabel(t)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className={styles.statusChips}>
+            <span className={styles.fieldLabel}>Status</span>
+            {(['open', 'ordered', 'plan', 'close', 'canceled'] as const).map(s => {
+              const active = statusFilter.has(s)
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  className={`${styles.chip} ${active ? styles.chipActive : ''}`}
+                  onClick={() => {
+                    const next = new Set(statusFilter)
+                    if (active) next.delete(s); else next.add(s)
+                    setStatusFilter(next)
+                  }}
+                >
+                  {s}
+                </button>
+              )
+            })}
+          </div>
+
+          <label className={styles.field}>
+            <span>Filter by # or id</span>
+            <input
+              type="search"
+              placeholder="e.g. 42"
+              value={idQuery}
+              onChange={e => setIdQuery(e.target.value)}
+            />
+          </label>
+        </div>
 
         <div className={styles.overrides}>
           <NumField label="SL" value={overrides.sl}

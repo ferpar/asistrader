@@ -705,6 +705,26 @@ class EntryHitType(str, Enum):
     ENTRY = "entry"
 
 
+class HitKind(str, Enum):
+    """How a level was hit, given we only have daily OHLC bars.
+
+    - intraday:     bar's high/low crossed the level during the session; the
+                    realistic fill is the level price (limit/stop order semantics).
+    - gap:          bar opened with price already past the level vs the prior
+                    bar's close. Order fills at the open, not the level.
+    - gap_on_entry: same as gap but on the trade's open day itself — we know
+                    the gap happened before any conceivable intraday touch.
+    - unverifiable: open-day intraday candidate — the bar's high/low pierces
+                    the level but the open did not, so we can't tell whether
+                    the touch came before or after the trade actually opened.
+    """
+
+    INTRADAY = "intraday"
+    GAP = "gap"
+    GAP_ON_ENTRY = "gap_on_entry"
+    UNVERIFIABLE = "unverifiable"
+
+
 # Identifying fields for the dismissal blacklist. `alert_kind` + `level_key`
 # together with trade_id + hit_date form an alert's signature.
 
@@ -724,6 +744,10 @@ class SLTPAlert(BaseModel):
     alert_kind: str = "sltp"
     level_key: str = ""
     dismissed: bool = False
+    hit_kind: HitKind = HitKind.INTRADAY
+    bar_open: float | None = None
+    prev_close: float | None = None
+    also_would_have_hit: list[str] = []
 
 
 class EntryAlert(BaseModel):
@@ -741,6 +765,9 @@ class EntryAlert(BaseModel):
     alert_kind: str = "entry"
     level_key: str = "entry"
     dismissed: bool = False
+    hit_kind: HitKind = HitKind.INTRADAY
+    bar_open: float | None = None
+    prev_close: float | None = None
 
 
 class LayeredAlert(BaseModel):
@@ -761,6 +788,10 @@ class LayeredAlert(BaseModel):
     alert_kind: str = "layered"
     level_key: str = ""
     dismissed: bool = False
+    hit_kind: HitKind = HitKind.INTRADAY
+    bar_open: float | None = None
+    prev_close: float | None = None
+    also_would_have_hit: list[str] = []
 
 
 class AlertDismissRequest(BaseModel):

@@ -1,3 +1,9 @@
+- check trades one-click to action 
+	-> review auto detection in one click
+	-> open trade in one click 
+	-> close trade in one click
+- surface trades that would not trigger because of the margin
+
 irr
 	- cummulative should have a max number of days, or alternatively have a parameter of limited days to measure as tail. Perhaps also parameterize the histogram and normal distrib charts to select date ranges for them.. Perhaps all graphs should have the same date range.
 

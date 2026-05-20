@@ -11,6 +11,24 @@ interface AlertsModalProps {
   onClose: () => void
 }
 
+function kindBadgeLabel(kind: string): string {
+  switch (kind) {
+    case 'gap': return 'GAP'
+    case 'gap_on_entry': return 'GAP·OPEN'
+    case 'unverifiable': return 'UNVERIFIABLE'
+    default: return kind
+  }
+}
+
+function kindBadgeTitle(kind: string): string {
+  switch (kind) {
+    case 'gap': return 'Gap fill: price gapped past the level between sessions; fill is the bar open.'
+    case 'gap_on_entry': return 'Gap on entry day: the open was already past the level when the position opened.'
+    case 'unverifiable': return 'Intraday touch on the entry day — we cannot tell if the touch happened before or after the trade was opened.'
+    default: return ''
+  }
+}
+
 type SectionId = 'pe' | 'sl' | 'tp' | 'conflict' | 'layered'
 
 const SECTIONS: { id: SectionId; label: string }[] = [
@@ -132,6 +150,14 @@ export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModa
                           <span className={styles.icon}>{rowIcon(alert)}</span>
                           <span className={styles.ticker}>{alert.ticker}</span>
                           <span className={styles.date}>{alert.hitDate}</span>
+                          {alert.hitKind !== 'intraday' && (
+                            <span
+                              className={`${styles.kindBadge} ${styles[`kind_${alert.hitKind}`] ?? ''}`}
+                              title={kindBadgeTitle(alert.hitKind)}
+                            >
+                              {kindBadgeLabel(alert.hitKind)}
+                            </span>
+                          )}
                           <span className={styles.message}>{buildAlertMessage(alert)}</span>
                           <button
                             className={styles.btnWhy}

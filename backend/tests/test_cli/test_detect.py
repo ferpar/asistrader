@@ -166,14 +166,16 @@ class TestDetectCliWhatIf:
         sample_ticker: Ticker,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        # SL pierce on 2025-01-17 — with live date_actual=2025-01-16 this hits.
+        # Bar on 2025-01-17 with intraday SL pierce (open above SL at 100,
+        # low dips to 90). With live date_actual=2025-01-16 this is a clean
+        # INTRADAY hit on the next bar.
         _add_bar(
             db_session, sample_ticker, date(2025, 1, 17),
             open=100, high=101, low=90, close=92,
         )
 
-        # Shift date_actual to 2025-01-17: the only bar is now the open day
-        # and gets skipped, so no hit.
+        # Shift date_actual to 2025-01-17: the bar is now the open day; the
+        # intraday touch becomes UNVERIFIABLE (we can't tell pre/post entry).
         rc = main(
             [str(sample_trade.id), "--opened", "2025-01-17"],
             session=db_session,
@@ -182,7 +184,7 @@ class TestDetectCliWhatIf:
         out = capsys.readouterr().out
         assert "WHAT-IF" in out
         assert "opened=2025-01-17" in out
-        assert "no hit" in out
+        assert "unverifiable" in out
 
         # DB still has original date_actual.
         db_session.expire_all()

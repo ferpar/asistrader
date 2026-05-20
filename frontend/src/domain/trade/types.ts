@@ -1,5 +1,7 @@
 import { Decimal } from '../shared/Decimal'
-import { TradeStatus, ExitType, ExitLevelType, ExitLevelStatus, SLTPHitType, EntryHitType, CancelReason, OrderType, TimeInEffect } from '../../types/trade'
+import { TradeStatus, ExitType, ExitLevelType, ExitLevelStatus, SLTPHitType, EntryHitType, CancelReason, OrderType, TimeInEffect, HitKind } from '../../types/trade'
+
+export type { HitKind }
 
 export interface ExitLevel {
   id: number
@@ -90,6 +92,9 @@ export interface EntryAlert {
   alertKind: string
   levelKey: string
   dismissed: boolean
+  hitKind: HitKind
+  barOpen: Decimal | null
+  prevClose: Decimal | null
 }
 
 export interface SLTPAlert {
@@ -105,6 +110,10 @@ export interface SLTPAlert {
   alertKind: string
   levelKey: string
   dismissed: boolean
+  hitKind: HitKind
+  barOpen: Decimal | null
+  prevClose: Decimal | null
+  alsoWouldHaveHit: string[]
 }
 
 export interface LayeredAlert {
@@ -123,6 +132,10 @@ export interface LayeredAlert {
   alertKind: string
   levelKey: string
   dismissed: boolean
+  hitKind: HitKind
+  barOpen: Decimal | null
+  prevClose: Decimal | null
+  alsoWouldHaveHit: string[]
 }
 
 export interface DetectionResult {
