@@ -1,0 +1,57 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+.table th,
+.table td {
+  padding: 4px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.table th {
+  background-color: var(--color-bg-subtle, #f7f7f7);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  position: sticky;
+  top: 0;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.check {
+  text-align: center;
+  width: 3rem;
+}
+
+.decision {
+  font-weight: 600;
+}
+
+.reason {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.rowHit {
+  background-color: var(--color-accent-bg, rgba(255, 215, 0, 0.08));
+}
+
+.rowNoData {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-style: italic;
+}

@@ -882,3 +882,61 @@ class RepairCurrenciesResponse(BaseModel):
 
     counts: dict[str, int]  # event_type -> rows repaired
     total: int
+
+
+# --- Detection trace schemas (mirror sltp_detection_trace.py dataclasses) ---
+
+
+class LevelCheckSchema(BaseModel):
+    """One level evaluated against one bar."""
+
+    key: str
+    kind: str           # "sl" | "tp" | "entry"
+    side: str           # "long" | "short"
+    price: float
+    threshold: float
+    pierced: bool
+    gap: bool
+
+
+class BarEvalSchema(BaseModel):
+    """A single market-data bar as the detector saw it."""
+
+    date: date
+    open: float | None
+    high: float | None
+    low: float | None
+    close: float | None
+    prev_close: float | None
+    checks: list[LevelCheckSchema]
+    decision: str       # "skip" | "no_data" | "hit" | "both_hit"
+    chosen_keys: list[str]
+    reason: str
+
+
+class ScanTraceSchema(BaseModel):
+    """Full scan record for a detection invocation on one trade."""
+
+    kind: str           # "sltp" | "entry" | "layered" | "none"
+    trade_id: int | None
+    side: str
+    margin: float
+    scan_from: date | None
+    scan_to: date | None
+    bars_scanned: int
+    bars: list[BarEvalSchema]
+    verdict: str
+    extras: dict[str, Any] = {}
+
+
+class DetectionTraceResponse(BaseModel):
+    """Wrapper for GET /trades/{id}/detection-trace.
+
+    `what_if` echoes overrides applied for this call so the UI can flag the
+    response as a hypothetical and the user can confirm what was actually
+    evaluated. Empty when no overrides were supplied.
+    """
+
+    trace: ScanTraceSchema
+    detector_kind: str  # "sltp" | "entry" | "layered" | "none"
+    what_if: dict[str, Any] = {}

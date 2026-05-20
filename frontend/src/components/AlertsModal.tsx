@@ -4,6 +4,7 @@ import { observer } from '@legendapp/state/react'
 import { useTradeAlerts, alertKey } from '../hooks/useTradeAlerts'
 import type { AnyAlert, EntryAlert, SLTPAlert, LayeredAlert } from '../domain/trade/types'
 import { buildAlertMessage } from '../utils/alertMessage'
+import { DetectionTraceModal } from './DetectionTraceModal'
 import styles from './AlertsModal.module.css'
 
 interface AlertsModalProps {
@@ -24,6 +25,7 @@ export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModa
   const alerts = useTradeAlerts()
   const [showDiscarded, setShowDiscarded] = useState(false)
   const [expanded, setExpanded] = useState<Set<SectionId>>(new Set())
+  const [traceTradeId, setTraceTradeId] = useState<number | null>(null)
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -131,6 +133,13 @@ export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModa
                           <span className={styles.ticker}>{alert.ticker}</span>
                           <span className={styles.date}>{alert.hitDate}</span>
                           <span className={styles.message}>{buildAlertMessage(alert)}</span>
+                          <button
+                            className={styles.btnWhy}
+                            title="Show detection trace"
+                            onClick={() => setTraceTradeId(alert.tradeId)}
+                          >
+                            Why?
+                          </button>
                           {showDiscarded ? (
                             <button
                               className={styles.btnRestore}
@@ -160,5 +169,15 @@ export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModa
     </div>
   )
 
-  return createPortal(modalContent, document.body)
+  return (
+    <>
+      {createPortal(modalContent, document.body)}
+      {traceTradeId !== null && (
+        <DetectionTraceModal
+          tradeId={traceTradeId}
+          onClose={() => setTraceTradeId(null)}
+        />
+      )}
+    </>
+  )
 })

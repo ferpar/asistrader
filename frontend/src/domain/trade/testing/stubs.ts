@@ -18,6 +18,7 @@ export function createStubTradeRepository(overrides?: Partial<ITradeRepository>)
         conflictCount: 0,
       },
     }),
+    fetchDetectionTrace: async () => { throw new Error('not implemented') },
     markExitLevelHit: async () => { throw new Error('not implemented') },
     revertExitLevelHit: async () => { throw new Error('not implemented') },
     dismissAlert: async () => {},

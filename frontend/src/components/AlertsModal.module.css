@@ -233,6 +233,22 @@
   background-color: var(--color-surface-hover);
 }
 
+.btnWhy {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.btnWhy:hover {
+  color: var(--color-text);
+  background-color: var(--color-surface-hover);
+}
+
 /* Alert type color variants */
 .alertSl {
   background-color: var(--color-error-light);

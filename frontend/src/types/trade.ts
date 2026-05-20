@@ -228,3 +228,47 @@ export type EntryAlertDTO = EntryAlert
 export type SLTPAlertDTO = SLTPAlert
 export type LayeredAlertDTO = LayeredAlert
 export type TradeDetectionResponseDTO = TradeDetectionResponse
+
+// Detection trace DTOs (snake_case wire format from the backend)
+
+export interface LevelCheckDTO {
+  key: string
+  kind: 'sl' | 'tp' | 'entry'
+  side: 'long' | 'short'
+  price: number
+  threshold: number
+  pierced: boolean
+  gap: boolean
+}
+
+export interface BarEvalDTO {
+  date: string
+  open: number | null
+  high: number | null
+  low: number | null
+  close: number | null
+  prev_close: number | null
+  checks: LevelCheckDTO[]
+  decision: 'skip' | 'no_data' | 'hit' | 'both_hit'
+  chosen_keys: string[]
+  reason: string
+}
+
+export interface ScanTraceDTO {
+  kind: 'sltp' | 'entry' | 'layered' | 'none'
+  trade_id: number | null
+  side: 'long' | 'short'
+  margin: number
+  scan_from: string | null
+  scan_to: string | null
+  bars_scanned: number
+  bars: BarEvalDTO[]
+  verdict: string
+  extras: Record<string, unknown>
+}
+
+export interface DetectionTraceResponseDTO {
+  trace: ScanTraceDTO
+  detector_kind: 'sltp' | 'entry' | 'layered' | 'none'
+  what_if: Record<string, unknown>
+}

@@ -18,6 +18,7 @@ from asistrader.models.db import (
     TradeStatus,
 )
 from asistrader.models.schemas import EntryAlert, EntryHitType, SLTPAlert, SLTPHitType, LayeredAlert
+from asistrader.services.sltp_detection_trace import BarEval, LevelCheck, ScanTrace
 
 
 # Kill switch: flip to True to re-enable automatic trade open/close.
@@ -126,8 +127,36 @@ def detect_sltp_hit(
 
     Returns the first hit found, or None if no hit detected.
     """
+    hit, _ = detect_sltp_hit_with_trace(db, trade, margin)
+    return hit
+
+
+def detect_sltp_hit_with_trace(
+    db: Session, trade: Trade, margin: float = DETECTION_MARGIN_PCT
+) -> tuple[SLTPHit | None, ScanTrace]:
+    """
+    Same as `detect_sltp_hit` but also returns a `ScanTrace` recording each
+    bar that was evaluated, what the SL/TP thresholds were on that bar, which
+    side(s) were pierced, and how the decision was made. The hit return value
+    is byte-for-byte identical to `detect_sltp_hit` — the trace is purely
+    additive diagnostics for the CLI and tests.
+    """
+    side = "long" if is_long_trade(trade) else "short"
+    trace = ScanTrace(
+        kind="sltp",
+        trade_id=trade.id,
+        side=side,
+        margin=margin,
+        scan_from=None,
+        scan_to=None,
+        bars_scanned=0,
+        bars=[],
+        verdict="",
+    )
+
     if trade.status != TradeStatus.OPEN or trade.date_actual is None:
-        return None
+        trace.verdict = "skipped: trade is not OPEN or has no date_actual"
+        return None, trace
 
     market_data = (
         db.query(MarketData)
@@ -139,26 +168,124 @@ def detect_sltp_hit(
         .all()
     )
 
-    for day in market_data:
-        hit_type = check_sltp_hit_for_day(trade, day, margin)
-        if hit_type:
-            # Determine hit price based on hit type
-            if hit_type == SLTPHitType.SL:
-                hit_price = trade.stop_loss
-            elif hit_type == SLTPHitType.TP:
-                hit_price = trade.take_profit
-            else:
-                # BOTH hit - we don't know exact price, use the one closer to open
-                # For reporting purposes, just use the stop_loss
-                hit_price = trade.stop_loss
+    # Look up the most recent bar at or before the scan lower bound so the
+    # first scanned bar has a meaningful prev_close for gap detection.
+    prev_close = _prev_close_before(db, trade.ticker, trade.date_actual)
 
-            return SLTPHit(
-                hit_type=hit_type,
-                hit_date=day.date,
-                hit_price=hit_price,
+    sl_price = trade.stop_loss
+    tp_price = trade.take_profit
+    long = side == "long"
+    sl_threshold = sl_price * (1 - margin) if long else sl_price * (1 + margin)
+    tp_threshold = tp_price * (1 + margin) if long else tp_price * (1 - margin)
+
+    hit: SLTPHit | None = None
+
+    for day in market_data:
+        trace.bars_scanned += 1
+        trace.scan_to = day.date
+        if trace.scan_from is None:
+            trace.scan_from = day.date
+
+        if day.low is None or day.high is None:
+            trace.bars.append(BarEval(
+                date=day.date, open=day.open, high=day.high, low=day.low,
+                close=day.close, prev_close=prev_close, checks=[],
+                decision="no_data", reason="missing_ohlc",
+            ))
+            prev_close = day.close
+            continue
+
+        if long:
+            sl_pierced = day.low <= sl_threshold
+            tp_pierced = day.high >= tp_threshold
+            sl_gap = day.open is not None and day.open <= sl_threshold and (
+                prev_close is None or prev_close > sl_threshold
+            )
+            tp_gap = day.open is not None and day.open >= tp_threshold and (
+                prev_close is None or prev_close < tp_threshold
+            )
+        else:
+            sl_pierced = day.high >= sl_threshold
+            tp_pierced = day.low <= tp_threshold
+            sl_gap = day.open is not None and day.open >= sl_threshold and (
+                prev_close is None or prev_close < sl_threshold
+            )
+            tp_gap = day.open is not None and day.open <= tp_threshold and (
+                prev_close is None or prev_close > tp_threshold
             )
 
-    return None
+        checks = [
+            LevelCheck(
+                key="sl", kind="sl", side=side,
+                price=sl_price, threshold=sl_threshold,
+                pierced=sl_pierced, gap=sl_gap,
+            ),
+            LevelCheck(
+                key="tp", kind="tp", side=side,
+                price=tp_price, threshold=tp_threshold,
+                pierced=tp_pierced, gap=tp_gap,
+            ),
+        ]
+
+        if sl_pierced and tp_pierced:
+            hit = SLTPHit(hit_type=SLTPHitType.BOTH, hit_date=day.date, hit_price=sl_price)
+            trace.bars.append(BarEval(
+                date=day.date, open=day.open, high=day.high, low=day.low,
+                close=day.close, prev_close=prev_close, checks=checks,
+                decision="both_hit", chosen_keys=["sl", "tp"], reason="both_pierced",
+            ))
+            break
+        if sl_pierced:
+            hit = SLTPHit(hit_type=SLTPHitType.SL, hit_date=day.date, hit_price=sl_price)
+            trace.bars.append(BarEval(
+                date=day.date, open=day.open, high=day.high, low=day.low,
+                close=day.close, prev_close=prev_close, checks=checks,
+                decision="hit", chosen_keys=["sl"],
+                reason="gap_open_past_level" if sl_gap else "intraday_touch",
+            ))
+            break
+        if tp_pierced:
+            hit = SLTPHit(hit_type=SLTPHitType.TP, hit_date=day.date, hit_price=tp_price)
+            trace.bars.append(BarEval(
+                date=day.date, open=day.open, high=day.high, low=day.low,
+                close=day.close, prev_close=prev_close, checks=checks,
+                decision="hit", chosen_keys=["tp"],
+                reason="gap_open_past_level" if tp_gap else "intraday_touch",
+            ))
+            break
+
+        trace.bars.append(BarEval(
+            date=day.date, open=day.open, high=day.high, low=day.low,
+            close=day.close, prev_close=prev_close, checks=checks,
+            decision="skip",
+        ))
+        prev_close = day.close
+
+    if hit is None:
+        trace.verdict = f"no hit across {trace.bars_scanned} bars"
+    elif hit.hit_type == SLTPHitType.BOTH:
+        trace.verdict = f"BOTH SL and TP pierced on {hit.hit_date} (conflict)"
+    else:
+        trace.verdict = (
+            f"{hit.hit_type.value.upper()} hit on {hit.hit_date} at {hit.hit_price:g}"
+        )
+
+    return hit, trace
+
+
+def _prev_close_before(db: Session, ticker: str, on_or_before: date) -> float | None:
+    """Most recent market_data close at or before `on_or_before` for this ticker.
+
+    Used to seed the prev_close for the first scanned bar so we can flag a
+    bar as a gap (open past the threshold from where it closed last session).
+    """
+    row = (
+        db.query(MarketData)
+        .filter(MarketData.ticker == ticker, MarketData.date <= on_or_before)
+        .order_by(MarketData.date.desc())
+        .first()
+    )
+    return row.close if row is not None else None
 
 
 def auto_close_trade(
@@ -242,8 +369,35 @@ def detect_entry_hit(
 
     Returns the first hit found, or None if no hit detected.
     """
+    hit, _ = detect_entry_hit_with_trace(db, trade, margin)
+    return hit
+
+
+def detect_entry_hit_with_trace(
+    db: Session, trade: Trade, margin: float = DETECTION_MARGIN_PCT
+) -> tuple[EntryHit | None, ScanTrace]:
+    """
+    Same as `detect_entry_hit` but also returns a `ScanTrace`. The hit return
+    value matches `detect_entry_hit` exactly; the trace is additive.
+    """
+    side = "long" if is_long_trade(trade) else "short"
+    fills_on_rise = entry_fills_on_rise(trade)
+    trace = ScanTrace(
+        kind="entry",
+        trade_id=trade.id,
+        side=side,
+        margin=margin,
+        scan_from=None,
+        scan_to=None,
+        bars_scanned=0,
+        bars=[],
+        verdict="",
+        extras={"fills_on_rise": fills_on_rise},
+    )
+
     if trade.status != TradeStatus.ORDERED or trade.date_planned is None:
-        return None
+        trace.verdict = "skipped: trade is not ORDERED or has no date_planned"
+        return None, trace
 
     market_data = (
         db.query(MarketData)
@@ -255,11 +409,70 @@ def detect_entry_hit(
         .all()
     )
 
-    for day in market_data:
-        if check_entry_hit_for_day(trade, day, margin):
-            return EntryHit(hit_date=day.date, entry_price=trade.entry_price)
+    prev_close = _prev_close_before(db, trade.ticker, trade.date_planned)
 
-    return None
+    entry_price = trade.entry_price
+    threshold = (
+        entry_price * (1 + margin) if fills_on_rise else entry_price * (1 - margin)
+    )
+
+    hit: EntryHit | None = None
+
+    for day in market_data:
+        trace.bars_scanned += 1
+        trace.scan_to = day.date
+        if trace.scan_from is None:
+            trace.scan_from = day.date
+
+        if day.low is None or day.high is None:
+            trace.bars.append(BarEval(
+                date=day.date, open=day.open, high=day.high, low=day.low,
+                close=day.close, prev_close=prev_close, checks=[],
+                decision="no_data", reason="missing_ohlc",
+            ))
+            prev_close = day.close
+            continue
+
+        if fills_on_rise:
+            pierced = day.high >= threshold
+            gap = day.open is not None and day.open >= threshold and (
+                prev_close is None or prev_close < threshold
+            )
+        else:
+            pierced = day.low <= threshold
+            gap = day.open is not None and day.open <= threshold and (
+                prev_close is None or prev_close > threshold
+            )
+
+        check = LevelCheck(
+            key="entry", kind="entry", side=side,
+            price=entry_price, threshold=threshold,
+            pierced=pierced, gap=gap,
+        )
+
+        if pierced:
+            hit = EntryHit(hit_date=day.date, entry_price=entry_price)
+            trace.bars.append(BarEval(
+                date=day.date, open=day.open, high=day.high, low=day.low,
+                close=day.close, prev_close=prev_close, checks=[check],
+                decision="hit", chosen_keys=["entry"],
+                reason="gap_open_past_level" if gap else "intraday_touch",
+            ))
+            break
+
+        trace.bars.append(BarEval(
+            date=day.date, open=day.open, high=day.high, low=day.low,
+            close=day.close, prev_close=prev_close, checks=[check],
+            decision="skip",
+        ))
+        prev_close = day.close
+
+    if hit is None:
+        trace.verdict = f"no entry hit across {trace.bars_scanned} bars"
+    else:
+        trace.verdict = f"ENTRY hit on {hit.hit_date} at {hit.entry_price:g}"
+
+    return hit, trace
 
 
 def auto_open_trade(db: Session, trade: Trade, hit: EntryHit) -> None:
@@ -387,20 +600,48 @@ def detect_layered_hits(
     Returns:
         List of LayeredLevelHit objects for all hit levels
     """
-    if trade.status != TradeStatus.OPEN or trade.date_actual is None:
-        return []
+    hits, _ = detect_layered_hits_with_trace(db, trade, margin)
+    return hits
 
-    # Get pending levels
+
+def detect_layered_hits_with_trace(
+    db: Session,
+    trade: Trade,
+    margin: float = DETECTION_MARGIN_PCT,
+) -> tuple[list[LayeredLevelHit], ScanTrace]:
+    """
+    Same as `detect_layered_hits` but also returns a `ScanTrace`.
+
+    Each bar's `checks` list contains one `LevelCheck` per pending level that
+    was evaluated on that bar (in `(level_type, order_index)` order). The
+    bar's `chosen_keys` lists every level that fired on that bar, since
+    layered scans can match multiple levels in a single day.
+    """
+    side = "long" if is_long_trade(trade) else "short"
+    long = side == "long"
+    trace = ScanTrace(
+        kind="layered",
+        trade_id=trade.id,
+        side=side,
+        margin=margin,
+        scan_from=None,
+        scan_to=None,
+        bars_scanned=0,
+        bars=[],
+        verdict="",
+    )
+
+    if trade.status != TradeStatus.OPEN or trade.date_actual is None:
+        trace.verdict = "skipped: trade is not OPEN or has no date_actual"
+        return [], trace
+
     pending_levels = [
         l for l in trade.exit_levels if l.status == ExitLevelStatus.PENDING
     ]
     if not pending_levels:
-        return []
+        trace.verdict = "skipped: no pending exit levels"
+        return [], trace
 
-    # Get market data strictly after the trade open date.
-    # The open day itself is skipped: with daily candles we can't tell at what
-    # point of the day the position was opened, so a same-day low/high may
-    # have occurred before the entry.
     market_data = (
         db.query(MarketData)
         .filter(
@@ -411,46 +652,115 @@ def detect_layered_hits(
         .all()
     )
 
+    prev_close = _prev_close_before(db, trade.ticker, trade.date_actual)
+
     hits: list[LayeredLevelHit] = []
     remaining_units = trade.remaining_units or trade.units
+    fired_level_ids: set[int] = set()
+
+    def _key(level: ExitLevel) -> str:
+        return f"{level.level_type.value}:{level.order_index}"
 
     for day in market_data:
-        # Check all pending levels for hits on this day
-        # Process in order_index order
-        for level in sorted(pending_levels, key=lambda l: (l.level_type.value, l.order_index)):
-            if level.status != ExitLevelStatus.PENDING:
+        trace.bars_scanned += 1
+        trace.scan_to = day.date
+        if trace.scan_from is None:
+            trace.scan_from = day.date
+
+        if day.low is None or day.high is None:
+            trace.bars.append(BarEval(
+                date=day.date, open=day.open, high=day.high, low=day.low,
+                close=day.close, prev_close=prev_close, checks=[],
+                decision="no_data", reason="missing_ohlc",
+            ))
+            prev_close = day.close
+            continue
+
+        bar_checks: list[LevelCheck] = []
+        bar_chosen: list[str] = []
+        sorted_levels = sorted(
+            pending_levels, key=lambda l: (l.level_type.value, l.order_index)
+        )
+
+        for level in sorted_levels:
+            if level.id in fired_level_ids:
                 continue
 
-            if check_layered_level_hit(trade, level, day, margin):
-                # Calculate units to close - percentage is of total units, not remaining
+            if level.level_type == ExitLevelType.SL:
+                threshold = (
+                    level.price * (1 - margin) if long else level.price * (1 + margin)
+                )
+                if long:
+                    pierced = day.low <= threshold
+                    gap = day.open is not None and day.open <= threshold and (
+                        prev_close is None or prev_close > threshold
+                    )
+                else:
+                    pierced = day.high >= threshold
+                    gap = day.open is not None and day.open >= threshold and (
+                        prev_close is None or prev_close < threshold
+                    )
+            else:  # TP
+                threshold = (
+                    level.price * (1 + margin) if long else level.price * (1 - margin)
+                )
+                if long:
+                    pierced = day.high >= threshold
+                    gap = day.open is not None and day.open >= threshold and (
+                        prev_close is None or prev_close < threshold
+                    )
+                else:
+                    pierced = day.low <= threshold
+                    gap = day.open is not None and day.open <= threshold and (
+                        prev_close is None or prev_close > threshold
+                    )
+
+            bar_checks.append(LevelCheck(
+                key=_key(level), kind=level.level_type.value, side=side,
+                price=level.price, threshold=threshold,
+                pierced=pierced, gap=gap,
+            ))
+
+            if pierced and remaining_units > 0:
                 units_to_close = int(trade.units * level.units_pct)
                 if units_to_close < 1:
-                    units_to_close = 1  # Close at least 1 unit
-                # Don't close more than remaining
+                    units_to_close = 1
                 if units_to_close > remaining_units:
                     units_to_close = remaining_units
 
                 hits.append(LayeredLevelHit(
-                    level=level,
-                    hit_date=day.date,
-                    units_to_close=units_to_close,
+                    level=level, hit_date=day.date, units_to_close=units_to_close,
                 ))
-
-                # Update remaining for subsequent calculations this day
                 remaining_units -= units_to_close
+                fired_level_ids.add(level.id)
+                bar_chosen.append(_key(level))
 
-                # Mark level as no longer pending for this scan
-                level.status = ExitLevelStatus.HIT
+        if bar_chosen:
+            trace.bars.append(BarEval(
+                date=day.date, open=day.open, high=day.high, low=day.low,
+                close=day.close, prev_close=prev_close, checks=bar_checks,
+                decision="hit", chosen_keys=bar_chosen,
+                reason="multi_level" if len(bar_chosen) > 1 else "first_match",
+            ))
+        else:
+            trace.bars.append(BarEval(
+                date=day.date, open=day.open, high=day.high, low=day.low,
+                close=day.close, prev_close=prev_close, checks=bar_checks,
+                decision="skip",
+            ))
 
-        # If all units closed, stop scanning
         if remaining_units <= 0:
             break
+        prev_close = day.close
 
-    # Reset status for levels we marked (will be properly updated in process_layered_hits)
-    for hit in hits:
-        hit.level.status = ExitLevelStatus.PENDING
+    if hits:
+        trace.verdict = (
+            f"{len(hits)} level hit(s); remaining_units={remaining_units}"
+        )
+    else:
+        trace.verdict = f"no level hit across {trace.bars_scanned} bars"
 
-    return hits
+    return hits, trace
 
 
 def process_layered_hits(

@@ -48,6 +48,12 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         >
           Drivers
         </button>
+        <button
+          className={`${styles.navTab} ${currentPage === 'detection-sandbox' ? styles.navTabActive : ''}`}
+          onClick={() => onNavigate('detection-sandbox')}
+        >
+          Detection
+        </button>
       </nav>
       <main className={styles.main}>
         {children}
