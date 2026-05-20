@@ -43,6 +43,10 @@ export function useTradeStore() {
   return useContainer().tradeStore
 }
 
+export function useTradeRepo() {
+  return useContainer().tradeRepo
+}
+
 export function useLiveMetricsStore() {
   return useContainer().liveMetricsStore
 }

@@ -1,16 +1,21 @@
 """Trade API endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException
+import dataclasses
+from datetime import date as date_type
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
-from asistrader.models.db import AlertDismissal, AlertKind, Trade, User
-from asistrader.services.fund_service import FundError
+from asistrader.models.db import AlertDismissal, AlertKind, ExitLevelType, Trade, TradeStatus, User
+from asistrader.services.fund_service import FundError, get_detection_margin
 from asistrader.models.schemas import (
     AlertDismissRequest,
+    DetectionTraceResponse,
     MarkLevelHitRequest,
     MessageResponse,
+    ScanTraceSchema,
     TradeCreateRequest,
     TradeDetectionResponse,
     TradeListResponse,
@@ -19,6 +24,13 @@ from asistrader.models.schemas import (
     TradeUpdateRequest,
 )
 from asistrader.services import sltp_detection_service
+from asistrader.services.sltp_detection_service import (
+    DETECTION_MARGIN_PCT,
+    detect_entry_hit_with_trace,
+    detect_layered_hits_with_trace,
+    detect_sltp_hit_with_trace,
+)
+from asistrader.services.sltp_detection_trace import ScanTrace
 from asistrader.services.ticker_service import get_ticker_by_symbol
 from asistrader.services.trade_service import (
     TradeUpdateError,
@@ -244,6 +256,108 @@ def detect_trade_hits(
         partial_close_count=result["partial_close_count"],
         conflict_count=result["conflict_count"],
     )
+
+
+@router.get("/{trade_id}/detection-trace", response_model=DetectionTraceResponse)
+def get_detection_trace(
+    trade_id: int,
+    sl: float | None = Query(default=None),
+    tp: float | None = Query(default=None),
+    entry: float | None = Query(default=None),
+    opened: date_type | None = Query(default=None),
+    planned: date_type | None = Query(default=None),
+    margin: float | None = Query(default=None, ge=0, le=0.1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DetectionTraceResponse:
+    """Return the full bar-by-bar detection trace for a single trade.
+
+    Routes to the right detector by trade status / is_layered. Any provided
+    what-if query params (sl/tp/entry/opened/planned) override the loaded
+    trade's fields *in memory* and are then rolled back, so this endpoint
+    cannot mutate the database regardless of input.
+
+    Use cases:
+      - "Why did this alert pick that date?" — call with no overrides.
+      - "Would this still alert if SL were 92?" — call with `sl=92`.
+    """
+    trade = db.query(Trade).filter(
+        Trade.id == trade_id, Trade.user_id == current_user.id
+    ).first()
+    if trade is None:
+        raise HTTPException(status_code=404, detail="Trade not found")
+
+    overrides: dict[str, object] = {}
+    try:
+        if sl is not None:
+            sl_levels = [l for l in trade.exit_levels if l.level_type == ExitLevelType.SL]
+            if len(sl_levels) != 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"sl override needs exactly one SL level; trade has {len(sl_levels)}",
+                )
+            sl_levels[0].price = sl
+            overrides["sl"] = sl
+        if tp is not None:
+            tp_levels = [l for l in trade.exit_levels if l.level_type == ExitLevelType.TP]
+            if len(tp_levels) != 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"tp override needs exactly one TP level; trade has {len(tp_levels)}",
+                )
+            tp_levels[0].price = tp
+            overrides["tp"] = tp
+        if entry is not None:
+            trade.entry_price = entry
+            overrides["entry"] = entry
+        if opened is not None:
+            trade.date_actual = opened
+            overrides["opened"] = opened.isoformat()
+        if planned is not None:
+            trade.date_planned = planned
+            overrides["planned"] = planned.isoformat()
+
+        effective_margin = (
+            margin if margin is not None
+            else get_detection_margin(db, current_user.id)
+        )
+
+        trace, detector_kind = _run_traced_detector(db, trade, effective_margin)
+        # Use the dataclass -> dict round trip so the Pydantic schema can
+        # validate the structure (and reject any drift between the two).
+        trace_schema = ScanTraceSchema.model_validate(dataclasses.asdict(trace))
+        return DetectionTraceResponse(
+            trace=trace_schema,
+            detector_kind=detector_kind,
+            what_if=overrides,
+        )
+    finally:
+        # Read-only contract: any what-if mutations stay in the in-memory
+        # session and are discarded. Identical to the CLI's safety net.
+        db.rollback()
+
+
+def _run_traced_detector(
+    db: Session, trade: Trade, margin: float
+) -> tuple[ScanTrace, str]:
+    """Pick the right `*_with_trace` detector for this trade."""
+    if trade.status == TradeStatus.ORDERED:
+        _, trace = detect_entry_hit_with_trace(db, trade, margin)
+        return trace, "entry"
+    if trade.status == TradeStatus.OPEN:
+        if trade.is_layered:
+            _, trace = detect_layered_hits_with_trace(db, trade, margin)
+            return trace, "layered"
+        _, trace = detect_sltp_hit_with_trace(db, trade, margin)
+        return trace, "sltp"
+
+    side = "long" if (trade.entry_price and trade.stop_loss
+                       and trade.stop_loss < trade.entry_price) else "short"
+    return ScanTrace(
+        kind="none", trade_id=trade.id, side=side, margin=margin,
+        scan_from=None, scan_to=None, bars_scanned=0, bars=[],
+        verdict=f"not detectable: trade.status={trade.status.value if trade.status else '?'}",
+    ), "none"
 
 
 def _resolve_alert_kind(value: str) -> AlertKind:

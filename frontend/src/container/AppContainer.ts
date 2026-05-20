@@ -55,6 +55,7 @@ export function createAppContainer(): AppContainer {
     authStore,
     routerStore,
     tradeStore,
+    tradeRepo,
     liveMetricsStore,
     tradeMetricsStore,
     strategyRepo,

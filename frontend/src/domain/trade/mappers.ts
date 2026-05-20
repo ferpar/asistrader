@@ -8,6 +8,10 @@ import type {
   SLTPAlertDTO,
   LayeredAlertDTO,
   TradeDetectionResponseDTO,
+  LevelCheckDTO,
+  BarEvalDTO,
+  ScanTraceDTO,
+  DetectionTraceResponseDTO,
 } from '../../types/trade'
 import type {
   TradeWithMetrics,
@@ -17,6 +21,10 @@ import type {
   SLTPAlert,
   LayeredAlert,
   DetectionResult,
+  LevelCheck,
+  BarEval,
+  ScanTrace,
+  DetectionTraceResult,
 } from './types'
 
 export function mapExitLevel(dto: ExitLevelDTO): ExitLevel {
@@ -93,6 +101,9 @@ export function mapEntryAlert(dto: EntryAlertDTO): EntryAlert {
     alertKind: dto.alert_kind,
     levelKey: dto.level_key,
     dismissed: dto.dismissed,
+    hitKind: dto.hit_kind,
+    barOpen: dto.bar_open !== null ? Decimal.from(dto.bar_open) : null,
+    prevClose: dto.prev_close !== null ? Decimal.from(dto.prev_close) : null,
   }
 }
 
@@ -110,6 +121,10 @@ export function mapSLTPAlert(dto: SLTPAlertDTO): SLTPAlert {
     alertKind: dto.alert_kind,
     levelKey: dto.level_key,
     dismissed: dto.dismissed,
+    hitKind: dto.hit_kind,
+    barOpen: dto.bar_open !== null ? Decimal.from(dto.bar_open) : null,
+    prevClose: dto.prev_close !== null ? Decimal.from(dto.prev_close) : null,
+    alsoWouldHaveHit: dto.also_would_have_hit ?? [],
   }
 }
 
@@ -130,6 +145,62 @@ export function mapLayeredAlert(dto: LayeredAlertDTO): LayeredAlert {
     alertKind: dto.alert_kind,
     levelKey: dto.level_key,
     dismissed: dto.dismissed,
+    hitKind: dto.hit_kind,
+    barOpen: dto.bar_open !== null ? Decimal.from(dto.bar_open) : null,
+    prevClose: dto.prev_close !== null ? Decimal.from(dto.prev_close) : null,
+    alsoWouldHaveHit: dto.also_would_have_hit ?? [],
+  }
+}
+
+function mapLevelCheck(dto: LevelCheckDTO): LevelCheck {
+  return {
+    key: dto.key,
+    kind: dto.kind,
+    side: dto.side,
+    price: Decimal.from(dto.price),
+    threshold: Decimal.from(dto.threshold),
+    pierced: dto.pierced,
+    gap: dto.gap,
+  }
+}
+
+function mapBarEval(dto: BarEvalDTO): BarEval {
+  return {
+    date: dto.date,
+    open: dto.open !== null ? Decimal.from(dto.open) : null,
+    high: dto.high !== null ? Decimal.from(dto.high) : null,
+    low: dto.low !== null ? Decimal.from(dto.low) : null,
+    close: dto.close !== null ? Decimal.from(dto.close) : null,
+    prevClose: dto.prev_close !== null ? Decimal.from(dto.prev_close) : null,
+    checks: dto.checks.map(mapLevelCheck),
+    decision: dto.decision,
+    chosenKeys: dto.chosen_keys,
+    reason: dto.reason,
+  }
+}
+
+function mapScanTrace(dto: ScanTraceDTO): ScanTrace {
+  return {
+    kind: dto.kind,
+    tradeId: dto.trade_id,
+    side: dto.side,
+    margin: Decimal.from(dto.margin),
+    scanFrom: dto.scan_from,
+    scanTo: dto.scan_to,
+    barsScanned: dto.bars_scanned,
+    bars: dto.bars.map(mapBarEval),
+    verdict: dto.verdict,
+    extras: dto.extras,
+  }
+}
+
+export function mapDetectionTraceResponse(
+  dto: DetectionTraceResponseDTO,
+): DetectionTraceResult {
+  return {
+    trace: mapScanTrace(dto.trace),
+    detectorKind: dto.detector_kind,
+    whatIf: dto.what_if,
   }
 }
 

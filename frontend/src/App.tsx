@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { observer } from '@legendapp/state/react'
 import { Layout } from './components/Layout'
 import { AuthForm } from './components/AuthForm'
-import { TradeDashboard, FundDashboard, RadarDashboard, DriversDashboard } from './pages'
+import { TradeDashboard, FundDashboard, RadarDashboard, DriversDashboard, DetectionSandbox } from './pages'
 import { useAuthStore, useFundStore, useRouterStore } from './container/ContainerContext'
 import { DEFAULT_ROUTE, LOGIN_ROUTE, type AppPage } from './domain/router/RouterStore'
 import './styles/global.css'
@@ -13,6 +13,7 @@ const PAGES: Record<AppPage, JSX.Element> = {
   fund: <FundDashboard />,
   radar: <RadarDashboard />,
   drivers: <DriversDashboard />,
+  'detection-sandbox': <DetectionSandbox />,
 }
 
 /**

@@ -4,10 +4,29 @@ import { observer } from '@legendapp/state/react'
 import { useTradeAlerts, alertKey } from '../hooks/useTradeAlerts'
 import type { AnyAlert, EntryAlert, SLTPAlert, LayeredAlert } from '../domain/trade/types'
 import { buildAlertMessage } from '../utils/alertMessage'
+import { DetectionTraceModal } from './DetectionTraceModal'
 import styles from './AlertsModal.module.css'
 
 interface AlertsModalProps {
   onClose: () => void
+}
+
+function kindBadgeLabel(kind: string): string {
+  switch (kind) {
+    case 'gap': return 'GAP'
+    case 'gap_on_entry': return 'GAP·OPEN'
+    case 'unverifiable': return 'UNVERIFIABLE'
+    default: return kind
+  }
+}
+
+function kindBadgeTitle(kind: string): string {
+  switch (kind) {
+    case 'gap': return 'Gap fill: price gapped past the level between sessions; fill is the bar open.'
+    case 'gap_on_entry': return 'Gap on entry day: the open was already past the level when the position opened.'
+    case 'unverifiable': return 'Intraday touch on the entry day — we cannot tell if the touch happened before or after the trade was opened.'
+    default: return ''
+  }
 }
 
 type SectionId = 'pe' | 'sl' | 'tp' | 'conflict' | 'layered'
@@ -24,6 +43,7 @@ export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModa
   const alerts = useTradeAlerts()
   const [showDiscarded, setShowDiscarded] = useState(false)
   const [expanded, setExpanded] = useState<Set<SectionId>>(new Set())
+  const [traceTradeId, setTraceTradeId] = useState<number | null>(null)
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -130,7 +150,22 @@ export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModa
                           <span className={styles.icon}>{rowIcon(alert)}</span>
                           <span className={styles.ticker}>{alert.ticker}</span>
                           <span className={styles.date}>{alert.hitDate}</span>
+                          {alert.hitKind !== 'intraday' && (
+                            <span
+                              className={`${styles.kindBadge} ${styles[`kind_${alert.hitKind}`] ?? ''}`}
+                              title={kindBadgeTitle(alert.hitKind)}
+                            >
+                              {kindBadgeLabel(alert.hitKind)}
+                            </span>
+                          )}
                           <span className={styles.message}>{buildAlertMessage(alert)}</span>
+                          <button
+                            className={styles.btnWhy}
+                            title="Show detection trace"
+                            onClick={() => setTraceTradeId(alert.tradeId)}
+                          >
+                            Why?
+                          </button>
                           {showDiscarded ? (
                             <button
                               className={styles.btnRestore}
@@ -160,5 +195,15 @@ export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModa
     </div>
   )
 
-  return createPortal(modalContent, document.body)
+  return (
+    <>
+      {createPortal(modalContent, document.body)}
+      {traceTradeId !== null && (
+        <DetectionTraceModal
+          tradeId={traceTradeId}
+          onClose={() => setTraceTradeId(null)}
+        />
+      )}
+    </>
+  )
 })

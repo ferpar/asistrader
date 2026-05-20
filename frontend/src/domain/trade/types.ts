@@ -1,5 +1,7 @@
 import { Decimal } from '../shared/Decimal'
-import { TradeStatus, ExitType, ExitLevelType, ExitLevelStatus, SLTPHitType, EntryHitType, CancelReason, OrderType, TimeInEffect } from '../../types/trade'
+import { TradeStatus, ExitType, ExitLevelType, ExitLevelStatus, SLTPHitType, EntryHitType, CancelReason, OrderType, TimeInEffect, HitKind } from '../../types/trade'
+
+export type { HitKind }
 
 export interface ExitLevel {
   id: number
@@ -90,6 +92,9 @@ export interface EntryAlert {
   alertKind: string
   levelKey: string
   dismissed: boolean
+  hitKind: HitKind
+  barOpen: Decimal | null
+  prevClose: Decimal | null
 }
 
 export interface SLTPAlert {
@@ -105,6 +110,10 @@ export interface SLTPAlert {
   alertKind: string
   levelKey: string
   dismissed: boolean
+  hitKind: HitKind
+  barOpen: Decimal | null
+  prevClose: Decimal | null
+  alsoWouldHaveHit: string[]
 }
 
 export interface LayeredAlert {
@@ -123,6 +132,10 @@ export interface LayeredAlert {
   alertKind: string
   levelKey: string
   dismissed: boolean
+  hitKind: HitKind
+  barOpen: Decimal | null
+  prevClose: Decimal | null
+  alsoWouldHaveHit: string[]
 }
 
 export interface DetectionResult {
@@ -134,3 +147,56 @@ export interface DetectionResult {
 
 /** Any of the three alert kinds — all share the dismissal-signature fields. */
 export type AnyAlert = EntryAlert | SLTPAlert | LayeredAlert
+
+// --- Detection trace (mirrors backend ScanTrace / BarEval / LevelCheck) ---
+
+export interface LevelCheck {
+  key: string         // "sl" | "tp" | "entry" | "sl:1" | "tp:2" | ...
+  kind: 'sl' | 'tp' | 'entry'
+  side: 'long' | 'short'
+  price: Decimal
+  threshold: Decimal
+  pierced: boolean
+  gap: boolean
+}
+
+export interface BarEval {
+  date: string        // ISO date
+  open: Decimal | null
+  high: Decimal | null
+  low: Decimal | null
+  close: Decimal | null
+  prevClose: Decimal | null
+  checks: LevelCheck[]
+  decision: 'skip' | 'no_data' | 'hit' | 'both_hit'
+  chosenKeys: string[]
+  reason: string
+}
+
+export interface ScanTrace {
+  kind: 'sltp' | 'entry' | 'layered' | 'none'
+  tradeId: number | null
+  side: 'long' | 'short'
+  margin: Decimal
+  scanFrom: string | null
+  scanTo: string | null
+  barsScanned: number
+  bars: BarEval[]
+  verdict: string
+  extras: Record<string, unknown>
+}
+
+export interface DetectionTraceOverrides {
+  sl?: number
+  tp?: number
+  entry?: number
+  opened?: string    // YYYY-MM-DD
+  planned?: string   // YYYY-MM-DD
+  margin?: number
+}
+
+export interface DetectionTraceResult {
+  trace: ScanTrace
+  detectorKind: 'sltp' | 'entry' | 'layered' | 'none'
+  whatIf: Record<string, unknown>
+}

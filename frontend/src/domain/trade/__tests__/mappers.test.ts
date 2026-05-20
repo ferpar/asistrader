@@ -200,6 +200,9 @@ describe('mapEntryAlert', () => {
       alert_kind: 'entry',
       level_key: 'entry',
       dismissed: false,
+      hit_kind: 'intraday',
+      bar_open: null,
+      prev_close: null,
     }
 
     const result = mapEntryAlert(dto)
@@ -235,6 +238,10 @@ describe('mapSLTPAlert', () => {
       alert_kind: 'sltp',
       level_key: 'sl',
       dismissed: true,
+      hit_kind: 'intraday',
+      bar_open: null,
+      prev_close: null,
+      also_would_have_hit: [],
     }
 
     const result = mapSLTPAlert(dto)
@@ -269,6 +276,10 @@ describe('mapLayeredAlert', () => {
       alert_kind: 'layered',
       level_key: 'tp:1',
       dismissed: false,
+      hit_kind: 'intraday',
+      bar_open: null,
+      prev_close: null,
+      also_would_have_hit: [],
     }
 
     const result = mapLayeredAlert(dto)
@@ -304,6 +315,9 @@ describe('mapDetectionResponse', () => {
         alert_kind: 'entry',
         level_key: 'entry',
         dismissed: false,
+        hit_kind: 'intraday',
+        bar_open: null,
+        prev_close: null,
       }],
       sltp_alerts: [{
         trade_id: 2,
@@ -318,6 +332,10 @@ describe('mapDetectionResponse', () => {
         alert_kind: 'sltp',
         level_key: 'sl',
         dismissed: false,
+        hit_kind: 'intraday',
+        bar_open: null,
+        prev_close: null,
+        also_would_have_hit: [],
       }],
       layered_alerts: [],
       auto_opened_count: 1,

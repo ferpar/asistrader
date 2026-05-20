@@ -1,8 +1,8 @@
 import { TradeCreateRequest, TradeUpdateRequest, TradeListResponse, TradeResponse, BatchPriceResponse, MarkLevelHitRequest } from '../../types/trade'
 import { ITradeRepository, IPriceProvider, DetectionResponse } from './ITradeRepository'
-import type { TradeWithMetrics, PriceData, AlertSignature } from './types'
-import { mapTrade, mapPriceData, mapDetectionResponse } from './mappers'
-import type { TradeDetectionResponseDTO } from '../../types/trade'
+import type { TradeWithMetrics, PriceData, AlertSignature, DetectionTraceOverrides, DetectionTraceResult } from './types'
+import { mapTrade, mapPriceData, mapDetectionResponse, mapDetectionTraceResponse } from './mappers'
+import type { TradeDetectionResponseDTO, DetectionTraceResponseDTO } from '../../types/trade'
 import { buildHeaders } from '../shared/httpHelpers'
 
 export class HttpTradeRepository implements ITradeRepository {
@@ -86,6 +86,28 @@ export class HttpTradeRepository implements ITradeRepository {
     }
     const data: TradeDetectionResponseDTO = await response.json()
     return mapDetectionResponse(data)
+  }
+
+  async fetchDetectionTrace(
+    tradeId: number, overrides?: DetectionTraceOverrides,
+  ): Promise<DetectionTraceResult> {
+    // Build the query string only from provided overrides so the backend
+    // distinguishes "default margin" from "margin=0" etc.
+    const params = new URLSearchParams()
+    if (overrides) {
+      for (const [k, v] of Object.entries(overrides)) {
+        if (v !== undefined && v !== null && v !== '') params.set(k, String(v))
+      }
+    }
+    const qs = params.toString()
+    const url = `${this.baseUrl}/api/trades/${tradeId}/detection-trace${qs ? `?${qs}` : ''}`
+    const response = await fetch(url, { headers: buildHeaders(this.getToken) })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.detail || `Failed to fetch detection trace: ${response.statusText}`)
+    }
+    const data: DetectionTraceResponseDTO = await response.json()
+    return mapDetectionTraceResponse(data)
   }
 
   async markExitLevelHit(tradeId: number, levelId: number, request: MarkLevelHitRequest): Promise<TradeWithMetrics> {

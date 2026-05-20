@@ -16,6 +16,9 @@ const entry = (over: Partial<EntryAlert> = {}): EntryAlert => ({
   alertKind: 'entry',
   levelKey: 'entry',
   dismissed: false,
+  hitKind: 'intraday',
+  barOpen: null,
+  prevClose: null,
   ...over,
 })
 
@@ -32,6 +35,10 @@ const sltp = (over: Partial<SLTPAlert> = {}): SLTPAlert => ({
   alertKind: 'sltp',
   levelKey: 'sl',
   dismissed: false,
+  hitKind: 'intraday',
+  barOpen: null,
+  prevClose: null,
+  alsoWouldHaveHit: [],
   ...over,
 })
 
@@ -51,6 +58,10 @@ const layered = (over: Partial<LayeredAlert> = {}): LayeredAlert => ({
   alertKind: 'layered',
   levelKey: 'tp:1',
   dismissed: false,
+  hitKind: 'intraday',
+  barOpen: null,
+  prevClose: null,
+  alsoWouldHaveHit: [],
   ...over,
 })
 
@@ -104,6 +115,32 @@ describe('buildAlertMessage', () => {
       expect(buildAlertMessage(layered({ remainingUnits: 0 }))).toBe(
         'VOD.L: Take Profit 1 hit on 2025-01-15. Trade fully closed.',
       )
+    })
+  })
+
+  describe('hit kind suffixes', () => {
+    it('gap fills include the open and prev close prices', () => {
+      const msg = buildAlertMessage(
+        sltp({ hitKind: 'gap', hitPrice: Decimal.from(98), barOpen: Decimal.from(98), prevClose: Decimal.from(100) }),
+      )
+      expect(msg).toContain('(gap from $100.00 to $98.00)')
+    })
+
+    it('gap-on-entry hits are flagged with the open price', () => {
+      const msg = buildAlertMessage(
+        sltp({ hitKind: 'gap_on_entry', hitPrice: Decimal.from(90), barOpen: Decimal.from(90), prevClose: null }),
+      )
+      expect(msg).toContain('(gap on entry day, open $90.00)')
+    })
+
+    it('unverifiable hits say so explicitly', () => {
+      const msg = buildAlertMessage(sltp({ hitKind: 'unverifiable' }))
+      expect(msg).toContain('unverifiable')
+    })
+
+    it('lists also-would-have-hit when the loser was annotated', () => {
+      const msg = buildAlertMessage(sltp({ alsoWouldHaveHit: ['tp'] }))
+      expect(msg).toContain('TP would have also hit')
     })
   })
 
