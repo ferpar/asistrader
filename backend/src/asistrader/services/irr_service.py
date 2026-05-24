@@ -100,6 +100,8 @@ class ScopeBlock(BaseModel):
     by_ticker_winners: list[GroupIrr]
     by_ticker_losers: list[GroupIrr]
     portfolio: GroupIrr | None = None
+    portfolio_winners: GroupIrr | None = None
+    portfolio_losers: GroupIrr | None = None
 
 
 class DailyPoint(BaseModel):
@@ -368,6 +370,8 @@ def _build_scope(recs: list[_Rec], portfolio_label: str) -> ScopeBlock:
         by_ticker_winners=_by_ticker(winners),
         by_ticker_losers=_by_ticker(losers),
         portfolio=_group(portfolio_label, recs) if recs else None,
+        portfolio_winners=_group(portfolio_label, winners) if winners else None,
+        portfolio_losers=_group(portfolio_label, losers) if losers else None,
     )
 
 

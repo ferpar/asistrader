@@ -201,6 +201,54 @@ def test_by_ticker_winners_losers_decomposition(db_session, sample_user):
     assert losers.return_pct < 0
 
 
+def test_portfolio_winners_losers_decomposition(db_session, sample_user):
+    """Portfolio summary is also offered as winners-only and losers-only slices,
+    re-aggregated from the underlying records so TIR/XIRR remain meaningful.
+    """
+    db_session.add(Ticker(symbol="MIX", name="Mixed Co", currency="USD"))
+    day = date(2025, 4, 1)
+    for profit, days in [(100, 10), (60, 20), (-40, 30)]:
+        db_session.add(
+            Trade(
+                ticker="MIX",
+                status=TradeStatus.CLOSE,
+                amount=1000.0,
+                units=1,
+                entry_price=1000.0,
+                exit_price=1000.0 + profit,
+                date_planned=day - timedelta(days=days),
+                date_ordered=day - timedelta(days=days),
+                exit_date=day,
+                user_id=sample_user.id,
+            )
+        )
+    db_session.commit()
+
+    realized = compute_analysis(db_session, sample_user.id).realized
+
+    assert realized.portfolio is not None
+    assert realized.portfolio.trade_count == 3
+    assert realized.portfolio.profit_base == pytest.approx(120.0)
+
+    assert realized.portfolio_winners is not None
+    assert realized.portfolio_winners.trade_count == 2
+    assert realized.portfolio_winners.profit_base == pytest.approx(160.0)
+    assert realized.portfolio_winners.return_pct > 0
+
+    assert realized.portfolio_losers is not None
+    assert realized.portfolio_losers.trade_count == 1
+    assert realized.portfolio_losers.profit_base == pytest.approx(-40.0)
+    assert realized.portfolio_losers.return_pct < 0
+
+
+def test_portfolio_winners_losers_none_on_empty_scope(db_session, sample_user):
+    """An empty scope (no trades) has no portfolio aggregates at all."""
+    analysis = compute_analysis(db_session, sample_user.id)
+    assert analysis.realized.portfolio is None
+    assert analysis.realized.portfolio_winners is None
+    assert analysis.realized.portfolio_losers is None
+
+
 def test_unrealized_scope_marks_at_current_price(
     db_session, sample_user, monkeypatch
 ):

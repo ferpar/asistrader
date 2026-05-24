@@ -217,6 +217,11 @@ def detect_sltp_hit_with_trace(
     tp_threshold = tp_price * (1 + margin) if long else tp_price * (1 - margin)
 
     hit: SLTPHit | None = None
+    # Tracks "is this the first bar we're actually evaluating?" — distinct
+    # from "is this literally date_actual?" because date_actual can land on
+    # a non-trading day. The first evaluated bar uses the permissive gap
+    # check; subsequent bars require a real session-to-session crossing.
+    is_first_bar = True
 
     for day in market_data:
         trace.bars_scanned += 1
@@ -234,14 +239,22 @@ def detect_sltp_hit_with_trace(
             continue
 
         is_open_day = day.date == trade.date_actual
-        sl_gap = _is_gap(day.open, sl_price, prev_close, long, is_sl=True, is_open_day=is_open_day)
-        tp_gap = _is_gap(day.open, tp_price, prev_close, long, is_sl=False, is_open_day=is_open_day)
+        # long SL → past_below=True; long TP → False. Mirrored for short.
+        sl_gap = _is_gap(
+            day.open, sl_price, prev_close,
+            past_below=long, is_first_bar=is_first_bar,
+        )
+        tp_gap = _is_gap(
+            day.open, tp_price, prev_close,
+            past_below=not long, is_first_bar=is_first_bar,
+        )
         if long:
             sl_pierced = sl_gap or (day.low <= sl_threshold)
             tp_pierced = tp_gap or (day.high >= tp_threshold)
         else:
             sl_pierced = sl_gap or (day.high >= sl_threshold)
             tp_pierced = tp_gap or (day.low <= tp_threshold)
+        is_first_bar = False
 
         checks = [
             LevelCheck(
@@ -345,26 +358,33 @@ def _bothday_winner_is_sl(
 
 def _is_gap(
     bar_open: float | None, level: float, prev_close: float | None,
-    long: bool, *, is_sl: bool, is_open_day: bool,
+    *, past_below: bool, is_first_bar: bool,
 ) -> bool:
     """Whether the bar's open is past the level via a gap.
 
-    Off the open day we require `prev_close` to have been on the other side;
-    on the open day there is no meaningful prior session for the trade, so
-    the open being past the level is itself sufficient (user spec).
+    `past_below=True` means the level is breached by going below (long SL,
+    short TP, long-limit entry, short-stop entry). False means breached by
+    going above.
+
+    On the first evaluated bar of a scan we use the permissive check (open
+    past level is enough): the seeded `prev_close` is from before the trade
+    or order existed, so requiring it to be "on the other side" would
+    falsely reject the case where the order/position activated over a
+    weekend and the level was already breached when trading resumed.
+
+    On all subsequent bars we use the strict check (open past AND prev_close
+    on the other side), distinguishing a genuine session-to-session gap from
+    "we were already past last session and continued past".
     """
     if bar_open is None:
         return False
-    # For long SL and short TP, "past" means below the level.
-    # For long TP and short SL, "past" means above the level.
-    past_below = (long and is_sl) or (not long and not is_sl)
     if past_below:
         open_past = bar_open <= level
         prev_on_other_side = prev_close is None or prev_close > level
     else:
         open_past = bar_open >= level
         prev_on_other_side = prev_close is None or prev_close < level
-    if is_open_day:
+    if is_first_bar:
         return open_past
     return open_past and prev_on_other_side
 
@@ -552,6 +572,7 @@ def detect_entry_hit_with_trace(
     )
 
     hit: EntryHit | None = None
+    is_first_bar = True
 
     for day in market_data:
         trace.bars_scanned += 1
@@ -569,22 +590,17 @@ def detect_entry_hit_with_trace(
             continue
 
         is_order_day = day.date == trade.date_planned
+        # Long-limit / short-stop fill on price falling to entry (past_below);
+        # long-stop / short-limit fill on price rising (past_above).
+        gap = _is_gap(
+            day.open, entry_price, prev_close,
+            past_below=not fills_on_rise, is_first_bar=is_first_bar,
+        )
         if fills_on_rise:
-            if is_order_day:
-                gap = day.open is not None and day.open >= entry_price
-            else:
-                gap = day.open is not None and day.open >= entry_price and (
-                    prev_close is None or prev_close < entry_price
-                )
             pierced = gap or (day.high >= threshold)
         else:
-            if is_order_day:
-                gap = day.open is not None and day.open <= entry_price
-            else:
-                gap = day.open is not None and day.open <= entry_price and (
-                    prev_close is None or prev_close > entry_price
-                )
             pierced = gap or (day.low <= threshold)
+        is_first_bar = False
 
         check = LevelCheck(
             key="entry", kind="entry", side=side,
@@ -816,6 +832,7 @@ def detect_layered_hits_with_trace(
     hits: list[LayeredLevelHit] = []
     remaining_units = trade.remaining_units or trade.units
     fired_level_ids: set[int] = set()
+    is_first_bar = True
 
     def _key(level: ExitLevel) -> str:
         return f"{level.level_type.value}:{level.order_index}"
@@ -847,6 +864,8 @@ def detect_layered_hits_with_trace(
                 continue
 
             is_sl = level.level_type == ExitLevelType.SL
+            # past_below: long SL or short TP cross by going down.
+            past_below = (long and is_sl) or (not long and not is_sl)
             if is_sl:
                 threshold = (
                     level.price * (1 - margin) if long else level.price * (1 + margin)
@@ -856,10 +875,10 @@ def detect_layered_hits_with_trace(
                     level.price * (1 + margin) if long else level.price * (1 - margin)
                 )
             gap = _is_gap(
-                day.open, level.price, prev_close, long,
-                is_sl=is_sl, is_open_day=is_open_day,
+                day.open, level.price, prev_close,
+                past_below=past_below, is_first_bar=is_first_bar,
             )
-            if (long and is_sl) or (not long and not is_sl):
+            if past_below:
                 pierced = gap or (day.low <= threshold)
             else:
                 pierced = gap or (day.high >= threshold)
@@ -905,6 +924,7 @@ def detect_layered_hits_with_trace(
         if remaining_units <= 0:
             break
         prev_close = day.close
+        is_first_bar = False
 
     if hits:
         trace.verdict = (

@@ -322,6 +322,95 @@ class TestEntryTraceShape:
         assert entry_check.gap is True
 
 
+class TestFirstBarGapPermissiveness:
+    """When the first scannable bar's open is already past the level, that's
+    a gap fill at the open — regardless of where prev_close was. The seed
+    `prev_close` comes from before the trade/order existed and shouldn't
+    veto gap classification when the underlying activated during a closed
+    session (weekend, holiday)."""
+
+    def test_long_limit_entry_planned_on_weekend(
+        self,
+        db_session: Session,
+        sample_ticker: Ticker,
+        sample_strategy: Strategy,
+        sample_user: User,
+    ) -> None:
+        # Reproduces the trade #84 scenario: long limit @ 17.43, planned over
+        # a weekend. Friday closes at 17.14 (already below entry). Monday
+        # opens at 17.00, stays below all day. The realistic fill is Monday's
+        # open (17.00), not the limit level (17.43).
+        trade = Trade(
+            ticker=sample_ticker.symbol, status=TradeStatus.ORDERED,
+            amount=10000, units=100, entry_price=17.43,
+            date_planned=date(2026, 4, 18),  # Saturday
+            order_type=OrderType.LIMIT,
+            strategy_id=sample_strategy.id, user_id=sample_user.id,
+        )
+        db_session.add(trade)
+        db_session.commit()
+        db_session.add_all([
+            ExitLevel(trade_id=trade.id, level_type=ExitLevelType.SL, price=16,
+                      units_pct=1, order_index=1, status=ExitLevelStatus.PENDING),
+            ExitLevel(trade_id=trade.id, level_type=ExitLevelType.TP, price=20,
+                      units_pct=1, order_index=1, status=ExitLevelStatus.PENDING),
+        ])
+        db_session.commit()
+        db_session.refresh(trade)
+
+        _add_bar(
+            db_session, sample_ticker, date(2026, 4, 17),  # Fri
+            open=17.20, high=17.25, low=17.10, close=17.14,
+        )
+        _add_bar(
+            db_session, sample_ticker, date(2026, 4, 20),  # Mon
+            open=17.00, high=17.19, low=16.90, close=16.90,
+        )
+
+        hit, trace = detect_entry_hit_with_trace(db_session, trade)
+        assert hit is not None
+        assert hit.hit_kind == HitKind.GAP
+        assert hit.entry_price == 17.00
+        assert hit.bar_open == 17.00
+        bar = trace.bars[-1]
+        assert bar.reason == "gap_open_past_level"
+        entry_check = bar.checks[0]
+        assert entry_check.gap is True
+
+    def test_long_sl_opened_on_weekend(
+        self,
+        db_session: Session,
+        sample_trade: Trade,
+        sample_ticker: Ticker,
+    ) -> None:
+        # sample_trade: long, SL=95, date_actual normally 2025-01-16. Shift
+        # to a Saturday so the first scannable bar is Monday with the gap
+        # already in place.
+        sample_trade.date_actual = date(2025, 1, 18)  # Saturday
+        db_session.commit()
+
+        # Friday close — already below SL (would have stopped out, but
+        # plays the role of "pre-trade state").
+        _add_bar(
+            db_session, sample_ticker, date(2025, 1, 17),
+            open=96, high=97, low=93, close=93,
+        )
+        # Monday — opens at 90, well below SL=95.
+        _add_bar(
+            db_session, sample_ticker, date(2025, 1, 20),
+            open=90, high=92, low=89, close=91,
+        )
+
+        hit, trace = detect_sltp_hit_with_trace(db_session, sample_trade)
+        assert hit is not None
+        # Should be a GAP (not GAP_ON_ENTRY — the calendar date doesn't
+        # match date_actual), with the fill at Monday's open.
+        assert hit.hit_kind == HitKind.GAP
+        assert hit.hit_price == 90
+        bar = trace.bars[-1]
+        assert bar.reason == "gap_open_past_level"
+
+
 class TestLayeredTraceShape:
     """`detect_layered_hits_with_trace` records per-bar per-level checks."""
 

@@ -5,10 +5,14 @@
 - surface trades that would not trigger because of the margin
 
 irr
+	- add chart for return similar to the one for avg daily and daily TIR 
+
+	- add chart for daily tir and average holding days but with averages (or perhaps make traces toggleable)
+
+	- summaries need to update with the all / winner /  losers filters
+
 	- cummulative should have a max number of days, or alternatively have a parameter of limited days to measure as tail. Perhaps also parameterize the histogram and normal distrib charts to select date ranges for them.. Perhaps all graphs should have the same date range.
 
-- unrealized section seems to have a problem showing losing trades in the winners section and viceversa. Perhaps it should have been winning instead of winners and we are taking the wrong information for the filtering.
-	- on the daily tir, it was suggested to add a 3 / 5 days moving average
 
 SMA - improvements:
 	- combinatory score (how many averages below bullish for each of the averages)
