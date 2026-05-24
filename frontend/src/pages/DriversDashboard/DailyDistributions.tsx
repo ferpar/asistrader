@@ -9,10 +9,11 @@ import styles from './DailyDistributions.module.css'
 
 /** Histograms, time series and rolling-normal charts for the daily series. */
 export function DailyDistributions({ points }: { points: DailyPoint[] }) {
-  const { tirValues, dayValues, dates, series } = useMemo(() => {
+  const { tirValues, returnValues, dayValues, dates, series } = useMemo(() => {
     const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date))
     return {
       tirValues: sorted.map((p) => p.tir),
+      returnValues: sorted.map((p) => p.returnPct),
       dayValues: sorted.map((p) => p.avgHoldingDays),
       dates: sorted.map((p) => p.date),
       series: sorted.map((p) => ({
@@ -38,6 +39,12 @@ export function DailyDistributions({ points }: { points: DailyPoint[] }) {
           formatValue={fmtPctTick}
         />
         <Histogram
+          values={returnValues}
+          title="Daily Return %"
+          caption="Frequency of the per-day un-annualized return, with the fitted normal curve."
+          formatValue={fmtPctTick}
+        />
+        <Histogram
           values={dayValues}
           title="Daily average holding days"
           caption="Frequency of the per-day average holding period."
@@ -59,6 +66,13 @@ export function DailyDistributions({ points }: { points: DailyPoint[] }) {
           values={tirValues}
           title="TIR — cumulative μ ± σ"
           caption="The normal fit of daily TIR as it stabilizes with each new day."
+          formatValue={fmtPctTick}
+        />
+        <NormalParamsChart
+          dates={dates}
+          values={returnValues}
+          title="Return % — cumulative μ ± σ"
+          caption="The normal fit of daily Return % as it stabilizes with each new day."
           formatValue={fmtPctTick}
         />
         <NormalParamsChart

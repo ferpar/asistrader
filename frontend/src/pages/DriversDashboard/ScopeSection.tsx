@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ScopeBlock, TickerView } from '../../domain/irr/types'
 import { PortfolioCard } from './PortfolioCard'
+import { Tabs } from './Tabs'
 import { TickerTable } from './TickerTable'
 import { Toggle } from './Toggle'
 import { TransactionTable } from './TransactionTable'
@@ -19,6 +20,13 @@ const TICKER_VIEWS_UNREALIZED: { id: TickerView; label: string }[] = [
   { id: 'losers', label: 'Losing' },
 ]
 
+type SubView = 'ticker' | 'transaction'
+
+const SUB_VIEWS: { id: SubView; label: string }[] = [
+  { id: 'ticker', label: 'By ticker' },
+  { id: 'transaction', label: 'By transaction' },
+]
+
 export function ScopeSection({
   title,
   scope,
@@ -33,6 +41,7 @@ export function ScopeSection({
   unrealized?: boolean
 }) {
   const [tickerView, setTickerView] = useState<TickerView>('mixed')
+  const [subView, setSubView] = useState<SubView>('ticker')
 
   const tickerViews = unrealized ? TICKER_VIEWS_UNREALIZED : TICKER_VIEWS_REALIZED
   const winLossNoun = unrealized ? 'Winning / losing' : 'Winners / losers'
@@ -88,17 +97,14 @@ export function ScopeSection({
         <p className={shared.empty}>{emptyMessage}</p>
       )}
 
-      {tickerRows.length > 0 && (
+      {showTickerViewToggle && (
         <>
-          <h4 className={shared.subTitle}>By ticker</h4>
-          <TickerTable rows={tickerRows} ccy={ccy} />
-        </>
-      )}
-
-      {txnRows.length > 0 && (
-        <>
-          <h4 className={shared.subTitle}>By transaction</h4>
-          <TransactionTable rows={txnRows} ccy={ccy} />
+          <Tabs options={SUB_VIEWS} value={subView} onChange={setSubView} />
+          {subView === 'ticker' ? (
+            <TickerTable rows={tickerRows} ccy={ccy} />
+          ) : (
+            <TransactionTable rows={txnRows} ccy={ccy} />
+          )}
         </>
       )}
     </section>
