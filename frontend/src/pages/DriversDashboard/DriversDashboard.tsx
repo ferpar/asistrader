@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { observer } from '@legendapp/state/react'
 import { useIrrStore } from '../../container/ContainerContext'
 import { DailySection } from './DailySection'
+import { PipelineCard } from './PipelineCard'
 import { ScopeSection } from './ScopeSection'
 import shared from './shared.module.css'
 
@@ -32,6 +33,20 @@ export const DriversDashboard = observer(function DriversDashboard() {
 
       {analysis && (
         <>
+          <section className={shared.section}>
+            <div className={shared.sectionHeader}>
+              <h3 className={`${shared.sectionTitle} ${shared.headerTitle}`}>
+                Pipeline
+              </h3>
+            </div>
+            <p className={shared.note}>
+              Snapshot of how your active trades sit across plan → ordered → open.
+              Open capital is marked at the current price; plan/ordered use the
+              intended investment.
+            </p>
+            <PipelineCard pipeline={analysis.pipeline} ccy={analysis.baseCurrency} />
+          </section>
+
           <ScopeSection
             title="Realized"
             scope={analysis.realized}

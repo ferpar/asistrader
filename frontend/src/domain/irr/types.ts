@@ -86,8 +86,33 @@ export interface DailyBlock {
   losers: DailyPoint[]
 }
 
+/** One status bucket in the active-trade composition snapshot. */
+export interface PipelineSlice {
+  /** "Plan" | "Ordered" | "Open". */
+  label: string
+  tradeCount: number
+  /** Share of total active by trade count, 0..1. */
+  countPct: number
+  /** Intended/committed capital in base ccy (open = current mark when known). */
+  capitalBase: number
+  /** Share of total active by capital, 0..1. */
+  capitalPct: number
+}
+
+/** Snapshot of how active trades are distributed across plan → ordered → open. */
+export interface Pipeline {
+  totalCount: number
+  totalCapitalBase: number
+  /** Always in [plan, ordered, open] order. */
+  slices: PipelineSlice[]
+  /** Headline ratios; null when open bucket is empty (ratio undefined). */
+  orderedToOpenCount: number | null
+  orderedToOpenCapital: number | null
+}
+
 export interface IrrAnalysis {
   baseCurrency: string
+  pipeline: Pipeline
   realized: ScopeBlock
   unrealized: ScopeBlock
   daily: DailyBlock
@@ -153,8 +178,25 @@ export interface DailyPointDto {
   idle_trade_count: number | null
 }
 
+export interface PipelineSliceDto {
+  label: string
+  trade_count: number
+  count_pct: number
+  capital_base: number
+  capital_pct: number
+}
+
+export interface PipelineDto {
+  total_count: number
+  total_capital_base: number
+  slices: PipelineSliceDto[]
+  ordered_to_open_count: number | null
+  ordered_to_open_capital: number | null
+}
+
 export interface IrrAnalysisDto {
   base_currency: string
+  pipeline: PipelineDto
   realized: ScopeBlockDto
   unrealized: ScopeBlockDto
   daily: {

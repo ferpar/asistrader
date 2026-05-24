@@ -6,6 +6,10 @@ import type {
   GroupIrrDto,
   IrrAnalysis,
   IrrAnalysisDto,
+  Pipeline,
+  PipelineDto,
+  PipelineSlice,
+  PipelineSliceDto,
   ScopeBlock,
   ScopeBlockDto,
   TradeIrr,
@@ -79,9 +83,30 @@ function mapDaily(dto: DailyPointDto): DailyPoint {
   }
 }
 
+function mapPipelineSlice(dto: PipelineSliceDto): PipelineSlice {
+  return {
+    label: dto.label,
+    tradeCount: dto.trade_count,
+    countPct: dto.count_pct,
+    capitalBase: dto.capital_base,
+    capitalPct: dto.capital_pct,
+  }
+}
+
+function mapPipeline(dto: PipelineDto): Pipeline {
+  return {
+    totalCount: dto.total_count,
+    totalCapitalBase: dto.total_capital_base,
+    slices: dto.slices.map(mapPipelineSlice),
+    orderedToOpenCount: dto.ordered_to_open_count,
+    orderedToOpenCapital: dto.ordered_to_open_capital,
+  }
+}
+
 function mapAnalysis(dto: IrrAnalysisDto): IrrAnalysis {
   return {
     baseCurrency: dto.base_currency,
+    pipeline: mapPipeline(dto.pipeline),
     realized: mapScope(dto.realized),
     unrealized: mapScope(dto.unrealized),
     daily: {

@@ -132,10 +132,37 @@ class DailyBlock(BaseModel):
     losers: list[DailyPoint]
 
 
+class PipelineSlice(BaseModel):
+    """One status bucket in the active-trade composition snapshot."""
+
+    label: str  # "Plan" | "Ordered" | "Open"
+    trade_count: int
+    count_pct: float       # share of total active by trade count
+    capital_base: float    # intended/committed capital in base ccy
+    capital_pct: float     # share of total active by capital
+
+
+class Pipeline(BaseModel):
+    """Snapshot of how the user's active trades are distributed across the
+    plan → ordered → open pipeline. Capital for PLAN/ORDERED uses the
+    intended investment; OPEN uses the current mark when a quote is available,
+    falling back to the entry-price basis.
+    """
+
+    total_count: int
+    total_capital_base: float
+    slices: list[PipelineSlice]  # always in [plan, ordered, open] order
+    # Headline ratios the Drivers page surfaces above the breakdown.
+    # None when the open bucket is empty (ratio undefined).
+    ordered_to_open_count: float | None = None
+    ordered_to_open_capital: float | None = None
+
+
 class IrrAnalysis(BaseModel):
     """Full payload for the Drivers page."""
 
     base_currency: str
+    pipeline: Pipeline
     realized: ScopeBlock
     unrealized: ScopeBlock
     daily: DailyBlock
@@ -375,6 +402,94 @@ def _build_scope(recs: list[_Rec], portfolio_label: str) -> ScopeBlock:
     )
 
 
+# ── Pipeline composition snapshot ─────────────────────────────────────────
+
+
+def _intended_capital_base(
+    db: Session, trade: Trade, base: str
+) -> float:
+    """Intended capital for a plan/ordered trade, in base currency.
+
+    Uses the trade's planned/ordered date as the FX conversion date — same
+    convention as `_Committed`. Falls back gracefully when amount/units are
+    missing so a half-filled PLAN row contributes 0 rather than crashing.
+    """
+    ccy = (trade.ticker_rel.currency if trade.ticker_rel else None) or base
+    native = trade.amount
+    if not native and trade.entry_price and trade.units:
+        native = trade.entry_price * trade.units
+    if not native:
+        return 0.0
+    on_date = trade.date_ordered or trade.date_planned or date.today()
+    return _to_base(db, native, ccy, base, on_date)
+
+
+def _open_capital_base(
+    db: Session,
+    trade: Trade,
+    base: str,
+    quote: dict | None,
+    today: date,
+) -> float:
+    """Live market value of an open position in base currency.
+
+    Prefers the current quote (matches the unrealized scope's basis); falls
+    back to the entry-price basis when no quote is available so the position
+    still shows up in the composition.
+    """
+    ccy = (trade.ticker_rel.currency if trade.ticker_rel else None) or base
+    if quote and quote.get("valid") and trade.units:
+        native = quote["price"] * trade.units
+        return _to_base(db, native, ccy, base, today)
+    return _intended_capital_base(db, trade, base)
+
+
+def _build_pipeline(
+    db: Session,
+    base: str,
+    plan_trades: list[Trade],
+    ordered_trades: list[Trade],
+    open_trades: list[Trade],
+    open_prices: dict[str, dict],
+    today: date,
+) -> Pipeline:
+    """Snapshot of active trades by status, with proportions of the whole."""
+    plan_capital = sum(_intended_capital_base(db, t, base) for t in plan_trades)
+    ordered_capital = sum(_intended_capital_base(db, t, base) for t in ordered_trades)
+    open_capital = sum(
+        _open_capital_base(db, t, base, open_prices.get(t.ticker.upper()), today)
+        for t in open_trades
+    )
+
+    total_count = len(plan_trades) + len(ordered_trades) + len(open_trades)
+    total_capital = plan_capital + ordered_capital + open_capital
+
+    def _slice(label: str, count: int, capital: float) -> PipelineSlice:
+        return PipelineSlice(
+            label=label,
+            trade_count=count,
+            count_pct=(count / total_count) if total_count else 0.0,
+            capital_base=capital,
+            capital_pct=(capital / total_capital) if total_capital else 0.0,
+        )
+
+    open_count = len(open_trades)
+    ordered_count = len(ordered_trades)
+    return Pipeline(
+        total_count=total_count,
+        total_capital_base=total_capital,
+        slices=[
+            _slice("Plan", len(plan_trades), plan_capital),
+            _slice("Ordered", ordered_count, ordered_capital),
+            _slice("Open", open_count, open_capital),
+        ],
+        ordered_to_open_count=(ordered_count / open_count) if open_count else None,
+        ordered_to_open_capital=(
+            ordered_capital / open_capital if open_capital else None
+        ),
+    )
+
+
 # ── Daily series ──────────────────────────────────────────────────────────
 
 
@@ -476,6 +591,7 @@ def compute_analysis(db: Session, user_id: int) -> IrrAnalysis:
     ]
     open_trades = [t for t in trades if t.status == TradeStatus.OPEN]
     ordered_trades = [t for t in trades if t.status == TradeStatus.ORDERED]
+    plan_trades = [t for t in trades if t.status == TradeStatus.PLAN]
 
     # Realized scope.
     realized_recs = [_build_rec(db, t, base, t.exit_price, t.exit_date) for t in closed]
@@ -511,8 +627,13 @@ def compute_analysis(db: Session, user_id: int) -> IrrAnalysis:
             _Committed(start, _to_base(db, inv_native, ccy, base, start), None)
         )
 
+    pipeline = _build_pipeline(
+        db, base, plan_trades, ordered_trades, open_trades, prices, today
+    )
+
     return IrrAnalysis(
         base_currency=base,
+        pipeline=pipeline,
         realized=_build_scope(realized_recs, "Portfolio"),
         unrealized=_build_scope(unrealized_recs, "Portfolio"),
         daily=_build_daily(realized_recs, committed),

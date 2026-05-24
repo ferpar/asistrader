@@ -338,6 +338,153 @@ def test_fx_drift_decomposes_base_profit(db_session, sample_user):
     assert pf.fx_drift_base == pytest.approx(-1100.0)
 
 
+def test_pipeline_proportions_by_count_and_capital(
+    db_session, sample_user, monkeypatch
+):
+    """The pipeline snapshot splits active trades into plan/ordered/open and
+    reports each slice's share of the total by count and by capital. Open
+    capital is marked at the current price (matching the unrealized scope).
+    """
+    db_session.add(Ticker(symbol="ACT", name="Active Co", currency="USD"))
+    db_session.add(
+        Trade(  # PLAN — 2,000 intended (1 * 2,000)
+            ticker="ACT",
+            status=TradeStatus.PLAN,
+            amount=2000.0,
+            units=1,
+            entry_price=2000.0,
+            date_planned=date(2025, 5, 1),
+            user_id=sample_user.id,
+        )
+    )
+    for _ in range(2):
+        db_session.add(
+            Trade(  # 2 x ORDERED — 1,000 each, 2,000 total
+                ticker="ACT",
+                status=TradeStatus.ORDERED,
+                amount=1000.0,
+                units=1,
+                entry_price=1000.0,
+                date_planned=date(2025, 5, 1),
+                date_ordered=date(2025, 5, 1),
+                user_id=sample_user.id,
+            )
+        )
+    db_session.add(
+        Trade(  # OPEN — entry 100*10=1,000; marked at 120*10=1,200
+            ticker="ACT",
+            status=TradeStatus.OPEN,
+            amount=1000.0,
+            units=10,
+            entry_price=100.0,
+            date_planned=date(2025, 5, 1),
+            date_ordered=date(2025, 5, 1),
+            user_id=sample_user.id,
+        )
+    )
+    db_session.commit()
+
+    monkeypatch.setattr(
+        irr_service,
+        "get_batch_prices",
+        lambda symbols, db=None: {"ACT": {"price": 120.0, "currency": "USD", "valid": True}},
+    )
+
+    pipeline = compute_analysis(db_session, sample_user.id).pipeline
+
+    assert pipeline.total_count == 4  # 1 plan + 2 ordered + 1 open
+    assert pipeline.total_capital_base == pytest.approx(5200.0)  # 2000 + 2000 + 1200
+
+    by_label = {s.label: s for s in pipeline.slices}
+    assert [s.label for s in pipeline.slices] == ["Plan", "Ordered", "Open"]
+
+    assert by_label["Plan"].trade_count == 1
+    assert by_label["Plan"].count_pct == pytest.approx(0.25)
+    assert by_label["Plan"].capital_base == pytest.approx(2000.0)
+    assert by_label["Plan"].capital_pct == pytest.approx(2000 / 5200)
+
+    assert by_label["Ordered"].trade_count == 2
+    assert by_label["Ordered"].count_pct == pytest.approx(0.5)
+    assert by_label["Ordered"].capital_base == pytest.approx(2000.0)
+    assert by_label["Ordered"].capital_pct == pytest.approx(2000 / 5200)
+
+    assert by_label["Open"].trade_count == 1
+    assert by_label["Open"].capital_base == pytest.approx(1200.0)
+    assert by_label["Open"].capital_pct == pytest.approx(1200 / 5200)
+
+    # Headline ratios the user explicitly asked for.
+    assert pipeline.ordered_to_open_count == pytest.approx(2.0)
+    assert pipeline.ordered_to_open_capital == pytest.approx(2000 / 1200)
+
+
+def test_pipeline_empty_when_no_active_trades(db_session, sample_user):
+    """With nothing in plan/ordered/open the pipeline is all zeros and the
+    open-comparison ratios are None (undefined, not infinity)."""
+    pipeline = compute_analysis(db_session, sample_user.id).pipeline
+
+    assert pipeline.total_count == 0
+    assert pipeline.total_capital_base == 0.0
+    assert all(s.trade_count == 0 and s.capital_base == 0.0 for s in pipeline.slices)
+    assert all(s.count_pct == 0.0 and s.capital_pct == 0.0 for s in pipeline.slices)
+    assert pipeline.ordered_to_open_count is None
+    assert pipeline.ordered_to_open_capital is None
+
+
+def test_pipeline_ratio_none_when_no_open_trades(db_session, sample_user):
+    """Ordered : Open is undefined (None) when the open bucket is empty,
+    even if ordered trades exist."""
+    db_session.add(Ticker(symbol="ORD", name="Ordered Co", currency="USD"))
+    db_session.add(
+        Trade(
+            ticker="ORD",
+            status=TradeStatus.ORDERED,
+            amount=1000.0,
+            units=1,
+            entry_price=1000.0,
+            date_planned=date(2025, 5, 1),
+            date_ordered=date(2025, 5, 1),
+            user_id=sample_user.id,
+        )
+    )
+    db_session.commit()
+
+    pipeline = compute_analysis(db_session, sample_user.id).pipeline
+
+    assert pipeline.total_count == 1
+    assert pipeline.ordered_to_open_count is None
+    assert pipeline.ordered_to_open_capital is None
+
+
+def test_pipeline_open_falls_back_to_entry_basis_when_no_quote(
+    db_session, sample_user, monkeypatch
+):
+    """When no live quote is available, the open position still contributes
+    to the pipeline at its entry-price basis — so composition reflects what
+    the user actually has on the books."""
+    db_session.add(Ticker(symbol="NOQ", name="No Quote", currency="USD"))
+    db_session.add(
+        Trade(
+            ticker="NOQ",
+            status=TradeStatus.OPEN,
+            amount=1500.0,
+            units=10,
+            entry_price=150.0,
+            date_planned=date(2025, 5, 1),
+            date_ordered=date(2025, 5, 1),
+            user_id=sample_user.id,
+        )
+    )
+    db_session.commit()
+
+    monkeypatch.setattr(irr_service, "get_batch_prices", lambda symbols, db=None: {})
+
+    pipeline = compute_analysis(db_session, sample_user.id).pipeline
+
+    open_slice = {s.label: s for s in pipeline.slices}["Open"]
+    assert open_slice.trade_count == 1
+    assert open_slice.capital_base == pytest.approx(1500.0)
+
+
 def test_fx_drift_is_zero_for_base_currency_trades(db_session, sample_user):
     """Same-currency trades have no FX exposure, so drift is zero."""
     db_session.add(Ticker(symbol="USX", name="USD stock", currency="USD"))
