@@ -6,11 +6,12 @@ import { useTradeStore } from '../container/ContainerContext'
 import type { AnyAlert, EntryAlert, SLTPAlert, LayeredAlert, TradeWithMetrics } from '../domain/trade/types'
 import { buildAlertMessage } from '../utils/alertMessage'
 import { DetectionTraceModal } from './DetectionTraceModal'
-import { TradeEditModal, EditMode } from './TradeEditModal'
+import type { EditMode } from './TradeEditModal'
 import styles from './AlertsModal.module.css'
 
 interface AlertsModalProps {
   onClose: () => void
+  onTakeAction: (trade: TradeWithMetrics, mode: EditMode) => void
 }
 
 function kindBadgeLabel(kind: string): string {
@@ -59,14 +60,13 @@ function alertAction(alert: AnyAlert): { label: string; mode: EditMode } | null 
   return null
 }
 
-export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModalProps) {
+export const AlertsModal = observer(function AlertsModal({ onClose, onTakeAction }: AlertsModalProps) {
   const alerts = useTradeAlerts()
   const tradeStore = useTradeStore()
   const trades = tradeStore.trades$.get()
   const [showDiscarded, setShowDiscarded] = useState(false)
   const [expanded, setExpanded] = useState<Set<SectionId>>(new Set())
   const [traceTarget, setTraceTarget] = useState<{ tradeId: number; ticker: string } | null>(null)
-  const [actionTarget, setActionTarget] = useState<{ trade: TradeWithMetrics; mode: EditMode } | null>(null)
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -189,7 +189,7 @@ export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModa
                             <button
                               className={`${styles.btnAction} ${action.mode === 'open' ? styles.btnActionOpen : styles.btnActionClose}`}
                               title={`${action.label} trade #${trade.number ?? trade.id}`}
-                              onClick={() => setActionTarget({ trade, mode: action.mode })}
+                              onClick={() => onTakeAction(trade, action.mode)}
                             >
                               {action.label}
                             </button>
@@ -239,13 +239,6 @@ export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModa
           tradeId={traceTarget.tradeId}
           ticker={traceTarget.ticker}
           onClose={() => setTraceTarget(null)}
-        />
-      )}
-      {actionTarget !== null && (
-        <TradeEditModal
-          trade={actionTarget.trade}
-          mode={actionTarget.mode}
-          onClose={() => setActionTarget(null)}
         />
       )}
     </>

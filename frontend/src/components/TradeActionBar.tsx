@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { observer } from '@legendapp/state/react'
 import { TradeCreationForm } from './TradeCreationForm'
 import { AlertsModal } from './AlertsModal'
+import { TradeEditModal, EditMode } from './TradeEditModal'
+import type { TradeWithMetrics } from '../domain/trade/types'
 import { useMarketDataSync } from '../hooks/useMarketDataSync'
 import { useTradeAlerts } from '../hooks/useTradeAlerts'
 import styles from './TradeActionBar.module.css'
@@ -9,6 +11,7 @@ import styles from './TradeActionBar.module.css'
 export const TradeActionBar = observer(function TradeActionBar() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showAlertsModal, setShowAlertsModal] = useState(false)
+  const [alertAction, setAlertAction] = useState<{ trade: TradeWithMetrics; mode: EditMode } | null>(null)
   const sync = useMarketDataSync()
   const alerts = useTradeAlerts()
 
@@ -81,7 +84,22 @@ export const TradeActionBar = observer(function TradeActionBar() {
       )}
 
       {showCreateModal && <TradeCreationForm onClose={() => setShowCreateModal(false)} />}
-      {showAlertsModal && <AlertsModal onClose={() => setShowAlertsModal(false)} />}
+      {showAlertsModal && (
+        <AlertsModal
+          onClose={() => setShowAlertsModal(false)}
+          onTakeAction={(trade, mode) => {
+            setShowAlertsModal(false)
+            setAlertAction({ trade, mode })
+          }}
+        />
+      )}
+      {alertAction && (
+        <TradeEditModal
+          trade={alertAction.trade}
+          mode={alertAction.mode}
+          onClose={() => setAlertAction(null)}
+        />
+      )}
     </>
   )
 })
