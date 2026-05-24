@@ -111,6 +111,37 @@
   letter-spacing: 0.1em;
 }
 
+.structureRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.scoreBadge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  cursor: help;
+}
+
+.scoreBullish {
+  background-color: color-mix(in srgb, var(--color-success) 18%, transparent);
+  color: var(--color-success);
+  border-color: transparent;
+}
+
+.scoreBearish {
+  background-color: color-mix(in srgb, var(--color-error) 18%, transparent);
+  color: var(--color-error);
+  border-color: transparent;
+}
+
 .bullish {
   color: var(--color-success);
 }

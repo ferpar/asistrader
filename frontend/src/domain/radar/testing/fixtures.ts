@@ -20,6 +20,7 @@ export function buildSmaStructure(overrides?: Partial<SmaStructure>): SmaStructu
     sma50: 95,
     sma200: 90,
     structure: '01234',
+    bullishScore: 10,
     ...overrides,
   }
 }

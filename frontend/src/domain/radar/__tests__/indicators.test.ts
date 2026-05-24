@@ -83,6 +83,39 @@ describe('computeSmaStructure', () => {
     expect(result.structure).toHaveLength(5)
     expect(new Set(result.structure!.split(''))).toEqual(new Set(['0', '1', '2', '3', '4']))
   })
+
+  it('scores 10 for a textbook bullish stack', () => {
+    const closes: number[] = []
+    for (let i = 0; i < 250; i++) closes.push(50 + i * 0.5)
+    const currentPrice = closes[closes.length - 1]
+    const result = computeSmaStructure(closes, currentPrice)
+    expect(result.bullishScore).toBe(10)
+  })
+
+  it('scores 0 for a textbook bearish stack', () => {
+    const closes: number[] = []
+    for (let i = 0; i < 250; i++) closes.push(200 - i * 0.5)
+    const currentPrice = closes[closes.length - 1]
+    const result = computeSmaStructure(closes, currentPrice)
+    expect(result.bullishScore).toBe(0)
+  })
+
+  it('scores a partial 6 when price falls below all SMAs but SMAs remain bullish-ordered', () => {
+    // 199 flat closes at 100 then one bar at 120 → sma5≈104, sma20=101, sma50=100.4, sma200≈100.1.
+    // With currentPrice 99: ordered = [99, 104, 101, 100.4, 100.1]
+    //   (P,*) pairs all false (4 lost). Remaining 6 SMA-vs-SMA pairs all true.
+    const closes: number[] = []
+    for (let i = 0; i < 199; i++) closes.push(100)
+    closes.push(120)
+    expect(computeSmaStructure(closes, 120).bullishScore).toBe(10)
+    expect(computeSmaStructure(closes, 99).bullishScore).toBe(6)
+  })
+
+  it('returns null bullishScore when any SMA is null', () => {
+    const closes = Array(50).fill(100) // sma200 unavailable
+    const result = computeSmaStructure(closes, 100)
+    expect(result.bullishScore).toBeNull()
+  })
 })
 
 describe('computePriceChanges', () => {

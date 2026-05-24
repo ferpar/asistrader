@@ -4,6 +4,13 @@ export interface SmaStructure {
   sma50: number | null
   sma200: number | null
   structure: string | null
+  /**
+   * Count of bullish-ordered pairs in [price, sma5, sma20, sma50, sma200]
+   * (shorter period first). A pair is bullish when the earlier entry is
+   * strictly greater than the later one — i.e. price above all SMAs, and
+   * shorter SMAs above longer SMAs. Range 0..10. Null if any SMA is null.
+   */
+  bullishScore: number | null
 }
 
 export interface PriceChanges {

@@ -6,6 +6,7 @@ import type { TradeWithMetrics, LiveMetrics } from '../../domain/trade/types'
 import { formatPrice } from '../../utils/priceFormat'
 import { RadarTradeLine } from './tradeLine/RadarTradeLine'
 import { RsiSparkline } from './RsiSparkline'
+import { SmaProportionStrip } from './SmaProportionStrip'
 import styles from './RadarTickerCard.module.css'
 
 interface RadarTickerCardProps {
@@ -27,6 +28,13 @@ function getStructureColor(structure: string | null): string {
   if (!structure) return ''
   if (structure.startsWith('0')) return styles.bullish
   if (structure.startsWith('4')) return styles.bearish
+  return ''
+}
+
+function getScoreClass(score: number | null): string {
+  if (score === null) return ''
+  if (score >= 8) return styles.scoreBullish
+  if (score <= 2) return styles.scoreBearish
   return ''
 }
 
@@ -134,8 +142,26 @@ export const RadarTickerCard = observer(function RadarTickerCard({
       <div className={styles.sections}>
         <div className={styles.section}>
           <div className={styles.sectionLabel}>SMA Structure</div>
-          <div className={`${styles.structure} ${getStructureColor(sma.structure)}`}>
-            {sma.structure ?? '-'}
+          <div className={styles.structureRow}>
+            <div className={`${styles.structure} ${getStructureColor(sma.structure)}`}>
+              {sma.structure ?? '-'}
+            </div>
+            <SmaProportionStrip
+              price={currentPrice}
+              sma5={sma.sma5}
+              sma20={sma.sma20}
+              sma50={sma.sma50}
+              sma200={sma.sma200}
+              formatValue={fmt}
+            />
+            {sma.bullishScore !== null && (
+              <span
+                className={`${styles.scoreBadge} ${getScoreClass(sma.bullishScore)}`}
+                title="Bullish-ordered pairs out of 10 (price + 4 SMAs in shortest→longest order)"
+              >
+                {sma.bullishScore}/10
+              </span>
+            )}
           </div>
           <div className={styles.emaValues}>
             <span className={styles.emaItem}><span className={styles.emaLabel}>5</span> {sma.sma5 !== null ? fmt(sma.sma5) : '-'}</span>

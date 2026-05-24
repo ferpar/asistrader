@@ -1,0 +1,36 @@
+.strip {
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+  display: block;
+}
+
+.axis {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.tickSma {
+  stroke: var(--color-text-muted);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.tickPrice {
+  stroke: var(--color-text);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.labelSma {
+  font-size: 9px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  fill: var(--color-text-muted);
+}
+
+.labelPrice {
+  font-size: 9px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  fill: var(--color-text);
+  font-weight: 700;
+}

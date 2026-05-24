@@ -27,6 +27,7 @@ export function computeSmaStructure(closes: number[], currentPrice: number): Sma
   const sma200 = computeSma(closes, 200)
 
   let structure: string | null = null
+  let bullishScore: number | null = null
   if (sma5 !== null && sma20 !== null && sma50 !== null && sma200 !== null) {
     const items: [number, string][] = [
       [currentPrice, '0'],
@@ -37,9 +38,19 @@ export function computeSmaStructure(closes: number[], currentPrice: number): Sma
     ]
     items.sort((a, b) => b[0] - a[0])
     structure = items.map(([, label]) => label).join('')
+
+    // Concordance: pairs in shortest→longest order where earlier > later.
+    const ordered = [currentPrice, sma5, sma20, sma50, sma200]
+    let score = 0
+    for (let i = 0; i < ordered.length; i++) {
+      for (let j = i + 1; j < ordered.length; j++) {
+        if (ordered[i] > ordered[j]) score++
+      }
+    }
+    bullishScore = score
   }
 
-  return { sma5, sma20, sma50, sma200, structure }
+  return { sma5, sma20, sma50, sma200, structure, bullishScore }
 }
 
 export function computePriceChanges(closes: number[]): PriceChanges {

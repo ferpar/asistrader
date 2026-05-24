@@ -65,7 +65,7 @@ function startDate(): string {
 
 const SYNC_THROTTLE_MS = 5 * 60 * 1000
 
-const EMPTY_SMA = { sma5: null, sma20: null, sma50: null, sma200: null, structure: null }
+const EMPTY_SMA = { sma5: null, sma20: null, sma50: null, sma200: null, structure: null, bullishScore: null }
 const EMPTY_CHANGES = { avgChange50d: null, avgChangePct50d: null, avgChange5d: null, avgChangePct5d: null }
 const EMPTY_LR_RESULT = { slope: null, slopePct: null, r2: null }
 const EMPTY_LR = { lr20: EMPTY_LR_RESULT, lr50: EMPTY_LR_RESULT, lr200: EMPTY_LR_RESULT }
