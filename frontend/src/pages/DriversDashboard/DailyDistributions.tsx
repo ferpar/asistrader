@@ -1,26 +1,21 @@
 import { useMemo } from 'react'
 import type { DailyPoint } from '../../domain/irr/types'
 import { Histogram } from '../../components/charts/Histogram'
-import { TimeSeriesChart } from '../../components/charts/TimeSeriesChart'
 import { NormalParamsChart } from '../../components/charts/NormalParamsChart'
 import { fmtDaysTick, fmtPctTick } from './format'
+import { ThroughTimeChart } from './ThroughTimeChart'
 import shared from './shared.module.css'
 import styles from './DailyDistributions.module.css'
 
 /** Histograms, time series and rolling-normal charts for the daily series. */
 export function DailyDistributions({ points }: { points: DailyPoint[] }) {
-  const { tirValues, returnValues, dayValues, dates, series } = useMemo(() => {
+  const { tirValues, returnValues, dayValues, dates } = useMemo(() => {
     const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date))
     return {
       tirValues: sorted.map((p) => p.tir),
       returnValues: sorted.map((p) => p.returnPct),
       dayValues: sorted.map((p) => p.avgHoldingDays),
       dates: sorted.map((p) => p.date),
-      series: sorted.map((p) => ({
-        date: p.date,
-        tir: p.tir,
-        avgDays: p.avgHoldingDays,
-      })),
     }
   }, [points])
 
@@ -53,11 +48,7 @@ export function DailyDistributions({ points }: { points: DailyPoint[] }) {
       </div>
 
       <h4 className={shared.subTitle}>Through time</h4>
-      <TimeSeriesChart
-        points={series}
-        title="Daily TIR & average holding days"
-        caption="One point per day a trade closed."
-      />
+      <ThroughTimeChart points={points} />
 
       <h4 className={shared.subTitle}>Normal-fit parameters by day</h4>
       <div className={styles.chartGrid}>
