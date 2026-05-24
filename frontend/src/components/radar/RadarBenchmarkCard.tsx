@@ -1,7 +1,8 @@
 import { observer } from '@legendapp/state/react'
 import type { BenchmarkIndicators, Benchmark } from '../../domain/benchmark/types'
-import { formatPrice } from '../../utils/priceFormat'
+import { RsiSparkline } from './RsiSparkline'
 import { SmaProportionStrip } from './SmaProportionStrip'
+import { divergenceRange, divergenceTitle, getRsiTone } from './rsiHelpers'
 import styles from './RadarTickerCard.module.css'
 
 interface RadarBenchmarkCardProps {
@@ -9,6 +10,12 @@ interface RadarBenchmarkCardProps {
   benchmark?: Benchmark | null
   onRemove: (symbol: string) => void
 }
+
+/** Indexes are unitless quotes — display them as plain numbers, no currency. */
+const benchmarkNumberFmt = new Intl.NumberFormat('en-US', {
+  maximumFractionDigits: 2,
+})
+const fmt = (value: number) => benchmarkNumberFmt.format(value)
 
 const formatPercent = (value: number) =>
   new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)
@@ -34,8 +41,8 @@ export const RadarBenchmarkCard = observer(function RadarBenchmarkCard({
   benchmark,
   onRemove,
 }: RadarBenchmarkCardProps) {
-  const { symbol, currentPrice, sma, priceChanges, linearRegression, error } = indicators
-  const fmt = (value: number) => formatPrice(value, benchmark?.currency, null)
+  const { symbol, currentPrice, sma, priceChanges, linearRegression, rsi, error } =
+    indicators
   const benchmarkName = benchmark?.name ?? null
 
   const header = (
@@ -142,6 +149,46 @@ export const RadarBenchmarkCard = observer(function RadarBenchmarkCard({
               </div>
             ))}
           </div>
+        </div>
+
+        <div className={styles.section}>
+          <div className={styles.sectionLabel}>RSI (14)</div>
+          <div className={styles.rsiRow}>
+            <span className={`${styles.rsiValue} ${getRsiTone(rsi.latest)}`}>
+              {rsi.latest !== null ? rsi.latest.toFixed(1) : '-'}
+            </span>
+            {rsi.divergence.bearish && (
+              <span
+                className={`${styles.divBadge} ${styles.divBearish}`}
+                title={divergenceTitle(rsi.divergence.bearish)}
+              >
+                ▼ Bearish · {rsi.divergence.bearish.strength}
+              </span>
+            )}
+            {rsi.divergence.bullish && (
+              <span
+                className={`${styles.divBadge} ${styles.divBullish}`}
+                title={divergenceTitle(rsi.divergence.bullish)}
+              >
+                ▲ Bullish · {rsi.divergence.bullish.strength}
+              </span>
+            )}
+          </div>
+          {(rsi.divergence.bearish || rsi.divergence.bullish) && (
+            <div className={styles.divDates}>
+              {rsi.divergence.bearish && (
+                <span title={divergenceTitle(rsi.divergence.bearish)}>
+                  ▼ {divergenceRange(rsi.divergence.bearish)}
+                </span>
+              )}
+              {rsi.divergence.bullish && (
+                <span title={divergenceTitle(rsi.divergence.bullish)}>
+                  ▲ {divergenceRange(rsi.divergence.bullish)}
+                </span>
+              )}
+            </div>
+          )}
+          <RsiSparkline rsi={rsi} />
         </div>
       </div>
     </div>

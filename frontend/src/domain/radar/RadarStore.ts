@@ -76,7 +76,7 @@ const EMPTY_RSI: RsiIndicator = {
   divergence: { bearish: null, bullish: null },
 }
 
-function buildBenchmarkIndicators(
+export function buildBenchmarkIndicators(
   symbol: string,
   rows: { date: string; close: number | null }[],
   error: string | null,
@@ -89,10 +89,15 @@ function buildBenchmarkIndicators(
       sma: EMPTY_SMA,
       priceChanges: EMPTY_CHANGES,
       linearRegression: EMPTY_LR,
+      rsi: EMPTY_RSI,
+      datedCloses: [],
       error,
     }
   }
-  const closes = rows.map((r) => r.close).filter((c): c is number => c !== null)
+  const datedCloses = rows
+    .filter((r): r is { date: string; close: number } => r.close !== null)
+    .map((r) => ({ date: r.date, close: r.close }))
+  const closes = datedCloses.map((d) => d.close)
   if (closes.length === 0) {
     return {
       symbol,
@@ -101,6 +106,8 @@ function buildBenchmarkIndicators(
       sma: EMPTY_SMA,
       priceChanges: EMPTY_CHANGES,
       linearRegression: EMPTY_LR,
+      rsi: EMPTY_RSI,
+      datedCloses: [],
       error: 'No price data available',
     }
   }
@@ -112,6 +119,8 @@ function buildBenchmarkIndicators(
     sma: computeSmaStructure(closes, currentPrice),
     priceChanges: computePriceChanges(closes),
     linearRegression: computeLinearRegressionStructure(closes),
+    rsi: computeRsi(datedCloses),
+    datedCloses,
     error: null,
   }
 }
