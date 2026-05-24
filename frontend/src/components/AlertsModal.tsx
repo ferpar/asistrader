@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { observer } from '@legendapp/state/react'
 import { useTradeAlerts, alertKey } from '../hooks/useTradeAlerts'
-import type { AnyAlert, EntryAlert, SLTPAlert, LayeredAlert } from '../domain/trade/types'
+import { useTradeStore } from '../container/ContainerContext'
+import type { AnyAlert, EntryAlert, SLTPAlert, LayeredAlert, TradeWithMetrics } from '../domain/trade/types'
 import { buildAlertMessage } from '../utils/alertMessage'
 import { DetectionTraceModal } from './DetectionTraceModal'
+import { TradeEditModal, EditMode } from './TradeEditModal'
 import styles from './AlertsModal.module.css'
 
 interface AlertsModalProps {
@@ -39,11 +41,32 @@ const SECTIONS: { id: SectionId; label: string }[] = [
   { id: 'layered', label: 'Layered — Partial closes' },
 ]
 
+/**
+ * Maps an alert to the trade action it represents, when the user can take that
+ * action themselves (i.e. auto-processing did not already happen). Returns null
+ * when no action is applicable — e.g. the alert was auto-processed, or it's a
+ * layered partial close (which TradeEditModal doesn't model as a single mode).
+ */
+function alertAction(alert: AnyAlert): { label: string; mode: EditMode } | null {
+  if (alert.alertKind === 'entry') {
+    const a = alert as EntryAlert
+    return a.autoOpened ? null : { label: 'Open', mode: 'open' }
+  }
+  if (alert.alertKind === 'sltp') {
+    const a = alert as SLTPAlert
+    return a.autoClosed ? null : { label: 'Close', mode: 'close' }
+  }
+  return null
+}
+
 export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModalProps) {
   const alerts = useTradeAlerts()
+  const tradeStore = useTradeStore()
+  const trades = tradeStore.trades$.get()
   const [showDiscarded, setShowDiscarded] = useState(false)
   const [expanded, setExpanded] = useState<Set<SectionId>>(new Set())
-  const [traceTradeId, setTraceTradeId] = useState<number | null>(null)
+  const [traceTarget, setTraceTarget] = useState<{ tradeId: number; ticker: string } | null>(null)
+  const [actionTarget, setActionTarget] = useState<{ trade: TradeWithMetrics; mode: EditMode } | null>(null)
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -142,7 +165,10 @@ export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModa
                   </button>
                   {isOpen && list.length > 0 && (
                     <div className={styles.rows}>
-                      {list.map(alert => (
+                      {list.map(alert => {
+                        const action = showDiscarded ? null : alertAction(alert)
+                        const trade = action ? trades.find(t => t.id === alert.tradeId) : undefined
+                        return (
                         <div
                           key={alertKey(alert)}
                           className={`${styles.row} ${styles[rowClass(alert)]}`}
@@ -159,10 +185,19 @@ export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModa
                             </span>
                           )}
                           <span className={styles.message}>{buildAlertMessage(alert)}</span>
+                          {action && trade && (
+                            <button
+                              className={`${styles.btnAction} ${action.mode === 'open' ? styles.btnActionOpen : styles.btnActionClose}`}
+                              title={`${action.label} trade #${trade.number ?? trade.id}`}
+                              onClick={() => setActionTarget({ trade, mode: action.mode })}
+                            >
+                              {action.label}
+                            </button>
+                          )}
                           <button
                             className={styles.btnWhy}
                             title="Show detection trace"
-                            onClick={() => setTraceTradeId(alert.tradeId)}
+                            onClick={() => setTraceTarget({ tradeId: alert.tradeId, ticker: alert.ticker })}
                           >
                             Why?
                           </button>
@@ -183,7 +218,8 @@ export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModa
                             </button>
                           )}
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>
@@ -198,10 +234,18 @@ export const AlertsModal = observer(function AlertsModal({ onClose }: AlertsModa
   return (
     <>
       {createPortal(modalContent, document.body)}
-      {traceTradeId !== null && (
+      {traceTarget !== null && (
         <DetectionTraceModal
-          tradeId={traceTradeId}
-          onClose={() => setTraceTradeId(null)}
+          tradeId={traceTarget.tradeId}
+          ticker={traceTarget.ticker}
+          onClose={() => setTraceTarget(null)}
+        />
+      )}
+      {actionTarget !== null && (
+        <TradeEditModal
+          trade={actionTarget.trade}
+          mode={actionTarget.mode}
+          onClose={() => setActionTarget(null)}
         />
       )}
     </>

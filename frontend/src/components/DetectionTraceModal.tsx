@@ -7,6 +7,7 @@ import styles from './DetectionTraceModal.module.css'
 
 interface Props {
   tradeId: number
+  ticker: string
   onClose: () => void
 }
 
@@ -15,7 +16,7 @@ interface Props {
  * one trade (no what-if overrides) and renders the bar-by-bar table. The
  * full what-if exploration UI lives on the detection-sandbox page.
  */
-export function DetectionTraceModal({ tradeId, onClose }: Props) {
+export function DetectionTraceModal({ tradeId, ticker, onClose }: Props) {
   const repo = useTradeRepo()
   const [result, setResult] = useState<DetectionTraceResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -42,6 +43,14 @@ export function DetectionTraceModal({ tradeId, onClose }: Props) {
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
         <div className={styles.header}>
           <h3>Detection trace — trade #{tradeId}</h3>
+          <a
+            className={styles.yahooLink}
+            href={`https://finance.yahoo.com/chart/${encodeURIComponent(ticker)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {ticker} on Yahoo Finance ↗
+          </a>
           <button className={styles.close} onClick={onClose}>&times;</button>
         </div>
         <div className={styles.body}>

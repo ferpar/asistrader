@@ -249,6 +249,35 @@
   background-color: var(--color-surface-hover);
 }
 
+.btnAction {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 10px;
+  white-space: nowrap;
+  color: white;
+}
+
+.btnActionOpen {
+  background-color: var(--color-info, #06f);
+  border-color: var(--color-info, #06f);
+}
+
+.btnActionOpen:hover {
+  filter: brightness(0.92);
+}
+
+.btnActionClose {
+  background-color: var(--color-warning, #c80);
+  border-color: var(--color-warning, #c80);
+}
+
+.btnActionClose:hover {
+  filter: brightness(0.92);
+}
+
 .kindBadge {
   display: inline-block;
   padding: 1px 6px;
