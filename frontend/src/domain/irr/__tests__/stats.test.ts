@@ -6,6 +6,7 @@ import {
   normalCurve,
   normalPdf,
   rollingNormalParams,
+  simpleMovingAverage,
   stdDev,
 } from '../stats'
 
@@ -113,5 +114,28 @@ describe('rollingNormalParams', () => {
 
   it('returns an empty array for no values', () => {
     expect(rollingNormalParams([])).toEqual([])
+  })
+})
+
+describe('simpleMovingAverage', () => {
+  it('null-fills the first window-1 positions', () => {
+    expect(simpleMovingAverage([1, 2, 3, 4, 5], 3)).toEqual([null, null, 2, 3, 4])
+  })
+
+  it('window of 1 mirrors the input', () => {
+    expect(simpleMovingAverage([5, 7, 9], 1)).toEqual([5, 7, 9])
+  })
+
+  it('window larger than input yields all nulls', () => {
+    expect(simpleMovingAverage([1, 2], 5)).toEqual([null, null])
+  })
+
+  it('window < 1 yields all nulls', () => {
+    expect(simpleMovingAverage([1, 2, 3], 0)).toEqual([null, null, null])
+  })
+
+  it('matches the textbook mean at each window', () => {
+    const v = [10, 20, 30, 40, 50, 60]
+    expect(simpleMovingAverage(v, 4)).toEqual([null, null, null, 25, 35, 45])
   })
 })

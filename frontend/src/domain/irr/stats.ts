@@ -107,6 +107,27 @@ export interface NormalParams {
 }
 
 /**
+ * Simple moving average over a fixed window. Returns one entry per input
+ * value; the first `window - 1` entries are null (not enough history yet).
+ * Throws-style invariant: window must be >= 1; for window === 1 the output
+ * mirrors the input.
+ */
+export function simpleMovingAverage(
+  values: number[],
+  window: number,
+): (number | null)[] {
+  if (window < 1) return values.map(() => null)
+  const out: (number | null)[] = []
+  let sum = 0
+  for (let i = 0; i < values.length; i++) {
+    sum += values[i]
+    if (i >= window) sum -= values[i - window]
+    out.push(i >= window - 1 ? sum / window : null)
+  }
+  return out
+}
+
+/**
  * Cumulative ("expanding window") normal fit: for index `i`, the mean and std
  * of `values[0..i]`. Used to graph how the daily distribution stabilizes over
  * time — one (μ, σ) pair per day.

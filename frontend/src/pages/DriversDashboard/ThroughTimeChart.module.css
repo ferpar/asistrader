@@ -1,0 +1,51 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  margin-bottom: 10px;
+  font-size: 0.8125rem;
+}
+
+.toolbarGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbarLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.windowInput {
+  width: 56px;
+  padding: 3px 6px;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+.windowInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dayUnit {
+  color: var(--color-text-muted);
+}
+
+/* Color swatch shown next to each SMA control so the user knows which line
+ * each input drives. */
+.swatch {
+  width: 12px;
+  height: 3px;
+  border-radius: 1px;
+  display: inline-block;
+}
