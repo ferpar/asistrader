@@ -4,11 +4,20 @@ const W = 200
 const H = 38
 const PAD_X = 8
 const LINE_Y = 19
-const TICK_HALF = 6
 const LABEL_ABOVE_Y = 8
 const LABEL_BELOW_Y = 34
 const CHAR_PX = 5.2 // ~9px monospace
 const MIN_LABEL_GAP = 1
+
+// Per-series tick half-height. Shorter SMAs draw taller so the period
+// ordering reads at a glance; P stands apart by stroke weight.
+const TICK_HALF: Record<'P' | '5' | '20' | '50' | '200', number> = {
+  P: 6,
+  '5': 7,
+  '20': 5.5,
+  '50': 4,
+  '200': 2.5,
+}
 
 interface SmaProportionStripProps {
   price: number | null
@@ -103,14 +112,15 @@ export function SmaProportionStrip({
         const tickClass = p.isPrice ? styles.tickPrice : styles.tickSma
         const labelClass = p.isPrice ? styles.labelPrice : styles.labelSma
         const labelY = rows.get(p.key) === 'above' ? LABEL_ABOVE_Y : LABEL_BELOW_Y
+        const half = TICK_HALF[p.key]
         return (
           <g key={p.key}>
             <line
               className={tickClass}
               x1={p.x}
               x2={p.x}
-              y1={LINE_Y - TICK_HALF}
-              y2={LINE_Y + TICK_HALF}
+              y1={LINE_Y - half}
+              y2={LINE_Y + half}
             >
               <title>{`${p.label}: ${formatValue(p.value)}`}</title>
             </line>
