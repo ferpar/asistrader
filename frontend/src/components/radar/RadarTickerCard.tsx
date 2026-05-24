@@ -1,12 +1,12 @@
 import { observer } from '@legendapp/state/react'
-import type { TickerIndicators, DivergenceSignal } from '../../domain/radar/types'
-import { RSI_OVERBOUGHT, RSI_OVERSOLD } from '../../domain/radar/indicators'
+import type { TickerIndicators } from '../../domain/radar/types'
 import type { Ticker } from '../../domain/ticker/types'
 import type { TradeWithMetrics, LiveMetrics } from '../../domain/trade/types'
 import { formatPrice } from '../../utils/priceFormat'
 import { RadarTradeLine } from './tradeLine/RadarTradeLine'
 import { RsiSparkline } from './RsiSparkline'
 import { SmaProportionStrip } from './SmaProportionStrip'
+import { divergenceRange, divergenceTitle, getRsiTone } from './rsiHelpers'
 import styles from './RadarTickerCard.module.css'
 
 interface RadarTickerCardProps {
@@ -36,21 +36,6 @@ function getScoreClass(score: number | null): string {
   if (score >= 8) return styles.scoreBullish
   if (score <= 2) return styles.scoreBearish
   return ''
-}
-
-function getRsiTone(value: number | null): string {
-  if (value === null) return ''
-  if (value >= RSI_OVERBOUGHT) return styles.bearish
-  if (value <= RSI_OVERSOLD) return styles.bullish
-  return ''
-}
-
-function divergenceRange(d: DivergenceSignal): string {
-  return `${d.pivots[0].date} → ${d.pivots[d.pivots.length - 1].date}`
-}
-
-function divergenceTitle(d: DivergenceSignal): string {
-  return `${d.touchCount} touches · ${d.strength}\nPivots: ${d.pivots.map((p) => p.date).join(', ')}`
 }
 
 function countByStatus(trades: TradeWithMetrics[]) {
