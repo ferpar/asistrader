@@ -14,6 +14,9 @@ export class TradeStore {
   readonly layeredAlerts$ = observable<LayeredAlert[]>([])
   readonly detecting$ = observable(false)
   readonly lastDetectionResult$ = observable<DetectionResult | null>(null)
+  // Alert keys the user has manually acted on since the last detection run.
+  // Cleared whenever detectTradeHits() refreshes the alert lists.
+  readonly actedAlertKeys$ = observable<Record<string, true>>({})
 
   readonly filteredTrades$ = computed(() => {
     const trades = this.trades$.get()
@@ -80,6 +83,7 @@ export class TradeStore {
       this.sltpAlerts$.set(detection.sltpAlerts)
       this.layeredAlerts$.set(detection.layeredAlerts)
       this.lastDetectionResult$.set(detection.result)
+      this.actedAlertKeys$.set({})
       const { autoOpenedCount, autoClosedCount, partialCloseCount } = detection.result
       if (autoOpenedCount > 0 || autoClosedCount > 0 || partialCloseCount > 0) {
         await this.loadTrades()
@@ -88,6 +92,10 @@ export class TradeStore {
     } finally {
       this.detecting$.set(false)
     }
+  }
+
+  markAlertActed(key: string): void {
+    this.actedAlertKeys$[key].set(true)
   }
 
   setFilter(filter: ExtendedFilter): void {

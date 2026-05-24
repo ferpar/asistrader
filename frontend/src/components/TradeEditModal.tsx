@@ -22,9 +22,11 @@ interface TradeEditModalProps {
   mode: EditMode
   currentPrice?: number | null
   onClose: () => void
+  /** Fires after a successful save, before onClose. */
+  onSaved?: () => void
 }
 
-export function TradeEditModal({ trade, mode, currentPrice, onClose }: TradeEditModalProps) {
+export function TradeEditModal({ trade, mode, currentPrice, onClose, onSaved }: TradeEditModalProps) {
   const store = useTradeStore()
   const strategyRepo = useStrategyRepo()
   const [submitting, setSubmitting] = useState(false)
@@ -211,6 +213,7 @@ export function TradeEditModal({ trade, mode, currentPrice, onClose }: TradeEdit
       }
 
       await store.updateTrade(trade.id, request)
+      onSaved?.()
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update trade')

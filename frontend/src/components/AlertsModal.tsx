@@ -11,7 +11,7 @@ import styles from './AlertsModal.module.css'
 
 interface AlertsModalProps {
   onClose: () => void
-  onTakeAction: (trade: TradeWithMetrics, mode: EditMode) => void
+  onTakeAction: (alert: AnyAlert, trade: TradeWithMetrics, mode: EditMode) => void
 }
 
 function kindBadgeLabel(kind: string): string {
@@ -166,12 +166,13 @@ export const AlertsModal = observer(function AlertsModal({ onClose, onTakeAction
                   {isOpen && list.length > 0 && (
                     <div className={styles.rows}>
                       {list.map(alert => {
-                        const action = showDiscarded ? null : alertAction(alert)
+                        const acted = alerts.isActed(alert)
+                        const action = showDiscarded || acted ? null : alertAction(alert)
                         const trade = action ? trades.find(t => t.id === alert.tradeId) : undefined
                         return (
                         <div
                           key={alertKey(alert)}
-                          className={`${styles.row} ${styles[rowClass(alert)]}`}
+                          className={`${styles.row} ${styles[rowClass(alert)]} ${acted ? styles.rowActed : ''}`}
                         >
                           <span className={styles.icon}>{rowIcon(alert)}</span>
                           <span className={styles.ticker}>{alert.ticker}</span>
@@ -185,11 +186,16 @@ export const AlertsModal = observer(function AlertsModal({ onClose, onTakeAction
                             </span>
                           )}
                           <span className={styles.message}>{buildAlertMessage(alert)}</span>
+                          {acted && (
+                            <span className={styles.actedBadge} title="You took action on this alert. It will clear on the next detection run.">
+                              ✓ Acted
+                            </span>
+                          )}
                           {action && trade && (
                             <button
                               className={`${styles.btnAction} ${action.mode === 'open' ? styles.btnActionOpen : styles.btnActionClose}`}
                               title={`${action.label} trade #${trade.number ?? trade.id}`}
-                              onClick={() => onTakeAction(trade, action.mode)}
+                              onClick={() => onTakeAction(alert, trade, action.mode)}
                             >
                               {action.label}
                             </button>

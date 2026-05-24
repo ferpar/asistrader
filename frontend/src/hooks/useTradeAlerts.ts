@@ -31,6 +31,7 @@ export function useTradeAlerts() {
   const layeredAlerts = store.layeredAlerts$.get()
   const detecting = store.detecting$.get()
   const lastResult = store.lastDetectionResult$.get()
+  const actedKeys = store.actedAlertKeys$.get()
 
   const [sortMode, setSortMode] = useState<AlertSortMode>('date')
 
@@ -71,6 +72,8 @@ export function useTradeAlerts() {
   const dismiss = (alert: AnyAlert) => store.dismissAlert(alert)
   const restore = (alert: AnyAlert) => store.restoreAlert(alert)
   const dismissAll = () => store.dismissAllAlerts()
+  const markActed = (alert: AnyAlert) => store.markAlertActed(alertKey(alert))
+  const isActed = (alert: AnyAlert): boolean => actedKeys[alertKey(alert)] === true
 
   const getEntryAlertClass = (alert: EntryAlert): string =>
     alert.autoOpened ? 'alertEntryOpened' : 'alertEntry'
@@ -113,6 +116,8 @@ export function useTradeAlerts() {
     dismiss,
     restore,
     dismissAll,
+    markActed,
+    isActed,
     getEntryAlertClass,
     getSltpAlertClass,
     getLayeredAlertClass,
