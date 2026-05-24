@@ -7,7 +7,7 @@
 irr
 	DONE - add chart for return similar to the one for avg daily and daily TIR 
 
-	- add chart for daily tir and average holding days but with averages (or perhaps make traces toggleable)
+	DONE - add chart for daily tir and average holding days but with averages (or perhaps make traces toggleable)
 
 	DONE - summaries need to update with the all / winner /  losers filters
 

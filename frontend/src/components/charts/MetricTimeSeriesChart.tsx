@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { extent, line, scaleLinear, scaleTime, timeFormat } from 'd3'
+import { curveMonotoneX, extent, line, scaleLinear, scaleTime, timeFormat } from 'd3'
 import { XAxis, YAxis } from './Axes'
 import { ChartTooltip, useTooltip } from './ChartTooltip'
 import styles from './charts.module.css'
@@ -82,10 +82,13 @@ export function MetricTimeSeriesChart({
       .x((d) => x(d.t))
       .y((d) => y(d.value))(data) ?? ''
 
-  // Build an SVG path per SMA, breaking on null so gaps stay open.
+  // Build an SVG path per SMA, breaking on null so gaps stay open. The
+  // monotone-X curve smooths the line without overshooting between points,
+  // which keeps the SMA visually honest at local extrema.
   const smaPaths = smas.map((s) => {
     const generator = line<{ t: Date; v: number | null }>()
       .defined((p) => p.v !== null)
+      .curve(curveMonotoneX)
       .x((p) => x(p.t))
       .y((p) => y(p.v as number))
     const aligned = data.map((d) => ({ t: d.t, v: s.values[d.idx] }))
