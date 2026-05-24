@@ -24,13 +24,17 @@ export function DailySection({
 
   return (
     <section className={shared.section}>
-      <h3 className={shared.sectionTitle}>Daily annualized return</h3>
+      <div className={shared.sectionHeader}>
+        <h3 className={`${shared.sectionTitle} ${shared.headerTitle}`}>
+          Daily annualized return
+        </h3>
+        <Toggle options={DAILY_VIEWS} value={view} onChange={setView} />
+      </div>
       <p className={shared.note}>
         One point per day a trade closed. The winners / losers / mixed views split
         by trade outcome. <strong>Enhanced</strong> charges each day a share of the
         idle capital pool (ordered + open trades) — shown for the mixed view only.
       </p>
-      <Toggle options={DAILY_VIEWS} value={view} onChange={setView} />
       {rows.length === 0 ? (
         <p className={shared.empty}>No closed trades for this view.</p>
       ) : (

@@ -1,24 +1,6 @@
-- check trades one-click to action 
-	-> review auto detection in one click
-	-> open trade in one click 
-	-> close trade in one click
-- surface trades that would not trigger because of the margin
-
 irr
-	DONE - add chart for return similar to the one for avg daily and daily TIR 
-
-	DONE - add chart for daily tir and average holding days but with averages (or perhaps make traces toggleable)
-
-	DONE - summaries need to update with the all / winner /  losers filters
-
+	- floating / sticky controls, so user doesnt need to scroll back up on each section, to change the view
 	- cummulative should have a max number of days, or alternatively have a parameter of limited days to measure as tail. Perhaps also parameterize the histogram and normal distrib charts to select date ranges for them.. Perhaps all graphs should have the same date range.
-
-
-SMA - improvements:
-	DONE - combinatory score (how many averages below bullish for each of the averages)
-	DONE - linear proportional indicator that displays all values aligned and at proportional distances
-	- pondered average rating to measure how close the averages are to the price
-		(i.e. shortest is 2 points and each furthest one has half the porints) 
 
 radar screen with 
 	- permanent list of indexes
@@ -191,3 +173,19 @@ DONE - IRR extras
 
 DONE - Radar Presets
 	Ex: Flat View Clsest to TP and Drift Behing
+
+irr
+	DONE - add chart for return similar to the one for avg daily and daily TIR 
+
+	DONE - add chart for daily tir and average holding days but with averages (or perhaps make traces toggleable)
+
+	DONE - summaries need to update with the all / winner /  losers filters
+
+SMA - improvements:
+	DONE - combinatory score (how many averages below bullish for each of the averages)
+	DONE - linear proportional indicator that displays all values aligned and at proportional distances
+
+DONE - check trades one-click to action 
+	-> review auto detection in one click
+	-> open trade in one click 
+	-> close trade in one click

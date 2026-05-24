@@ -6,7 +6,6 @@ import { TickerTable } from './TickerTable'
 import { Toggle } from './Toggle'
 import { TransactionTable } from './TransactionTable'
 import shared from './shared.module.css'
-import styles from './ScopeSection.module.css'
 
 const TICKER_VIEWS_REALIZED: { id: TickerView; label: string }[] = [
   { id: 'mixed', label: 'Mixed' },
@@ -78,8 +77,8 @@ export function ScopeSection({
 
   return (
     <section className={shared.section}>
-      <div className={styles.sectionHeader}>
-        <h3 className={`${shared.sectionTitle} ${styles.headerTitle}`}>{title}</h3>
+      <div className={shared.sectionHeader}>
+        <h3 className={`${shared.sectionTitle} ${shared.headerTitle}`}>{title}</h3>
         {showTickerViewToggle && (
           <Toggle options={tickerViews} value={tickerView} onChange={setTickerView} />
         )}
@@ -99,7 +98,9 @@ export function ScopeSection({
 
       {showTickerViewToggle && (
         <>
-          <Tabs options={SUB_VIEWS} value={subView} onChange={setSubView} />
+          <div className={shared.stickyTabs}>
+            <Tabs options={SUB_VIEWS} value={subView} onChange={setSubView} />
+          </div>
           {subView === 'ticker' ? (
             <TickerTable rows={tickerRows} ccy={ccy} />
           ) : (

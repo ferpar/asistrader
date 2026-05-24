@@ -24,6 +24,44 @@
   margin: 16px 0 8px;
 }
 
+/* Section header: title + an inline view toggle that governs the section's
+ * filters. Pinned to the top of the viewport while scrolling through the
+ * section, so the filter toggle stays reachable on long tables. */
+.sectionHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 8px 0 6px;
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--color-bg);
+}
+
+/* Override of .sectionTitle when nested inside .sectionHeader: the header
+ * div owns the bottom border, so the inner h3 drops its own. */
+.headerTitle {
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+/* Sticky wrapper that pins a secondary control strip (e.g. the By Ticker /
+ * By Transaction tab bar) directly under the sticky section header.
+ *
+ * The 48px offset matches the rendered height of .sectionHeader at the
+ * default toggle/title font sizes — change here if those grow. */
+.stickyTabs {
+  position: sticky;
+  top: 48px;
+  z-index: 9;
+  background-color: var(--color-bg);
+}
+
 .note {
   font-size: 0.8125rem;
   color: var(--color-text-muted);
