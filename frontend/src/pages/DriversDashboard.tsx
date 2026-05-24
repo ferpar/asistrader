@@ -8,7 +8,6 @@ import type {
   ScopeBlock,
   TickerView,
   TradeIrr,
-  TradeView,
 } from '../domain/irr/types'
 import { useMultiSort, useSortedRows, type SortTerm } from '../hooks/useMultiSort'
 import { Histogram } from '../components/charts/Histogram'
@@ -340,18 +339,6 @@ const TICKER_VIEWS_UNREALIZED: { id: TickerView; label: string }[] = [
   { id: 'losers', label: 'Losing' },
 ]
 
-const TRADE_VIEWS_REALIZED: { id: TradeView; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'winners', label: 'Winners' },
-  { id: 'losers', label: 'Losers' },
-]
-
-const TRADE_VIEWS_UNREALIZED: { id: TradeView; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'winners', label: 'Winning' },
-  { id: 'losers', label: 'Losing' },
-]
-
 function ScopeSection({
   title,
   scope,
@@ -366,11 +353,16 @@ function ScopeSection({
   unrealized?: boolean
 }) {
   const [tickerView, setTickerView] = useState<TickerView>('mixed')
-  const [tradeView, setTradeView] = useState<TradeView>('all')
 
   const tickerViews = unrealized ? TICKER_VIEWS_UNREALIZED : TICKER_VIEWS_REALIZED
-  const tradeViews = unrealized ? TRADE_VIEWS_UNREALIZED : TRADE_VIEWS_REALIZED
   const winLossNoun = unrealized ? 'Winning / losing' : 'Winners / losers'
+
+  const portfolioGroup =
+    tickerView === 'winners'
+      ? scope.portfolioWinners
+      : tickerView === 'losers'
+        ? scope.portfolioLosers
+        : scope.portfolio
 
   const tickerRows =
     tickerView === 'winners'
@@ -380,40 +372,52 @@ function ScopeSection({
         : scope.byTicker
 
   const txnRows = useMemo(() => {
-    if (tradeView === 'winners') return scope.transactions.filter((t) => t.isWinner)
-    if (tradeView === 'losers') return scope.transactions.filter((t) => t.profitNative < 0)
+    if (tickerView === 'winners') return scope.transactions.filter((t) => t.isWinner)
+    if (tickerView === 'losers') return scope.transactions.filter((t) => t.profitNative < 0)
     return scope.transactions
-  }, [scope.transactions, tradeView])
+  }, [scope.transactions, tickerView])
+
+  // Toggle only makes sense once there's at least one trade in the scope.
+  const showTickerViewToggle = scope.portfolio !== null
+
+  const emptyMessage =
+    tickerView === 'winners'
+      ? `No ${title.toLowerCase()} ${unrealized ? 'winning' : 'winner'} trades.`
+      : tickerView === 'losers'
+        ? `No ${title.toLowerCase()} ${unrealized ? 'losing' : 'loser'} trades.`
+        : `No ${title.toLowerCase()} trades yet.`
 
   return (
     <section className={styles.section}>
-      <h3 className={styles.sectionTitle}>{title}</h3>
-      {scope.portfolio ? (
-        <PortfolioCard group={scope.portfolio} ccy={ccy} />
+      <div className={styles.sectionHeader}>
+        <h3 className={styles.sectionTitle}>{title}</h3>
+        {showTickerViewToggle && (
+          <Toggle options={tickerViews} value={tickerView} onChange={setTickerView} />
+        )}
+      </div>
+      {showTickerViewToggle && (
+        <p className={styles.note}>
+          {winLossNoun} re-aggregate the summary, each ticker and the trade
+          list from only the winning or losing trades — so the two sides can be
+          read without diluting each other.
+        </p>
+      )}
+      {portfolioGroup ? (
+        <PortfolioCard group={portfolioGroup} ccy={ccy} />
       ) : (
-        <p className={styles.empty}>No {title.toLowerCase()} trades yet.</p>
+        <p className={styles.empty}>{emptyMessage}</p>
       )}
 
-      {scope.byTicker.length > 0 && (
+      {tickerRows.length > 0 && (
         <>
-          <div className={styles.subHeader}>
-            <h4 className={styles.subTitle}>By ticker</h4>
-            <Toggle options={tickerViews} value={tickerView} onChange={setTickerView} />
-          </div>
-          <p className={styles.note}>
-            {winLossNoun} re-aggregate each ticker from only its winning or losing
-            trades — so the two sides can be read without diluting each other.
-          </p>
+          <h4 className={styles.subTitle}>By ticker</h4>
           <TickerTable rows={tickerRows} ccy={ccy} />
         </>
       )}
 
-      {scope.transactions.length > 0 && (
+      {txnRows.length > 0 && (
         <>
-          <div className={styles.subHeader}>
-            <h4 className={styles.subTitle}>By transaction</h4>
-            <Toggle options={tradeViews} value={tradeView} onChange={setTradeView} />
-          </div>
+          <h4 className={styles.subTitle}>By transaction</h4>
           <TransactionTable rows={txnRows} ccy={ccy} />
         </>
       )}

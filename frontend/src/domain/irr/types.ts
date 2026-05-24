@@ -51,14 +51,17 @@ export interface ScopeBlock {
   byTickerWinners: GroupIrr[]
   /** Per-ticker aggregation over losing trades only. */
   byTickerLosers: GroupIrr[]
+  /** Portfolio aggregation over every trade. */
   portfolio: GroupIrr | null
+  /** Portfolio aggregation over winning trades only. */
+  portfolioWinners: GroupIrr | null
+  /** Portfolio aggregation over losing trades only. */
+  portfolioLosers: GroupIrr | null
 }
 
-/** Mixed / winners / losers view of a per-ticker breakdown. */
+/** Mixed / winners / losers view governing a scope's summary, by-ticker and
+ *  by-transaction breakdowns. */
 export type TickerView = 'mixed' | 'winners' | 'losers'
-
-/** All / winners / losers filter for the per-trade table. */
-export type TradeView = 'all' | 'winners' | 'losers'
 
 /** One calendar day of closed-trade activity. */
 export interface DailyPoint {
@@ -132,6 +135,8 @@ export interface ScopeBlockDto {
   by_ticker_winners: GroupIrrDto[]
   by_ticker_losers: GroupIrrDto[]
   portfolio: GroupIrrDto | null
+  portfolio_winners: GroupIrrDto | null
+  portfolio_losers: GroupIrrDto | null
 }
 
 export interface DailyPointDto {
