@@ -1,0 +1,29 @@
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sortable:hover {
+  color: var(--color-text);
+}
+
+.sortActive {
+  color: var(--color-primary, #0969da);
+}
+
+.sortArrow {
+  margin-left: 3px;
+  font-size: 0.6rem;
+}
+
+.sortPriority {
+  display: inline-block;
+  margin-left: 3px;
+  padding: 0 4px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #fff;
+  background-color: var(--color-primary, #0969da);
+  border-radius: 6px;
+}
