@@ -87,7 +87,7 @@ export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: s
         <>
           <OrderedSummaryCard summary={summary} ccy={ccy} />
           <OrderedScatterChart
-            rows={filteredRows}
+            rows={rows}
             highlightIds={highlightIds}
             hasActiveQuery={query.trim().length > 0}
           />

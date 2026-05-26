@@ -211,20 +211,24 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
             )
           })}
 
-          {/* X-axis: ticker labels, rotated when crowded */}
+          {/* X-axis: ticker labels, rotated when crowded. Alternates the
+              anchor's y between two rows so neighbouring rotated labels can't
+              collide; uses a smaller font for the same reason. */}
           <g transform={`translate(0, ${H - M.bottom})`} className={chartStyles.axis}>
             <line x1={M.left} x2={W - M.right} y1={0} y2={0} />
-            {sorted.map((r) => {
+            {sorted.map((r, i) => {
               const key = String(r.tradeId)
               const x = (xScale(key) ?? 0) + bandwidth / 2
               const isHighlight = highlightIds.has(r.tradeId)
+              const y = i % 2 === 0 ? 12 : 22
               return (
                 <text
                   key={`xlab-${r.tradeId}`}
                   x={x}
-                  y={14}
+                  y={y}
                   textAnchor="end"
-                  transform={`rotate(-45, ${x}, 14)`}
+                  transform={`rotate(-45, ${x}, ${y})`}
+                  fontSize="0.6rem"
                   fontWeight={isHighlight ? 700 : 400}
                 >
                   {truncate(r.ticker, labelMax)}
@@ -237,6 +241,7 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
             scale={yAge}
             left={M.left}
             ticks={5}
+            tickPadding={7}
             format={(v) => `${(v as number).toFixed(0)}d`}
           />
           <YAxis
@@ -244,6 +249,7 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
             left={W - M.right}
             orient="right"
             ticks={5}
+            tickPadding={7}
             format={(v) => `${((v as number) * 100).toFixed(0)}%`}
           />
 

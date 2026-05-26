@@ -44,16 +44,19 @@ interface YAxisProps {
   orient?: 'left' | 'right'
   ticks?: number
   format?: (value: NumberValue) => string
+  /** Override d3's default tick-label padding (3px). */
+  tickPadding?: number
 }
 
 /** Vertical axis — left- or right-hand side, for single- or dual-axis charts. */
-export function YAxis({ scale, left, orient = 'left', ticks = 5, format }: YAxisProps) {
+export function YAxis({ scale, left, orient = 'left', ticks = 5, format, tickPadding }: YAxisProps) {
   const ref = useRef<SVGGElement | null>(null)
   useEffect(() => {
     if (!ref.current) return
     const axis = (orient === 'right' ? axisRight(scale) : axisLeft(scale)).ticks(ticks)
     if (format) axis.tickFormat((d) => format(d))
+    if (tickPadding !== undefined) axis.tickPadding(tickPadding)
     select(ref.current).call(axis)
-  }, [scale, orient, ticks, format])
+  }, [scale, orient, ticks, format, tickPadding])
   return <g ref={ref} className={styles.axis} transform={`translate(${left}, 0)`} />
 }
