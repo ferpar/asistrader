@@ -176,7 +176,7 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
                   show({
                     xPct: ((x + bandwidth / 2) / W) * 100,
                     yPct: (M.top / H) * 100,
-                    title: `${row.ticker}${row.tradeNumber !== null ? ` · #${row.tradeNumber}` : ''}`,
+                    title: `${row.ticker} · #${row.tradeNumber ?? row.tradeId}`,
                     rows: [
                       { label: 'PE', value: row.entryPrice.toLocaleString('en-US', { maximumFractionDigits: 4 }) },
                       {

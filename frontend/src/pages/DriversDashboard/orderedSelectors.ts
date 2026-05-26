@@ -97,7 +97,9 @@ export function matchesQuery(row: OrderedRow, query: string): boolean {
   const q = query.trim()
   if (!q) return true
   if (/^\d+$/.test(q)) {
-    return row.tradeNumber !== null && String(row.tradeNumber) === q
+    // Match either the human-facing trade number or the DB id, since the
+    // table's "#" column falls back to the id when number is null.
+    return String(row.tradeNumber ?? row.tradeId) === q
   }
   return row.ticker.toLowerCase().includes(q.toLowerCase())
 }

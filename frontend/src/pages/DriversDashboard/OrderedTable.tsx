@@ -121,7 +121,7 @@ export function OrderedTable({
               key={r.tradeId}
               className={highlightIds.has(r.tradeId) ? styles.rowHighlight : ''}
             >
-              <td className={shared.num}>{r.tradeNumber ?? '—'}</td>
+              <td className={shared.num}>{r.tradeNumber ?? r.tradeId}</td>
               <td>
                 <span className={shared.ticker}>{r.ticker}</span>
                 {r.tickerName && <span className={shared.muted}> · {r.tickerName}</span>}
