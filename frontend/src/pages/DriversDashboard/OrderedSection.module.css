@@ -55,3 +55,37 @@
   stroke: var(--color-text, #1f2328);
   stroke-width: 1.5;
 }
+
+/* Toolbar above the chart that holds the age-trend Toggle. */
+.chartToolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.chartToolbarLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+/* Trend overlay on the age dots. Dashed so it reads as a fit rather than
+ * an interpolation of the raw series. */
+.fitLine {
+  fill: none;
+  stroke: var(--color-text-muted);
+  stroke-width: 1.75;
+  stroke-dasharray: 5 3;
+  pointer-events: none;
+}
+
+.fitSwatch {
+  background: linear-gradient(
+    to right,
+    var(--color-text-muted) 0 60%,
+    transparent 60% 100%
+  );
+  background-size: 6px 100%;
+}

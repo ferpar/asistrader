@@ -1,11 +1,20 @@
-import { useMemo } from 'react'
-import { scaleBand, scaleLinear } from 'd3'
+import { useMemo, useState } from 'react'
+import { curveMonotoneX, line, scaleBand, scaleLinear } from 'd3'
 import { YAxis } from '../../components/charts/Axes'
 import { ChartTooltip, useTooltip } from '../../components/charts/ChartTooltip'
 import type { OrderedRow } from './orderedSelectors'
+import { computeFit, type FitMode } from './orderedFits'
 import { fmtPct } from './format'
+import { Toggle } from './Toggle'
 import chartStyles from '../../components/charts/charts.module.css'
 import styles from './OrderedSection.module.css'
+
+const FIT_OPTIONS: { id: FitMode; label: string }[] = [
+  { id: 'off', label: 'Off' },
+  { id: 'linear', label: 'Linear' },
+  { id: 'quadratic', label: 'Quadratic' },
+  { id: 'local', label: 'Local avg (±5)' },
+]
 
 const W = 720
 const H = 280
@@ -26,6 +35,7 @@ interface Props {
 
 export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Props) {
   const { tooltip, show, hide } = useTooltip()
+  const [fitMode, setFitMode] = useState<FitMode>('local')
 
   const sorted = useMemo(() => {
     // Drop rows with no position % — they can't be placed against the right axis.
@@ -33,6 +43,11 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
       .filter((r): r is OrderedRow & { positionPct: number } => r.positionPct !== null)
       .sort((a, b) => b.positionPct - a.positionPct)
   }, [rows])
+
+  const fittedAges = useMemo(
+    () => computeFit(sorted.map((r) => r.orderAgeDays ?? 0), fitMode),
+    [sorted, fitMode],
+  )
 
   if (sorted.length === 0) {
     return (
@@ -70,8 +85,20 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
   // Truncation kicks in once labels start to overlap; band width is a good proxy.
   const labelMax = bandwidth < 28 ? 4 : bandwidth < 48 ? 8 : 12
 
+  const fitPath =
+    fittedAges === null
+      ? null
+      : line<number>()
+          .x((_, i) => (xScale(String(sorted[i].tradeId)) ?? 0) + bandwidth / 2)
+          .y((v) => yAge(v))
+          .curve(curveMonotoneX)(fittedAges) ?? null
+
   return (
     <figure className={chartStyles.figure} style={{ marginTop: '1rem' }}>
+      <div className={styles.chartToolbar}>
+        <span className={styles.chartToolbarLabel}>Age trend</span>
+        <Toggle options={FIT_OPTIONS} value={fitMode} onChange={setFitMode} />
+      </div>
       <div className={chartStyles.chartFrame}>
         <svg
           className={chartStyles.chart}
@@ -108,6 +135,10 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
               />
             )
           })}
+
+          {/* Trend line through the age dots — drawn before the dots so the
+              points stay legible on top of the fit. */}
+          {fitPath && <path className={styles.fitLine} d={fitPath} />}
 
           {/* Dots: order age (left axis) */}
           {sorted.map((r) => {
@@ -256,6 +287,12 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
           />
           Order age
         </span>
+        {fitPath && (
+          <span className={chartStyles.legendItem}>
+            <span className={`${chartStyles.swatch} ${styles.fitSwatch}`} />
+            Age trend ({FIT_OPTIONS.find((o) => o.id === fitMode)?.label.toLowerCase()})
+          </span>
+        )}
       </div>
     </figure>
   )
