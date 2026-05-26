@@ -211,16 +211,20 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
             )
           })}
 
-          {/* X-axis: ticker labels, rotated when crowded. Alternates the
-              anchor's y between two rows so neighbouring rotated labels can't
-              collide; uses a smaller font for the same reason. */}
+          {/* X-axis: ticker labels, rotated 45°. Alternating labels are
+              shifted along the (+1, +1) diagonal — perpendicular to the
+              text's reading direction — so odd labels sit on a parallel row
+              further from the axis instead of colliding with their neighbours
+              along the rotated bodies. */}
           <g transform={`translate(0, ${H - M.bottom})`} className={chartStyles.axis}>
             <line x1={M.left} x2={W - M.right} y1={0} y2={0} />
             {sorted.map((r, i) => {
               const key = String(r.tradeId)
-              const x = (xScale(key) ?? 0) + bandwidth / 2
+              const xCenter = (xScale(key) ?? 0) + bandwidth / 2
               const isHighlight = highlightIds.has(r.tradeId)
-              const y = i % 2 === 0 ? 12 : 22
+              const diag = i % 2 === 0 ? 0 : 10
+              const x = xCenter + diag
+              const y = 12 + diag
               return (
                 <text
                   key={`xlab-${r.tradeId}`}
