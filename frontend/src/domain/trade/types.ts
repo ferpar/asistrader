@@ -31,6 +31,7 @@ export interface Trade {
   stopLoss: Decimal
   takeProfit: Decimal
   datePlanned: Date
+  dateOrdered: Date | null
   dateActual: Date | null
   exitDate: Date | null
   exitType: ExitType | null

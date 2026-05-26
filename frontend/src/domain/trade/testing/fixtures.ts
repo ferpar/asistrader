@@ -16,6 +16,7 @@ export function buildTrade(overrides?: Partial<TradeWithMetrics>): TradeWithMetr
     stopLoss: Decimal.from(140),
     takeProfit: Decimal.from(170),
     datePlanned: new Date('2025-01-10'),
+    dateOrdered: new Date('2025-01-10'),
     dateActual: new Date('2025-01-11'),
     exitDate: null,
     exitType: null,

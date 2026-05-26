@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { observer } from '@legendapp/state/react'
 import { useIrrStore } from '../../container/ContainerContext'
 import { DailySection } from './DailySection'
+import { OrderedSection } from './OrderedSection'
 import { PipelineCard } from './PipelineCard'
 import { ScopeSection } from './ScopeSection'
 import shared from './shared.module.css'
@@ -58,6 +59,7 @@ export const DriversDashboard = observer(function DriversDashboard() {
             ccy={analysis.baseCurrency}
             unrealized
           />
+          <OrderedSection ccy={analysis.baseCurrency} />
           <DailySection daily={analysis.daily} ccy={analysis.baseCurrency} />
         </>
       )}

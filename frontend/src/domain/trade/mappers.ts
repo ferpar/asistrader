@@ -58,6 +58,7 @@ export function mapTrade(dto: TradeDTO): TradeWithMetrics {
     stopLoss: Decimal.from(dto.stop_loss),
     takeProfit: Decimal.from(dto.take_profit),
     datePlanned: parseDateOnly(dto.date_planned),
+    dateOrdered: dto.date_ordered ? parseDateOnly(dto.date_ordered) : null,
     dateActual: dto.date_actual ? parseDateOnly(dto.date_actual) : null,
     exitDate: dto.exit_date ? parseDateOnly(dto.exit_date) : null,
     exitType: dto.exit_type,

@@ -56,6 +56,7 @@ function makeTrade(overrides: Partial<TradeWithMetrics>): TradeWithMetrics {
     stopLoss: D(95),
     takeProfit: D(115),
     datePlanned: new Date('2026-04-01'),
+    dateOrdered: new Date('2026-04-01'),
     dateActual: new Date('2026-04-15'),
     exitDate: new Date('2026-05-01'),
     exitType: 'tp',

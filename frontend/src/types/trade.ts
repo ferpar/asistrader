@@ -42,6 +42,7 @@ export interface Trade {
   stop_loss: number
   take_profit: number
   date_planned: string
+  date_ordered: string | null
   date_actual: string | null
   exit_date: string | null
   exit_type: ExitType | null
