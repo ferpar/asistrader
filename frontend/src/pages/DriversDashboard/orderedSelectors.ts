@@ -72,7 +72,6 @@ export function buildOrderedRows(
       const isLong = t.stopLoss.lt(t.entryPrice)
 
       const convergence = computeConvergenceScore({
-        isLong,
         positionPct,
         peEta: eta?.pe ?? null,
         priceChanges: indicator?.priceChanges ?? null,

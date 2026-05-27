@@ -67,7 +67,6 @@ export function RadarTradeLine({
   const showConvergence = trade.status === 'plan' || trade.status === 'ordered'
   const convergence = showConvergence
     ? computeConvergenceScore({
-        isLong: trade.stopLoss.lt(trade.entryPrice),
         positionPct: peDistNum,
         peEta: eta.pe,
         priceChanges,

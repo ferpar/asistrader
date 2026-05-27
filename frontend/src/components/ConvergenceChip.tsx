@@ -102,8 +102,8 @@ export function ConvergenceChip({ score, compact = false }: Props) {
             Convergence {formatScore(score.score, false)} · {score.confidence} confidence
           </span>
           <span className={styles.popoverIntro}>
-            Signed score in [−100, +100]. Positive = price converging on PE in trade
-            direction; negative = drifting away.
+            Signed score in [−100, +100]. Positive = price converging on PE in the
+            direction needed to fill the order; negative = drifting away.
           </span>
           <table className={styles.table}>
             <thead>

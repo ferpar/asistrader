@@ -27,7 +27,6 @@ function makePeEta(overrides?: Partial<TradeEtaCell>): TradeEtaCell {
 
 function baseInputs(overrides?: Partial<ConvergenceInputs>): ConvergenceInputs {
   return {
-    isLong: true,
     positionPct: 0.05,
     peEta: makePeEta(),
     priceChanges: buildPriceChanges({ avgChangePct5d: 0 }),
@@ -41,7 +40,6 @@ function baseInputs(overrides?: Partial<ConvergenceInputs>): ConvergenceInputs {
 describe('computeConvergenceScore', () => {
   it('returns null when every component is missing', () => {
     const out = computeConvergenceScore({
-      isLong: true,
       positionPct: null,
       peEta: null,
       priceChanges: null,
@@ -92,45 +90,82 @@ describe('computeConvergenceScore', () => {
     expect(m.raw!).toBeLessThan(0)
   })
 
-  it('SMA alignment flips sign by trade direction', () => {
-    const longOut = computeConvergenceScore(baseInputs({ isLong: true, sma: buildSmaStructure({ bullishScore: 10 }) }))
-    const shortOut = computeConvergenceScore(baseInputs({ isLong: false, sma: buildSmaStructure({ bullishScore: 10 }) }))
-    expect(longOut!.components.find((c) => c.key === 'sma')!.raw).toBe(1)
-    expect(shortOut!.components.find((c) => c.key === 'sma')!.raw).toBe(-1)
+  it('SMA component flips sign by fill direction, not trade direction', () => {
+    // Price above PE → must fall → bullish stack pushes price further away (bad).
+    const aboveBullish = computeConvergenceScore(
+      baseInputs({ positionPct: 0.05, sma: buildSmaStructure({ bullishScore: 10 }) }),
+    )
+    expect(aboveBullish!.components.find((c) => c.key === 'sma')!.raw).toBe(-1)
+
+    // Price below PE → must rise → bullish stack pulls price toward PE (good).
+    const belowBullish = computeConvergenceScore(
+      baseInputs({ positionPct: -0.05, sma: buildSmaStructure({ bullishScore: 10 }) }),
+    )
+    expect(belowBullish!.components.find((c) => c.key === 'sma')!.raw).toBe(1)
   })
 
-  it('RSI counter-signal is a penalty only', () => {
-    // Long trade with a bearish divergence → counter-signal penalty.
-    const withBear = computeConvergenceScore(
+  it('LR20 slope flips sign by fill direction', () => {
+    // Above PE with a strong up-slope: trend pushes price further from PE.
+    const aboveUp = computeConvergenceScore(
+      baseInputs({ positionPct: 0.05, lr20: buildLinearRegressionResult({ slopePct: 0.01 }) }),
+    )
+    expect(aboveUp!.components.find((c) => c.key === 'lr20')!.raw!).toBeLessThan(0)
+
+    // Below PE with a strong up-slope: trend lifts price back toward PE.
+    const belowUp = computeConvergenceScore(
+      baseInputs({ positionPct: -0.05, lr20: buildLinearRegressionResult({ slopePct: 0.01 }) }),
+    )
+    expect(belowUp!.components.find((c) => c.key === 'lr20')!.raw!).toBeGreaterThan(0)
+  })
+
+  it('RSI divergence rewards the side that matches the fill direction', () => {
+    // Price above PE, must fall. A bearish RSI divergence (top hint) favours
+    // the fill; a bullish divergence pushes away.
+    const aboveBear = computeConvergenceScore(
       baseInputs({
+        positionPct: 0.05,
         rsi: buildRsiIndicator({
           divergence: { bearish: buildDivergenceSignal({ strength: 'strong' }), bullish: null },
         }),
       }),
     )
-    expect(withBear!.components.find((c) => c.key === 'rsi')!.contribution).toBe(-10)
+    expect(aboveBear!.components.find((c) => c.key === 'rsi')!.contribution).toBe(10)
 
-    // Long trade with bullish divergence is *not* rewarded — RSI stays neutral.
-    const withBull = computeConvergenceScore(
+    const aboveBull = computeConvergenceScore(
       baseInputs({
+        positionPct: 0.05,
         rsi: buildRsiIndicator({
           divergence: { bearish: null, bullish: buildDivergenceSignal({ strength: 'strong' }) },
         }),
       }),
     )
-    expect(withBull!.components.find((c) => c.key === 'rsi')!.contribution).toBe(0)
+    expect(aboveBull!.components.find((c) => c.key === 'rsi')!.contribution).toBe(-10)
+
+    // Price below PE → mirror image.
+    const belowBull = computeConvergenceScore(
+      baseInputs({
+        positionPct: -0.05,
+        rsi: buildRsiIndicator({
+          divergence: { bearish: null, bullish: buildDivergenceSignal({ strength: 'strong' }) },
+        }),
+      }),
+    )
+    expect(belowBull!.components.find((c) => c.key === 'rsi')!.contribution).toBe(10)
   })
 
-  it('reaches the floor when every signal points against the trade', () => {
+  it('reaches the floor when every signal points away from the fill', () => {
+    // Price above PE → fill needs price to fall. Inputs make everything push UP:
+    // drift behind, 5d momentum up, fully bullish SMA stack, positive LR20,
+    // and a bullish RSI divergence (potential reversal up).
     const out = computeConvergenceScore(
       baseInputs({
         peEta: makePeEta({ drift: { lo: 2, hi: 5, state: 'behind' }, badge: 'behind' }),
         positionPct: 0.05,
-        priceChanges: buildPriceChanges({ avgChangePct5d: 0.05 }), // strong wrong-way move
-        sma: buildSmaStructure({ bullishScore: 0 }), // bearish stack on a long
-        lr20: buildLinearRegressionResult({ slopePct: -0.02 }),
+        priceChanges: buildPriceChanges({ avgChangePct5d: 0.05 }),
+        sma: buildSmaStructure({ bullishScore: 10 }),
+        lr20: buildLinearRegressionResult({ slopePct: 0.02 }),
         rsi: buildRsiIndicator({
-          divergence: { bearish: buildDivergenceSignal({ strength: 'strong' }), bullish: null },
+          divergence: { bearish: null, bullish: buildDivergenceSignal({ strength: 'strong' }) },
         }),
       }),
     )
@@ -140,9 +175,10 @@ describe('computeConvergenceScore', () => {
   })
 
   it('downgrades confidence when only one supporting component has data', () => {
+    // positionPct is present (so SMA can resolve a fill direction), but
+    // drift is unavailable and only SMA carries signal among supporters.
     const out = computeConvergenceScore({
-      isLong: true,
-      positionPct: null,
+      positionPct: 0.05,
       peEta: null,
       priceChanges: null,
       sma: buildSmaStructure(),

@@ -32,8 +32,10 @@ export interface ConvergenceScore {
 }
 
 export interface ConvergenceInputs {
-  isLong: boolean
-  /** Signed (current - PE) / PE. Null when no live price. */
+  /** Signed (current - PE) / PE. Null when no live price.
+   *  Sign drives the "fill direction": > 0 → price must fall to reach PE,
+   *  < 0 → price must rise. This is independent of long/short.
+   */
   positionPct: number | null
   /** Radar ETA cell for the PE target. Null when not computable. */
   peEta: TradeEtaCell | null
@@ -54,9 +56,9 @@ const WEIGHTS: Record<ConvergenceKey, number> = {
 const LABELS: Record<ConvergenceKey, string> = {
   drift: 'Drift vs PE',
   momentum: '5d momentum',
-  sma: 'SMA stack',
-  lr20: 'LR20 slope',
-  rsi: 'RSI counter-signal',
+  sma: 'SMA stack vs fill',
+  lr20: 'LR20 slope vs fill',
+  rsi: 'RSI divergence',
 }
 
 // A 1%/day 5d momentum compresses to tanh(1) ≈ 0.76; calibrated for typical equities.
@@ -64,10 +66,10 @@ const MOMENTUM_SCALE = 0.01
 // A 0.5%/bar LR20 slope is a strong trend; produces tanh(1).
 const LR20_SCALE = 0.005
 
-const DIV_PENALTY: Record<DivergenceStrength, number> = {
-  weak: -0.4,
-  moderate: -0.7,
-  strong: -1.0,
+const DIV_STRENGTH: Record<DivergenceStrength, number> = {
+  weak: 0.4,
+  moderate: 0.7,
+  strong: 1.0,
 }
 
 function driftComponent(peEta: TradeEtaCell | null): { raw: number | null; note: string } {
@@ -99,39 +101,64 @@ function momentumComponent(
   return { raw, note: `5d avg ${pct}%/d (${dir})` }
 }
 
+/** Fill direction: price needs to fall (+1) or rise (-1) to reach PE.
+ *  Returns 0 if positionPct is null or zero — caller treats those as no signal. */
+function fillDirection(positionPct: number | null): -1 | 0 | 1 {
+  if (positionPct === null || positionPct === 0) return 0
+  return positionPct > 0 ? 1 : -1
+}
+
 function smaComponent(
-  isLong: boolean,
+  positionPct: number | null,
   sma: SmaStructure | null,
 ): { raw: number | null; note: string } {
   if (!sma || sma.bullishScore === null) return { raw: null, note: 'no data' }
-  // bullishScore is 0..10. Normalise around 5 → [-1, +1]; flip for shorts.
-  const normLong = (sma.bullishScore - 5) / 5
-  const raw = isLong ? normLong : -normLong
-  return { raw, note: `bullish ${sma.bullishScore}/10` }
+  const dir = fillDirection(positionPct)
+  if (dir === 0) return { raw: null, note: 'fill direction unknown' }
+  // bullishScore is 0..10. Normalise around 5 → bullishness in [-1, +1].
+  // When price is above PE (dir=+1, must fall), bearish trend favours filling;
+  // when price is below PE (dir=-1, must rise), bullish trend favours filling.
+  const bullishness = (sma.bullishScore - 5) / 5
+  const raw = -dir * bullishness
+  const trend =
+    sma.bullishScore >= 7 ? 'bullish' : sma.bullishScore <= 3 ? 'bearish' : 'mixed'
+  const verdict = raw > 0 ? 'favours fill' : raw < 0 ? 'pushes away' : 'mixed'
+  return { raw, note: `${trend} ${sma.bullishScore}/10 (${verdict})` }
 }
 
 function lr20Component(
-  isLong: boolean,
+  positionPct: number | null,
   lr20: LinearRegressionResult | null,
 ): { raw: number | null; note: string } {
   if (!lr20 || lr20.slopePct === null) return { raw: null, note: 'no data' }
+  const dir = fillDirection(positionPct)
+  if (dir === 0) return { raw: null, note: 'fill direction unknown' }
   const compressed = Math.tanh(lr20.slopePct / LR20_SCALE)
-  const raw = isLong ? compressed : -compressed
+  const raw = -dir * compressed
   const pct = (lr20.slopePct * 100).toFixed(2)
   return { raw, note: `slope ${pct}%/bar` }
 }
 
 function rsiComponent(
-  isLong: boolean,
+  positionPct: number | null,
   rsi: RsiIndicator | null,
 ): { raw: number | null; note: string } {
   if (!rsi) return { raw: null, note: 'no data' }
-  // For a long trade a bearish RSI divergence is a warning; for a short, bullish is the warning.
-  // We never *reward* a same-direction divergence here — RSI is a penalty-only veto.
-  const counter = isLong ? rsi.divergence.bearish : rsi.divergence.bullish
-  if (!counter) return { raw: 0, note: 'no counter-signal' }
-  const raw = DIV_PENALTY[counter.strength]
-  return { raw, note: `${counter.strength} ${isLong ? 'bearish' : 'bullish'} divergence` }
+  const dir = fillDirection(positionPct)
+  if (dir === 0) return { raw: null, note: 'fill direction unknown' }
+  const bear = rsi.divergence.bearish
+  const bull = rsi.divergence.bullish
+  if (!bear && !bull) return { raw: 0, note: 'no divergence' }
+  // A bearish RSI divergence hints at a top → price may fall. Favours the
+  // fill if we need price to fall (dir=+1). Bullish divergence hints at a
+  // bottom → favours fill if dir=-1.
+  const bearWeight = bear ? DIV_STRENGTH[bear.strength] : 0
+  const bullWeight = bull ? DIV_STRENGTH[bull.strength] : 0
+  const raw = -dir * (bullWeight - bearWeight)
+  const parts: string[] = []
+  if (bear) parts.push(`${bear.strength} bearish`)
+  if (bull) parts.push(`${bull.strength} bullish`)
+  return { raw, note: parts.join(' + ') || 'no divergence' }
 }
 
 function clip(n: number, lo: number, hi: number): number {
@@ -139,14 +166,14 @@ function clip(n: number, lo: number, hi: number): number {
 }
 
 export function computeConvergenceScore(inputs: ConvergenceInputs): ConvergenceScore | null {
-  const { isLong, positionPct, peEta, priceChanges, sma, lr20, rsi } = inputs
+  const { positionPct, peEta, priceChanges, sma, lr20, rsi } = inputs
 
   const parts: { key: ConvergenceKey; raw: number | null; note: string }[] = [
     { key: 'drift', ...driftComponent(peEta) },
     { key: 'momentum', ...momentumComponent(positionPct, priceChanges) },
-    { key: 'sma', ...smaComponent(isLong, sma) },
-    { key: 'lr20', ...lr20Component(isLong, lr20) },
-    { key: 'rsi', ...rsiComponent(isLong, rsi) },
+    { key: 'sma', ...smaComponent(positionPct, sma) },
+    { key: 'lr20', ...lr20Component(positionPct, lr20) },
+    { key: 'rsi', ...rsiComponent(positionPct, rsi) },
   ]
 
   // If no component carries any signal, the score is meaningless.
