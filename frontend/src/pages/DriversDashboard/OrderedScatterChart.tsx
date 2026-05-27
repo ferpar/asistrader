@@ -9,19 +9,21 @@ import { Toggle } from './Toggle'
 import chartStyles from '../../components/charts/charts.module.css'
 import styles from './OrderedSection.module.css'
 
-// Diverging palette for the convergence halo. Sampled at the score's absolute
-// magnitude so the same intensity reads on either side of zero.
-const HALO_STRONG_POS = '#1a7f37'
-const HALO_STRONG_NEG = '#cf222e'
-const HALO_NEUTRAL = '#8c959f'
+// Diverging palette for the score-coloured age dots. Magnitude controls
+// opacity so a near-zero score reads as muted/uncertain rather than committing
+// to a strong red or green. The opacity floor keeps even weak signals visible.
+const DOT_STRONG_POS = '#3fb950'
+const DOT_STRONG_NEG = '#f85149'
+const DOT_NEUTRAL = '#8c959f'
+const DOT_MIN_ALPHA = 0.55
 
-function haloColor(score: number): string {
-  const mag = Math.min(1, Math.abs(score) / 75)
-  if (Math.abs(score) < 5) return HALO_NEUTRAL
-  const base = score > 0 ? HALO_STRONG_POS : HALO_STRONG_NEG
-  // For low magnitudes we mix toward neutral by reducing opacity instead of
-  // doing a colour-space blend — keeps the SVG simple, reads as "uncertain".
-  return base + Math.round(mag * 255).toString(16).padStart(2, '0')
+function scoreColor(score: number): string {
+  if (Math.abs(score) < 5) return DOT_NEUTRAL
+  // Saturate by |score| = 40 so mid-strength signals already look fully on.
+  const mag = Math.min(1, Math.abs(score) / 40)
+  const alpha = DOT_MIN_ALPHA + (1 - DOT_MIN_ALPHA) * mag
+  const base = score > 0 ? DOT_STRONG_POS : DOT_STRONG_NEG
+  return base + Math.round(alpha * 255).toString(16).padStart(2, '0')
 }
 
 const FIT_OPTIONS: { id: FitMode; label: string }[] = [
@@ -131,10 +133,7 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
             className={chartStyles.gridLine}
           />
 
-          {/* Bars: position %. The fill keeps the existing above-PE / below-PE
-              semantics; a coloured halo (stroke) on top encodes the convergence
-              score so the user can read "act vs leave alone" alongside the
-              direction of the order. */}
+          {/* Bars: position % — sign-coded red/green per existing semantics. */}
           {sorted.map((r) => {
             const key = String(r.tradeId)
             const x = xScale(key) ?? 0
@@ -142,9 +141,6 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
             const height = Math.abs(yPos(r.positionPct) - zeroY)
             const isHighlight = highlightIds.has(r.tradeId)
             const dimmed = hasActiveQuery && !isHighlight
-            // Highlight stroke takes precedence over the halo so a search match
-            // still reads as the active row.
-            const halo = !isHighlight && r.convergence ? haloColor(r.convergence.score) : null
             return (
               <rect
                 key={`bar-${r.tradeId}`}
@@ -152,8 +148,7 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
                 y={y}
                 width={bandwidth}
                 height={Math.max(1, height)}
-                className={`${styles.posBar} ${r.positionPct >= 0 ? styles.posBarPositive : styles.posBarNegative} ${dimmed ? styles.dimmed : ''} ${isHighlight ? styles.highlight : ''} ${halo ? styles.posBarHalo : ''}`}
-                style={halo ? { stroke: halo } : undefined}
+                className={`${styles.posBar} ${r.positionPct >= 0 ? styles.posBarPositive : styles.posBarNegative} ${dimmed ? styles.dimmed : ''} ${isHighlight ? styles.highlight : ''}`}
               />
             )
           })}
@@ -162,13 +157,16 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
               points stay legible on top of the fit. */}
           {fitPath && <path className={styles.fitLine} d={fitPath} />}
 
-          {/* Dots: order age (left axis) */}
+          {/* Dots: order age (left axis), coloured by convergence score so the
+              "act vs leave alone" signal sits alongside age. Dots without a
+              score fall back to the original neutral info colour. */}
           {sorted.map((r) => {
             const key = String(r.tradeId)
             const x = (xScale(key) ?? 0) + bandwidth / 2
             const y = yAge(r.orderAgeDays ?? 0)
             const isHighlight = highlightIds.has(r.tradeId)
             const dimmed = hasActiveQuery && !isHighlight
+            const fill = r.convergence ? scoreColor(r.convergence.score) : null
             return (
               <circle
                 key={`age-${r.tradeId}`}
@@ -176,6 +174,7 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
                 cy={y}
                 r={isHighlight ? 5 : 3.5}
                 className={`${styles.ageDot} ${dimmed ? styles.dimmed : ''} ${isHighlight ? styles.highlight : ''}`}
+                style={fill ? { fill } : undefined}
               />
             )
           })}
@@ -232,7 +231,7 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
                               value:
                                 (row.convergence.score > 0 ? '+' : '') +
                                 Math.round(row.convergence.score).toString(),
-                              color: haloColor(row.convergence.score),
+                              color: scoreColor(row.convergence.score),
                             },
                           ]
                         : []),
@@ -324,24 +323,22 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
           Position % (below PE)
         </span>
         <span className={chartStyles.legendItem}>
+          Order age dots (coloured by convergence):
           <span
             className={chartStyles.swatch}
-            style={{ background: 'var(--color-info, #0969da)', borderRadius: '50%', width: 8, height: 8 }}
+            style={{ background: DOT_STRONG_NEG, borderRadius: '50%', width: 8, height: 8, marginLeft: 6 }}
           />
-          Order age
-        </span>
-        <span className={chartStyles.legendItem}>
+          drifting away
           <span
             className={chartStyles.swatch}
-            style={{
-              background: 'transparent',
-              border: `2px solid ${HALO_STRONG_NEG}`,
-              borderRadius: 2,
-              width: 10,
-              height: 10,
-            }}
+            style={{ background: DOT_NEUTRAL, borderRadius: '50%', width: 8, height: 8 }}
           />
-          Bar halo: convergence (red = drifting away, green = converging)
+          neutral
+          <span
+            className={chartStyles.swatch}
+            style={{ background: DOT_STRONG_POS, borderRadius: '50%', width: 8, height: 8 }}
+          />
+          converging
         </span>
         {fitPath && (
           <span className={chartStyles.legendItem}>
