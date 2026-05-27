@@ -1,9 +1,11 @@
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import {
   convergenceBand,
   type ConvergenceScore,
 } from '../domain/radar/convergenceScore'
 import styles from './ConvergenceChip.module.css'
+
+const VIEWPORT_PAD = 8
 
 interface Props {
   score: ConvergenceScore
@@ -34,6 +36,7 @@ function formatContribution(value: number): string {
 export function ConvergenceChip({ score, compact = false }: Props) {
   const [popoverPos, setPopoverPos] = useState<{ left: number; top: number } | null>(null)
   const chipRef = useRef<HTMLSpanElement | null>(null)
+  const popoverRef = useRef<HTMLSpanElement | null>(null)
 
   // Position the popover in viewport coordinates anchored to the chip so it
   // escapes any clipping ancestor (the table wrapper uses overflow-x: auto,
@@ -41,8 +44,37 @@ export function ConvergenceChip({ score, compact = false }: Props) {
   function openPopover() {
     if (!chipRef.current) return
     const rect = chipRef.current.getBoundingClientRect()
+    // Provisional placement; clamped to the viewport in the layout effect
+    // below once we know the popover's actual rendered size.
     setPopoverPos({ left: rect.left, top: rect.bottom + 6 })
   }
+
+  // Clamp the popover into the viewport once it's measurable: nudge left/right
+  // if it overflows horizontally, and flip above the chip if there's no room
+  // below. The effect is a fixed point — re-running with already-clamped
+  // coords produces the same coords and short-circuits.
+  useLayoutEffect(() => {
+    if (!popoverPos || !popoverRef.current || !chipRef.current) return
+    const popoverRect = popoverRef.current.getBoundingClientRect()
+    const chipRect = chipRef.current.getBoundingClientRect()
+    let { left, top } = popoverPos
+
+    const maxLeft = window.innerWidth - popoverRect.width - VIEWPORT_PAD
+    if (left > maxLeft) left = maxLeft
+    if (left < VIEWPORT_PAD) left = VIEWPORT_PAD
+
+    if (top + popoverRect.height > window.innerHeight - VIEWPORT_PAD) {
+      const above = chipRect.top - popoverRect.height - 6
+      top =
+        above >= VIEWPORT_PAD
+          ? above
+          : Math.max(VIEWPORT_PAD, window.innerHeight - popoverRect.height - VIEWPORT_PAD)
+    }
+
+    if (left !== popoverPos.left || top !== popoverPos.top) {
+      setPopoverPos({ left, top })
+    }
+  }, [popoverPos])
 
   const band = convergenceBand(score.score)
   const open = popoverPos !== null
@@ -61,6 +93,7 @@ export function ConvergenceChip({ score, compact = false }: Props) {
       {formatScore(score.score, compact)}
       {open && popoverPos && (
         <span
+          ref={popoverRef}
           className={styles.popover}
           style={{ left: popoverPos.left, top: popoverPos.top }}
           role="tooltip"

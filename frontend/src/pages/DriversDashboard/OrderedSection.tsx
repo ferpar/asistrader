@@ -5,6 +5,7 @@ import {
   useRadarStore,
   useTradeStore,
 } from '../../container/ContainerContext'
+import { OrderedDistributions } from './OrderedDistributions'
 import { OrderedScatterChart } from './OrderedScatterChart'
 import { OrderedSummaryCard } from './OrderedSummaryCard'
 import { OrderedTable } from './OrderedTable'
@@ -105,6 +106,7 @@ export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: s
             highlightIds={highlightIds}
             hasDriftData={summary.hasDriftData}
           />
+          <OrderedDistributions rows={rows} />
         </>
       )}
     </section>
