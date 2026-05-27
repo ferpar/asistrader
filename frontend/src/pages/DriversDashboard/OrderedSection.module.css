@@ -40,6 +40,15 @@
   opacity: 0.75;
 }
 
+/* Halo stroke on the position-% bars, coloured by convergence score. The
+ * stroke is set inline (it depends on the score) so this class only owns the
+ * width and join behaviour. */
+.posBarHalo {
+  stroke-width: 2;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+}
+
 .ageDot {
   fill: var(--color-info, #0969da);
   stroke: var(--color-surface, #fff);

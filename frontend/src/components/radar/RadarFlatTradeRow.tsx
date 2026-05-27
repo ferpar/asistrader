@@ -30,6 +30,9 @@ export function RadarFlatTradeRow({ indicator, ticker, trade, metric }: RadarFla
         priceChanges={indicator.priceChanges}
         datedCloses={indicator.datedCloses}
         fmt={fmt}
+        sma={indicator.sma}
+        lr20={indicator.linearRegression.lr20}
+        rsi={indicator.rsi}
       />
     </div>
   )

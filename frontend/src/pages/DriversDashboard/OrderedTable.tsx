@@ -3,6 +3,7 @@ import { useMultiSort, useSortedRows } from '../../hooks/useMultiSort'
 import { fmtMoney, fmtPct } from './format'
 import { signClass } from './signClass'
 import { SortableTh } from './SortableTh'
+import { ConvergenceChip } from '../../components/ConvergenceChip'
 import shared from './shared.module.css'
 import styles from './OrderedSection.module.css'
 
@@ -20,6 +21,7 @@ type OrderedKey =
   | 'amount'
   | 'drift'
   | 'bullish'
+  | 'convergence'
 
 function value(r: OrderedRow, key: OrderedKey) {
   switch (key) {
@@ -49,6 +51,8 @@ function value(r: OrderedRow, key: OrderedKey) {
       return r.driftBadge
     case 'bullish':
       return r.bullishScore
+    case 'convergence':
+      return r.convergence?.score ?? null
   }
 }
 
@@ -111,6 +115,7 @@ export function OrderedTable({
               <>
                 <SortableTh label="Drift" sortKey="drift" sort={sort} />
                 <SortableTh label="SMA align" sortKey="bullish" numeric sort={sort} />
+                <SortableTh label="Conv." sortKey="convergence" numeric sort={sort} />
               </>
             )}
           </tr>
@@ -151,6 +156,13 @@ export function OrderedTable({
                       <span className={shared.muted}>—</span>
                     ) : (
                       `${r.bullishScore}/10`
+                    )}
+                  </td>
+                  <td className={shared.num}>
+                    {r.convergence ? (
+                      <ConvergenceChip score={r.convergence} />
+                    ) : (
+                      <span className={shared.muted}>—</span>
                     )}
                   </td>
                 </>

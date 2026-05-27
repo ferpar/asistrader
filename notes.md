@@ -2,12 +2,13 @@ webMCP exploration
 
 stock vs index comparison ( at radar? ) ( at drivers? )
 
+- create new diverging / converging indicator for ordered trades based on confluence of the current filters of the radar:
+	- sma
+	- averages
+	- drift
+	- rsi
+
 irr
-	new section for ordered trades (with graph) (by trades)
-		- we have a table with the ordered trades just like we do in the unrealized and realized sections
-		- below it we have a graph that represents with two y axes the age of a trade and the position % (distance to PE?) and on the x-axis we have one point per each trade, ordered by descending position
-	
-	DONE - floating / sticky controls, so user doesnt need to scroll back up on each section, to change the view
 	- cummulative should have a max number of days, or alternatively have a parameter of limited days to measure as tail. Perhaps also parameterize the histogram and normal distrib charts to select date ranges for them.. Perhaps all graphs should have the same date range.
 
 radar screen with 
@@ -191,6 +192,12 @@ irr
 	DONE - add chart for daily tir and average holding days but with averages (or perhaps make traces toggleable)
 
 	DONE - summaries need to update with the all / winner /  losers filters
+
+	DONE - new section for ordered trades (with graph) (by trades)
+		- we have a table with the ordered trades just like we do in the unrealized and realized sections
+		- below it we have a graph that represents with two y axes the age of a trade and the position % (distance to PE?) and on the x-axis we have one point per each trade, ordered by descending position
+	
+	DONE - floating / sticky controls, so user doesnt need to scroll back up on each section, to change the view
 
 SMA - improvements:
 	DONE - combinatory score (how many averages below bullish for each of the averages)

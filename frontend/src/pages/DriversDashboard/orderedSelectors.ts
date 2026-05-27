@@ -1,6 +1,10 @@
 import type { TradeWithMetrics, LiveMetrics } from '../../domain/trade/types'
 import type { TickerIndicators } from '../../domain/radar/types'
 import { computeTradeEta } from '../../domain/radar/tradeEta'
+import {
+  computeConvergenceScore,
+  type ConvergenceScore,
+} from '../../domain/radar/convergenceScore'
 
 export type DriftBadge = 'new' | 'ahead' | 'behind' | 'on pace' | '↘ proj'
 
@@ -26,6 +30,8 @@ export interface OrderedRow {
   driftBadge: DriftBadge | null
   bullishScore: number | null
   avgChangePct5d: number | null
+  /** Composite "is the price converging on PE in our favor" score; null when no inputs. */
+  convergence: ConvergenceScore | null
 }
 
 const MS_PER_DAY = 86_400_000
@@ -62,6 +68,18 @@ export function buildOrderedRows(
           ? computeTradeEta(t, m, indicator.priceChanges, indicator.datedCloses, now)
           : null
       const driftBadge = (eta?.pe?.badge ?? null) as DriftBadge | null
+      const positionPct = m?.distanceToPE?.toNumber() ?? null
+      const isLong = t.stopLoss.lt(t.entryPrice)
+
+      const convergence = computeConvergenceScore({
+        isLong,
+        positionPct,
+        peEta: eta?.pe ?? null,
+        priceChanges: indicator?.priceChanges ?? null,
+        sma: indicator?.sma ?? null,
+        lr20: indicator?.linearRegression.lr20 ?? null,
+        rsi: indicator?.rsi ?? null,
+      })
 
       return {
         tradeId: t.id,
@@ -71,17 +89,18 @@ export function buildOrderedRows(
         strategyName: t.strategyName,
         entryPrice: t.entryPrice.toNumber(),
         currentPrice: m?.currentPrice?.toNumber() ?? null,
-        positionPct: m?.distanceToPE?.toNumber() ?? null,
+        positionPct,
         orderAgeDays: t.dateOrdered ? daysSince(t.dateOrdered, now) : null,
         planAgeDays: daysSince(t.datePlanned, now),
         planToOrderDays: t.dateOrdered ? daysBetween(t.datePlanned, t.dateOrdered) : null,
         dateOrdered: t.dateOrdered,
         datePlanned: t.datePlanned,
         amount: t.amount.toNumber(),
-        isLong: t.stopLoss.lt(t.entryPrice),
+        isLong,
         driftBadge,
         bullishScore: indicator?.sma.bullishScore ?? null,
         avgChangePct5d: indicator?.priceChanges.avgChangePct5d ?? null,
+        convergence,
       }
     })
 }

@@ -9,6 +9,21 @@ import { Toggle } from './Toggle'
 import chartStyles from '../../components/charts/charts.module.css'
 import styles from './OrderedSection.module.css'
 
+// Diverging palette for the convergence halo. Sampled at the score's absolute
+// magnitude so the same intensity reads on either side of zero.
+const HALO_STRONG_POS = '#1a7f37'
+const HALO_STRONG_NEG = '#cf222e'
+const HALO_NEUTRAL = '#8c959f'
+
+function haloColor(score: number): string {
+  const mag = Math.min(1, Math.abs(score) / 75)
+  if (Math.abs(score) < 5) return HALO_NEUTRAL
+  const base = score > 0 ? HALO_STRONG_POS : HALO_STRONG_NEG
+  // For low magnitudes we mix toward neutral by reducing opacity instead of
+  // doing a colour-space blend — keeps the SVG simple, reads as "uncertain".
+  return base + Math.round(mag * 255).toString(16).padStart(2, '0')
+}
+
 const FIT_OPTIONS: { id: FitMode; label: string }[] = [
   { id: 'off', label: 'Off' },
   { id: 'linear', label: 'Linear' },
@@ -116,7 +131,10 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
             className={chartStyles.gridLine}
           />
 
-          {/* Bars: position % */}
+          {/* Bars: position %. The fill keeps the existing above-PE / below-PE
+              semantics; a coloured halo (stroke) on top encodes the convergence
+              score so the user can read "act vs leave alone" alongside the
+              direction of the order. */}
           {sorted.map((r) => {
             const key = String(r.tradeId)
             const x = xScale(key) ?? 0
@@ -124,6 +142,9 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
             const height = Math.abs(yPos(r.positionPct) - zeroY)
             const isHighlight = highlightIds.has(r.tradeId)
             const dimmed = hasActiveQuery && !isHighlight
+            // Highlight stroke takes precedence over the halo so a search match
+            // still reads as the active row.
+            const halo = !isHighlight && r.convergence ? haloColor(r.convergence.score) : null
             return (
               <rect
                 key={`bar-${r.tradeId}`}
@@ -131,7 +152,8 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
                 y={y}
                 width={bandwidth}
                 height={Math.max(1, height)}
-                className={`${styles.posBar} ${r.positionPct >= 0 ? styles.posBarPositive : styles.posBarNegative} ${dimmed ? styles.dimmed : ''} ${isHighlight ? styles.highlight : ''}`}
+                className={`${styles.posBar} ${r.positionPct >= 0 ? styles.posBarPositive : styles.posBarNegative} ${dimmed ? styles.dimmed : ''} ${isHighlight ? styles.highlight : ''} ${halo ? styles.posBarHalo : ''}`}
+                style={halo ? { stroke: halo } : undefined}
               />
             )
           })}
@@ -202,6 +224,17 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
                       },
                       ...(row.driftBadge
                         ? [{ label: 'Drift', value: row.driftBadge }]
+                        : []),
+                      ...(row.convergence
+                        ? [
+                            {
+                              label: 'Convergence',
+                              value:
+                                (row.convergence.score > 0 ? '+' : '') +
+                                Math.round(row.convergence.score).toString(),
+                              color: haloColor(row.convergence.score),
+                            },
+                          ]
                         : []),
                     ],
                   })
@@ -296,6 +329,19 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
             style={{ background: 'var(--color-info, #0969da)', borderRadius: '50%', width: 8, height: 8 }}
           />
           Order age
+        </span>
+        <span className={chartStyles.legendItem}>
+          <span
+            className={chartStyles.swatch}
+            style={{
+              background: 'transparent',
+              border: `2px solid ${HALO_STRONG_NEG}`,
+              borderRadius: 2,
+              width: 10,
+              height: 10,
+            }}
+          />
+          Bar halo: convergence (red = drifting away, green = converging)
         </span>
         {fitPath && (
           <span className={chartStyles.legendItem}>
