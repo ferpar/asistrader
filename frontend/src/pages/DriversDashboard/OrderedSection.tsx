@@ -35,6 +35,23 @@ export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: s
     liveMetricsStore.refreshPrices()
   }, [liveMetricsStore, trades])
 
+  // Drive the radar indicator load from this page too — the convergence
+  // score, drift badge, and SMA column all read from radarStore.indicators$.
+  // Mirrors useRadarView so the data is available even if the user hasn't
+  // visited the Radar page in this session.
+  useEffect(() => {
+    const tradeSymbols = Array.from(
+      new Set(
+        trades.filter((t) => t.status !== 'canceled').map((t) => t.ticker.toUpperCase()),
+      ),
+    )
+    radarStore.setDerivedSymbols(tradeSymbols)
+  }, [trades, radarStore])
+
+  useEffect(() => {
+    radarStore.loadIndicators()
+  }, [radarStore])
+
   const [query, setQuery] = useState('')
 
   const rows = useMemo(
@@ -70,15 +87,6 @@ export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: s
         filled. <strong>Position %</strong> is signed distance from current price to
         planned entry; <strong>order age</strong> is days since the order was placed.
         High age or a "behind" drift badge are signals to refresh or cancel the order.
-        {!summary.hasDriftData && (
-          <>
-            {' '}
-            <em>
-              Add these tickers to your Radar watchlist to see drift and SMA alignment
-              here.
-            </em>
-          </>
-        )}
       </p>
 
       {rows.length === 0 ? (
