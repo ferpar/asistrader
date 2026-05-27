@@ -122,6 +122,7 @@ const SORT_KEYS: readonly SortKey[] = [
   'worstDriftToTP',
   'oldestOpenAge',
   'oldestPlanAge',
+  'convergence',
 ]
 
 export function RadarFilterBar({ value, onChange, onReset }: RadarFilterBarProps) {

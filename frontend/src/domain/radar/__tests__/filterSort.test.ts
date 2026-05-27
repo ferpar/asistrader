@@ -586,6 +586,16 @@ describe('tickerSortKeyValue aggregation', () => {
   it('activeCount counts plan+ordered+open', () => {
     expect(tickerSortKeyValue('activeCount', ctx)).toBe(3)
   })
+  it('convergence returns the best score across plan/ordered trades', () => {
+    const score = tickerSortKeyValue('convergence', ctx)
+    expect(score).not.toBeNull()
+    expect(score).toBeGreaterThanOrEqual(-100)
+    expect(score).toBeLessThanOrEqual(100)
+  })
+  it('convergence is null when the ticker has no plan/ordered trades', () => {
+    const openOnly = { ...ctx, trades: [t1, t2] }
+    expect(tickerSortKeyValue('convergence', openOnly)).toBeNull()
+  })
 })
 
 describe('sortTrades (flat view)', () => {
