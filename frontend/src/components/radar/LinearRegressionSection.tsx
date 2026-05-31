@@ -24,7 +24,7 @@ const formatTir = (value: number) => `${(value * 100).toFixed(1)}% TIR`
  * chart comparing the annualized TIRs.
  */
 export function LinearRegressionSection({ linearRegression, fmt }: LinearRegressionSectionProps) {
-  const [freeRange, setFreeRange] = useState(false)
+  const [freeRange, setFreeRange] = useState(true)
   const windows = [
     ['20d', linearRegression.lr20],
     ['50d', linearRegression.lr50],
@@ -67,7 +67,7 @@ export function LinearRegressionSection({ linearRegression, fmt }: LinearRegress
             type="button"
             className={styles.rangeToggle}
             onClick={() => setFreeRange((v) => !v)}
-            title={freeRange ? 'Switch to a fixed −100%…100% range' : 'Switch to a free range fitted to the values'}
+            title={freeRange ? 'Switch to a fixed −100%…100% range' : 'Switch to a free range fitted to the values (anchored at 0%)'}
           >
             {freeRange ? 'Free range' : '±100%'}
           </button>

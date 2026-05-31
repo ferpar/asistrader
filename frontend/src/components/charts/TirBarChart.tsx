@@ -14,9 +14,10 @@ export interface TirBar {
 interface TirBarChartProps {
   bars: TirBar[]
   /**
-   * When true, fit the y-axis to the [min, max] of the values; otherwise use a
-   * fixed −100%…100% range (the default). Bars are clamped into whichever range
-   * is active; their labels always show the true (un-clamped) value.
+   * When true (the default), fit the y-axis to the values, but always keep 0 in
+   * view (bottom ≤ 0%, top ≥ 0%) so the shortest bar's body stays visible when
+   * every value shares a sign. When false, use a fixed −100%…100% range. Bars
+   * are clamped into the active range; their labels show the true value.
    */
   freeRange?: boolean
 }
@@ -25,10 +26,9 @@ const pct = (v: number) => `${Math.round(v * 100)}%`
 
 /**
  * Small bar chart comparing a handful of annualized TIR values, with a dashed
- * line marking their average. The y-axis is a fixed −100%…100% band by default,
- * or fitted to the values' own min/max in free-range mode.
+ * line marking their average. Bars always grow from the 0% baseline.
  */
-export function TirBarChart({ bars, freeRange = false }: TirBarChartProps) {
+export function TirBarChart({ bars, freeRange = true }: TirBarChartProps) {
   const present = bars.filter((b): b is { label: string; value: number } => b.value !== null)
   const values = present.map((b) => b.value)
   const avg = values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : null
@@ -36,12 +36,13 @@ export function TirBarChart({ bars, freeRange = false }: TirBarChartProps) {
   let lo = -1
   let hi = 1
   if (freeRange && values.length) {
-    lo = Math.min(...values)
-    hi = Math.max(...values)
+    // Anchor the range at 0 so an all-positive (or all-negative) set still
+    // shows each bar growing from a shared 0% floor (or ceiling).
+    lo = Math.min(0, ...values)
+    hi = Math.max(0, ...values)
     if (hi - lo < 1e-9) {
-      const pad = Math.max(Math.abs(hi) * 0.1, 0.05)
-      lo -= pad
-      hi += pad
+      hi += 0.05
+      lo -= 0.05
     }
   }
 
@@ -51,10 +52,12 @@ export function TirBarChart({ bars, freeRange = false }: TirBarChartProps) {
     .padding(0.35)
   const y = scaleLinear().domain([lo, hi]).range([H - M.bottom, M.top])
   const clampV = (v: number) => Math.max(lo, Math.min(hi, v))
-  // Bars grow from 0 when it's in range, otherwise from the visible floor.
-  const baseY = y(Math.max(lo, Math.min(hi, 0)))
+  const baseY = y(0)
   const bw = x.bandwidth()
-  const ticks = freeRange ? [lo, (lo + hi) / 2, hi] : [-1, -0.5, 0, 0.5, 1]
+  // 0 is always within range, so it always belongs in the tick set.
+  const ticks = freeRange
+    ? Array.from(new Set([lo, 0, hi]))
+    : [-1, -0.5, 0, 0.5, 1]
 
   return (
     <svg
@@ -93,7 +96,6 @@ export function TirBarChart({ bars, freeRange = false }: TirBarChartProps) {
         const barTop = Math.min(top, baseY)
         const barH = Math.max(1, Math.abs(baseY - top))
         const negative = b.value < 0
-        const above = top <= baseY
         return (
           <g key={b.label}>
             <rect className={negative ? styles.tirBarNeg : styles.tirBar} x={cx} y={barTop} width={bw} height={barH}>
@@ -102,7 +104,7 @@ export function TirBarChart({ bars, freeRange = false }: TirBarChartProps) {
             <text
               className={styles.tirValueLabel}
               x={mid}
-              y={above ? barTop - 3 : barTop + barH + 8}
+              y={negative ? barTop + barH + 8 : barTop - 3}
               textAnchor="middle"
             >
               {pct(b.value)}
