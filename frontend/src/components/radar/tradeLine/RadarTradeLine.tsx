@@ -1,10 +1,18 @@
-import type { DatedClose, PriceChanges } from '../../../domain/radar/types'
+import type {
+  DatedClose,
+  PriceChanges,
+  SmaStructure,
+  LinearRegressionResult,
+  RsiIndicator,
+} from '../../../domain/radar/types'
 import type { TradeWithMetrics, LiveMetrics } from '../../../domain/trade/types'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen } from '../../../utils/trade'
 import { getPositionNum } from '../../../utils/tradeLive'
 import { computeTradeEta } from '../../../domain/radar/tradeEta'
+import { computeConvergenceScore } from '../../../domain/radar/convergenceScore'
 import { EtaCell } from './EtaCell'
 import { TradeActions } from '../../TradeActions'
+import { ConvergenceChip } from '../../ConvergenceChip'
 import styles from '../RadarTickerCard.module.css'
 
 const formatPercentShort = (value: number) =>
@@ -28,9 +36,23 @@ export interface RadarTradeLineProps {
   datedCloses: DatedClose[]
   fmt: (value: number) => string
   leading?: React.ReactNode
+  /** Indicator inputs for the convergence-score chip. Omit to hide the chip. */
+  sma?: SmaStructure
+  lr20?: LinearRegressionResult
+  rsi?: RsiIndicator
 }
 
-export function RadarTradeLine({ trade, metric, priceChanges, datedCloses, fmt, leading }: RadarTradeLineProps) {
+export function RadarTradeLine({
+  trade,
+  metric,
+  priceChanges,
+  datedCloses,
+  fmt,
+  leading,
+  sma,
+  lr20,
+  rsi,
+}: RadarTradeLineProps) {
   const eta = computeTradeEta(trade, metric, priceChanges, datedCloses)
   const positionNum = getPositionNum(metric)
   const peDistNum = metric?.distanceToPE?.toNumber() ?? null
@@ -40,6 +62,19 @@ export function RadarTradeLine({ trade, metric, priceChanges, datedCloses, fmt, 
   const showPeDist = trade.status === 'plan' || trade.status === 'ordered'
   const showPnl = trade.status === 'open'
   const showPosition = trade.status === 'open'
+  // The convergence score is anchored to PE drift, so it only reads cleanly
+  // for trades that haven't opened yet.
+  const showConvergence = trade.status === 'plan' || trade.status === 'ordered'
+  const convergence = showConvergence
+    ? computeConvergenceScore({
+        positionPct: peDistNum,
+        peEta: eta.pe,
+        priceChanges,
+        sma: sma ?? null,
+        lr20: lr20 ?? null,
+        rsi: rsi ?? null,
+      })
+    : null
 
   const pnlText = showPnl && pnlNum !== null && pnlPctNum !== null
     ? `${fmt(pnlNum)} (${formatPercentShort(pnlPctNum)})`
@@ -97,6 +132,12 @@ export function RadarTradeLine({ trade, metric, priceChanges, datedCloses, fmt, 
       <EtaCell label="ETA→PE" kind="pe" cell={eta.pe} />
       <EtaCell label="ETA→TP" kind="tp" cell={eta.tp} />
       <EtaCell label="ETA→SL" kind="sl" cell={eta.sl} />
+      {convergence && (
+        <span className={styles.tradeCell}>
+          <span className={styles.tradeCellLabel}>Conv.</span>
+          <ConvergenceChip score={convergence} />
+        </span>
+      )}
       <span className={styles.tradeActionsCell}>
         <TradeActions trade={trade} currentPrice={currentPriceNum} />
       </span>

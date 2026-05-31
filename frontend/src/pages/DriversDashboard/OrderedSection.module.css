@@ -1,0 +1,91 @@
+.searchInput {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 0.8125rem;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  min-width: 180px;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--color-primary, #0969da);
+  box-shadow: 0 0 0 2px var(--color-primary-light, rgb(9 105 218 / 18%));
+}
+
+/* Row highlight when a search match is present in the table. */
+.rowHighlight {
+  background-color: var(--color-primary-light, rgb(9 105 218 / 12%));
+}
+
+.rowHighlight:hover {
+  background-color: var(--color-primary-light, rgb(9 105 218 / 18%)) !important;
+}
+
+/* Chart bars (position %). Coloured by sign; dim when search is active and
+ * this trade isn't a match. */
+.posBar {
+  transition: opacity 120ms ease-out;
+}
+
+.posBarPositive {
+  fill: var(--color-success, #1a7f37);
+  opacity: 0.75;
+}
+
+.posBarNegative {
+  fill: var(--color-error, #cf222e);
+  opacity: 0.75;
+}
+
+.ageDot {
+  fill: var(--color-info, #0969da);
+  stroke: var(--color-surface, #fff);
+  stroke-width: 1;
+  transition: opacity 120ms ease-out, r 120ms ease-out;
+}
+
+.dimmed {
+  opacity: 0.2;
+}
+
+.highlight {
+  stroke: var(--color-text, #1f2328);
+  stroke-width: 1.5;
+}
+
+/* Toolbar above the chart that holds the age-trend Toggle. */
+.chartToolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.chartToolbarLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+/* Trend overlay on the age dots. Dashed so it reads as a fit rather than
+ * an interpolation of the raw series. */
+.fitLine {
+  fill: none;
+  stroke: var(--color-text-muted);
+  stroke-width: 1.75;
+  stroke-dasharray: 5 3;
+  pointer-events: none;
+}
+
+.fitSwatch {
+  background: linear-gradient(
+    to right,
+    var(--color-text-muted) 0 60%,
+    transparent 60% 100%
+  );
+  background-size: 6px 100%;
+}

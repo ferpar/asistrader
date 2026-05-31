@@ -43,6 +43,7 @@ export type SortKey =
   | 'worstDriftToTP'
   | 'oldestOpenAge'
   | 'oldestPlanAge'
+  | 'convergence'
 
 export type SortDir = 'asc' | 'desc'
 
@@ -92,6 +93,7 @@ export const SORT_KEY_LABELS: Record<SortKey, string> = {
   worstDriftToTP: 'Worst drift to TP',
   oldestOpenAge: 'Oldest open',
   oldestPlanAge: 'Oldest plan',
+  convergence: 'Convergence score',
 }
 
 export const SORT_KEY_DEFAULT_DIR: Record<SortKey, SortDir> = {
@@ -108,4 +110,5 @@ export const SORT_KEY_DEFAULT_DIR: Record<SortKey, SortDir> = {
   worstDriftToTP: 'desc',
   oldestOpenAge: 'desc',
   oldestPlanAge: 'desc',
+  convergence: 'desc',
 }

@@ -3,6 +3,8 @@ import type { TradeWithMetrics, LiveMetrics } from '../../trade/types'
 import { computeTimelineRange, computeDrift } from '../../../utils/timelineExpectations'
 import { computePriceChangesAsOf } from '../indicators'
 import { calculatePlanAge, calculateOpenAge } from '../../../utils/trade'
+import { computeTradeEta } from '../tradeEta'
+import { computeConvergenceScore } from '../convergenceScore'
 import type { SortKey, SortDir, TradeRow } from './types'
 
 function toIsoDay(d: Date): string {
@@ -39,6 +41,29 @@ function maxNonNull(nums: (number | null)[]): number | null {
     if (v === null || n > v) v = n
   }
   return v
+}
+
+/** Convergence score for a single trade — null when not applicable (open
+ *  trades) or when no signal can be derived. Mirrors the inputs assembled in
+ *  RadarTradeLine and OrderedSection's selector. */
+function tradeConvergenceScore(
+  trade: TradeWithMetrics,
+  metric: LiveMetrics | undefined,
+  indicator: TickerIndicators,
+  now: Date,
+): number | null {
+  if (trade.status !== 'plan' && trade.status !== 'ordered') return null
+  const eta = computeTradeEta(trade, metric, indicator.priceChanges, indicator.datedCloses, now)
+  const positionPct = metric?.distanceToPE?.toNumber() ?? null
+  const result = computeConvergenceScore({
+    positionPct,
+    peEta: eta.pe,
+    priceChanges: indicator.priceChanges,
+    sma: indicator.sma,
+    lr20: indicator.linearRegression.lr20,
+    rsi: indicator.rsi,
+  })
+  return result?.score ?? null
 }
 
 function driftBehindDays(
@@ -122,6 +147,16 @@ export function tickerSortKeyValue(key: SortKey, ctx: TickerSortContext): number
       ),
     )
   }
+  if (key === 'convergence') {
+    // Ticker rank uses the *best* (most converging) score across the ticker's
+    // plan/ordered trades — sorting desc puts "tickers with an order about to
+    // fill favourably" at the top, matching the closestToPE idiom.
+    return maxNonNull(
+      planOrderedTrades(trades).map((t) =>
+        tradeConvergenceScore(t, liveMetrics[t.id], indicator, now),
+      ),
+    )
+  }
   return null
 }
 
@@ -193,6 +228,9 @@ export function tradeSortKeyValue(
   if (key === 'oldestPlanAge') return calculatePlanAge(trade)
   if (key === 'worstDriftToTP') {
     return driftBehindDays(trade, metric, indicator.priceChanges, indicator.datedCloses, now)
+  }
+  if (key === 'convergence') {
+    return tradeConvergenceScore(trade, metric, indicator, now)
   }
   return null
 }

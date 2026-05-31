@@ -236,6 +236,10 @@ def _fetch_chunk(
                 sub = df[sym]
             else:
                 sub = df
+            # yfinance occasionally returns a sub-frame with no "Close" level
+            # for thinly-traded or delisted symbols — skip rather than throw.
+            if "Close" not in sub.columns:
+                continue
             close_series = sub["Close"].dropna()
             if close_series.empty:
                 continue

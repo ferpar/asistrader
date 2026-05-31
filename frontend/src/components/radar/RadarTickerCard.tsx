@@ -234,6 +234,9 @@ export const RadarTickerCard = observer(function RadarTickerCard({
                 priceChanges={priceChanges}
                 datedCloses={datedCloses}
                 fmt={fmt}
+                sma={sma}
+                lr20={linearRegression.lr20}
+                rsi={rsi}
               />
             ))}
           </div>

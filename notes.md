@@ -1,5 +1,27 @@
+screener
+	- goal: from 200 tickers after 6 months we get to know which are the tickers to focus more capital on
+		it has a 3 tier system: A B C 
+		the tickers keep going in and out of a tier
+	- we have plenty of indicators that we will use for grading the tickers
+	- but we will combine them with our historical indicators we are deriving in the drivers section for the realized section
+		- TIR per trade
+		- annualized TIR
+		- avg days per trade
+	- and additional 
+		- number of winning trades / over time - trade frequency
+		- number of losing trades / over time - trade frequency
+
+webMCP exploration
+
+stock vs index comparison ( at radar? ) ( at drivers? )
+
+- create new diverging / converging indicator for ordered trades based on confluence of the current filters of the radar:
+	- sma
+	- averages
+	- drift
+	- rsi
+
 irr
-	- floating / sticky controls, so user doesnt need to scroll back up on each section, to change the view
 	- cummulative should have a max number of days, or alternatively have a parameter of limited days to measure as tail. Perhaps also parameterize the histogram and normal distrib charts to select date ranges for them.. Perhaps all graphs should have the same date range.
 
 radar screen with 
@@ -11,6 +33,9 @@ KPIs
 	- open unrealized  TIR winners and losers
 	- closed realized  TIR winners and losers
 	- 
+
+- check trades one-click to action 
+	- surface trades that would not trigger because of the margin
 
 auto trading complete version
 	- final iteration: auto open, and close
@@ -180,6 +205,12 @@ irr
 	DONE - add chart for daily tir and average holding days but with averages (or perhaps make traces toggleable)
 
 	DONE - summaries need to update with the all / winner /  losers filters
+
+	DONE - new section for ordered trades (with graph) (by trades)
+		- we have a table with the ordered trades just like we do in the unrealized and realized sections
+		- below it we have a graph that represents with two y axes the age of a trade and the position % (distance to PE?) and on the x-axis we have one point per each trade, ordered by descending position
+	
+	DONE - floating / sticky controls, so user doesnt need to scroll back up on each section, to change the view
 
 SMA - improvements:
 	DONE - combinatory score (how many averages below bullish for each of the averages)

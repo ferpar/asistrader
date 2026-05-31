@@ -70,6 +70,7 @@ describe('mapTrade', () => {
     stop_loss: 140,
     take_profit: 170,
     date_planned: '2025-01-10',
+    date_ordered: '2025-01-10',
     date_actual: '2025-01-11',
     exit_date: null,
     exit_type: null,
@@ -114,8 +115,14 @@ describe('mapTrade', () => {
     const result = mapTrade(dto)
 
     expect(result.datePlanned).toBeInstanceOf(Date)
+    expect(result.dateOrdered).toBeInstanceOf(Date)
     expect(result.dateActual).toBeInstanceOf(Date)
     expect(result.exitDate).toBeNull()
+  })
+
+  it('maps null date_ordered to null', () => {
+    const result = mapTrade({ ...dto, date_ordered: null })
+    expect(result.dateOrdered).toBeNull()
   })
 
   it('maps metrics as Decimal', () => {

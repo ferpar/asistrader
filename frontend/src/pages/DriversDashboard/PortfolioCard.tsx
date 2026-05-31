@@ -3,9 +3,20 @@ import { fmtMoney, fmtPct, fmtXirr } from './format'
 import { signClass } from './signClass'
 import styles from './PortfolioCard.module.css'
 
-export function PortfolioCard({ group, ccy }: { group: GroupIrr; ccy: string }) {
+type Metric = { label: string; value: string; cls?: string }
+
+export function PortfolioCard({
+  group,
+  ccy,
+  extras = [],
+}: {
+  group: GroupIrr
+  ccy: string
+  /** Extra metrics appended after the standard ones (e.g. expected-orders KPIs). */
+  extras?: Metric[]
+}) {
   const sameCcy = group.currency !== null && group.currency === ccy
-  const metrics: { label: string; value: string; cls?: string }[] = [
+  const metrics: Metric[] = [
     { label: 'Trades', value: String(group.tradeCount) },
     { label: 'Invested', value: fmtMoney(group.investmentBase, ccy) },
     {
@@ -26,6 +37,7 @@ export function PortfolioCard({ group, ccy }: { group: GroupIrr; ccy: string }) 
     { label: 'Avg Days', value: group.avgHoldingDays.toFixed(1) },
     { label: 'TIR (annualized)', value: fmtPct(group.tir), cls: signClass(group.tir) },
     { label: 'XIRR (compound)', value: fmtXirr(group.xirr) },
+    ...extras,
   ]
   return (
     <div className={styles.card}>
