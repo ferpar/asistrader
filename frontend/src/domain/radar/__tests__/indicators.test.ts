@@ -5,6 +5,8 @@ import {
   computePriceChanges,
   computeLinearRegression,
   computeLinearRegressionStructure,
+  annualizedTir,
+  TIR_ANNUALIZATION_DAYS,
   computeRsiSeries,
   findRsiPivots,
   detectDivergenceLine,
@@ -228,6 +230,21 @@ describe('computeLinearRegressionStructure', () => {
     expect(result.lr200.slope).toBeNull()
     expect(result.lr200.slopePct).toBeNull()
     expect(result.lr200.r2).toBeNull()
+  })
+})
+
+describe('annualizedTir', () => {
+  it('returns null when the slope % is null', () => {
+    expect(annualizedTir(null)).toBeNull()
+  })
+
+  it('scales a daily slope % up by the calendar-day factor', () => {
+    expect(annualizedTir(0.002)).toBeCloseTo(0.002 * TIR_ANNUALIZATION_DAYS, 10)
+    expect(TIR_ANNUALIZATION_DAYS).toBe(365)
+  })
+
+  it('preserves the sign of a declining slope', () => {
+    expect(annualizedTir(-0.001)!).toBeLessThan(0)
   })
 })
 

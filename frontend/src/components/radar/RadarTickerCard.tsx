@@ -6,6 +6,7 @@ import { formatPrice } from '../../utils/priceFormat'
 import { RadarTradeLine } from './tradeLine/RadarTradeLine'
 import { RsiSparkline } from './RsiSparkline'
 import { SmaProportionStrip } from './SmaProportionStrip'
+import { LinearRegressionSection } from './LinearRegressionSection'
 import { divergenceRange, divergenceTitle, getRsiTone } from './rsiHelpers'
 import styles from './RadarTickerCard.module.css'
 
@@ -21,8 +22,6 @@ interface RadarTickerCardProps {
 
 const formatPercent = (value: number) =>
   new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)
-
-const formatR2 = (value: number) => value.toFixed(2)
 
 function getStructureColor(structure: string | null): string {
   if (!structure) return ''
@@ -180,27 +179,7 @@ export const RadarTickerCard = observer(function RadarTickerCard({
           </div>
         </div>
 
-        <div className={styles.section}>
-          <div className={styles.sectionLabel}>Linear Regression</div>
-          <div className={styles.changeGrid}>
-            {([
-              ['20d', linearRegression.lr20],
-              ['50d', linearRegression.lr50],
-              ['200d', linearRegression.lr200],
-            ] as const).map(([label, lr]) => (
-              <div key={label} className={styles.changeItem}>
-                <span className={styles.changeLabel}>{label}</span>
-                <span className={lr.slope !== null && lr.slope >= 0 ? 'positive' : 'negative'}>
-                  {lr.slope !== null ? fmt(lr.slope) : '-'}
-                </span>
-                <span className={lr.slopePct !== null && lr.slopePct >= 0 ? 'positive' : 'negative'}>
-                  {lr.slopePct !== null ? formatPercent(lr.slopePct) : '-'}
-                </span>
-                <span>R² {lr.r2 !== null ? formatR2(lr.r2) : '-'}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <LinearRegressionSection linearRegression={linearRegression} fmt={fmt} />
 
         <div className={styles.section}>
           <div className={styles.sectionLabel}>RSI (14)</div>

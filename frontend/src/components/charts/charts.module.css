@@ -70,6 +70,42 @@
   stroke-dasharray: 4 3;
 }
 
+/* TIR bar chart */
+.tirBar {
+  fill: var(--color-success, #1a7f37);
+  opacity: 0.7;
+}
+
+.tirBarNeg {
+  fill: var(--color-error, #cf222e);
+  opacity: 0.7;
+}
+
+.tirBarLabel {
+  font-size: 0.6rem;
+  font-weight: 600;
+  fill: var(--color-text-muted);
+}
+
+.tirValueLabel {
+  font-size: 0.6rem;
+  fill: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.tirAvgLine {
+  stroke: var(--color-text);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.tirAvgLabel {
+  font-size: 0.6rem;
+  font-weight: 600;
+  fill: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Time series + normal-params lines */
 .lineTir {
   fill: none;

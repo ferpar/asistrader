@@ -154,6 +154,18 @@ export function computeLinearRegressionStructure(closes: number[]): LinearRegres
   }
 }
 
+/** Calendar days used to annualize a per-bar (daily) regression slope. */
+export const TIR_ANNUALIZATION_DAYS = 365
+
+/**
+ * Annualized TIR: scales a per-bar slope percentage up to a yearly rate by
+ * multiplying the daily fractional change by {@link TIR_ANNUALIZATION_DAYS}.
+ * Returns a fraction (1 = 100%), or null when the slope % is unavailable.
+ */
+export function annualizedTir(slopePct: number | null): number | null {
+  return slopePct === null ? null : slopePct * TIR_ANNUALIZATION_DAYS
+}
+
 // --- RSI -------------------------------------------------------------------
 
 const RSI_PERIOD = 14
