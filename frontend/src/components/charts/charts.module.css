@@ -93,6 +93,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+.tirZeroLine {
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+  opacity: 0.8;
+}
+
 .tirAvgLine {
   stroke: var(--color-text);
   stroke-width: 1;
