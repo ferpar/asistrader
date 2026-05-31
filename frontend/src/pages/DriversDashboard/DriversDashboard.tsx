@@ -52,6 +52,9 @@ export const DriversDashboard = observer(function DriversDashboard() {
             title="Realized"
             scope={analysis.realized}
             ccy={analysis.baseCurrency}
+            openOrders={
+              analysis.pipeline.slices.find((s) => s.label === 'Open')?.tradeCount ?? 0
+            }
           />
           <ScopeSection
             title="Unrealized"

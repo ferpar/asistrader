@@ -1,3 +1,16 @@
+screener
+	- goal: from 200 tickers after 6 months we get to know which are the tickers to focus more capital on
+		it has a 3 tier system: A B C 
+		the tickers keep going in and out of a tier
+	- we have plenty of indicators that we will use for grading the tickers
+	- but we will combine them with our historical indicators we are deriving in the drivers section for the realized section
+		- TIR per trade
+		- annualized TIR
+		- avg days per trade
+	- and additional 
+		- number of winning trades / over time - trade frequency
+		- number of losing trades / over time - trade frequency
+
 webMCP exploration
 
 stock vs index comparison ( at radar? ) ( at drivers? )
