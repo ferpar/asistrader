@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { Fragment } from 'react'
 import type { LinearRegressionStructure } from '../../domain/radar/types'
 import { annualizedTir } from '../../domain/radar/indicators'
+import { HelpTooltip } from '../HelpTooltip'
 import { TirBarChart } from '../charts/TirBarChart'
 import styles from './RadarTickerCard.module.css'
 
@@ -17,6 +18,14 @@ const formatR2 = (value: number) => value.toFixed(2)
 
 const formatTir = (value: number) => `${(value * 100).toFixed(1)}% TIR`
 
+/** Short legend explaining what the TIR bar chart shows. */
+const TIR_GUIDE: [string, string][] = [
+  ['bars', 'slope %/day × 365 per regression window (20d / 50d / 200d)'],
+  ['avg', 'dashed line marks the average across the bars'],
+  ['0%', 'baseline — bars grow up for gains, down for losses'],
+  ['y-axis', 'fitted to the values, always keeping 0% in view'],
+]
+
 /**
  * Linear-regression block shared by the ticker and benchmark radar cards. Emits
  * two sibling sections so they flow (and fold) independently: the per-window
@@ -24,7 +33,6 @@ const formatTir = (value: number) => `${(value * 100).toFixed(1)}% TIR`
  * chart comparing the annualized TIRs.
  */
 export function LinearRegressionSection({ linearRegression, fmt }: LinearRegressionSectionProps) {
-  const [freeRange, setFreeRange] = useState(true)
   const windows = [
     ['20d', linearRegression.lr20],
     ['50d', linearRegression.lr50],
@@ -62,19 +70,24 @@ export function LinearRegressionSection({ linearRegression, fmt }: LinearRegress
 
       <div className={styles.section}>
         <div className={`${styles.sectionLabel} ${styles.tirHeader}`}>
-          <span>Annualized TIR</span>
-          <button
-            type="button"
-            className={styles.rangeToggle}
-            onClick={() => setFreeRange((v) => !v)}
-            title={freeRange ? 'Switch to a fixed −100%…100% range' : 'Switch to a free range fitted to the values (anchored at 0%)'}
-          >
-            {freeRange ? 'Free range' : '±100%'}
-          </button>
+          <span className={styles.tirHeaderLeft}>
+            Annualized TIR
+            <HelpTooltip ariaLabel="Annualized TIR chart guide">
+              <span className={styles.guideHeading}>Annualized TIR</span>
+              <span className={styles.guideGrid}>
+                {TIR_GUIDE.map(([name, desc]) => (
+                  <Fragment key={name}>
+                    <span className={styles.guideName}>{name}</span>
+                    <span className={styles.guideDesc}>{desc}</span>
+                    <span aria-hidden="true" />
+                  </Fragment>
+                ))}
+              </span>
+            </HelpTooltip>
+          </span>
         </div>
         <TirBarChart
           bars={windows.map(([label, lr]) => ({ label, value: annualizedTir(lr.slopePct) }))}
-          freeRange={freeRange}
         />
       </div>
     </>

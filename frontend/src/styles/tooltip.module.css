@@ -73,3 +73,11 @@
   opacity: 1;
   visibility: visible;
 }
+
+/* Click-pinned state — stays open until dismissed, and is interactive so its
+   text can be selected. */
+.richTooltip.pinned {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}

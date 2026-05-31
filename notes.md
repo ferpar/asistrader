@@ -1,3 +1,5 @@
+data entering -> a user keeps forgetting to mark trades a stop, or inserting the data wrong and creating limit orders that auto-complete on the next tick (day) because they are far above the current price. We need to implement a validation in the create trade inteface to prevent this kind of errors.
+
 screener
 	- goal: from 200 tickers after 6 months we get to know which are the tickers to focus more capital on
 		it has a 3 tier system: A B C 

@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 import type { TargetKind } from '../../../domain/radar/tradeEta'
+import { HelpTooltip } from '../../HelpTooltip'
 import styles from '../RadarTickerCard.module.css'
-import tooltipStyles from '../../../styles/tooltip.module.css'
 
 type GuideTone = 'good' | 'bad' | null
 
@@ -54,27 +54,19 @@ function toneClass(tone: GuideTone): string {
 export function TradeEtaBadgeGuide({ label, kind }: { label: string; kind: TargetKind }) {
   const rows = guideRows(kind)
   return (
-    <span
-      className={`${styles.helpIcon} ${tooltipStyles.richTooltipHost}`}
-      tabIndex={0}
-      role="img"
-      aria-label={`${label} badge guide`}
-    >
-      ?
-      <span className={tooltipStyles.richTooltip} role="tooltip">
-        <span className={styles.guideHeading}>{guideHeading(kind)}</span>
-        <span className={styles.guideGrid}>
-          {rows.map((r) => (
-            <Fragment key={r.name}>
-              <span className={styles.guideName}>{r.name}</span>
-              <span className={styles.guideDesc}>{r.desc}</span>
-              <span className={`${styles.guideTone} ${toneClass(r.tone)}`}>
-                {r.tone ?? '—'}
-              </span>
-            </Fragment>
-          ))}
-        </span>
+    <HelpTooltip ariaLabel={`${label} badge guide`}>
+      <span className={styles.guideHeading}>{guideHeading(kind)}</span>
+      <span className={styles.guideGrid}>
+        {rows.map((r) => (
+          <Fragment key={r.name}>
+            <span className={styles.guideName}>{r.name}</span>
+            <span className={styles.guideDesc}>{r.desc}</span>
+            <span className={`${styles.guideTone} ${toneClass(r.tone)}`}>
+              {r.tone ?? '—'}
+            </span>
+          </Fragment>
+        ))}
       </span>
-    </span>
+    </HelpTooltip>
   )
 }

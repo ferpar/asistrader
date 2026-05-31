@@ -235,23 +235,10 @@
   gap: 8px;
 }
 
-.rangeToggle {
-  font-size: 0.625rem;
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0;
-  padding: 1px 6px;
-  border: 1px solid var(--color-border);
-  border-radius: 3px;
-  background-color: var(--color-bg);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  line-height: 1.4;
-}
-
-.rangeToggle:hover {
-  color: var(--color-text);
-  border-color: var(--color-text-muted);
+.tirHeaderLeft {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .headerRight {
@@ -375,29 +362,6 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-}
-
-.helpIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-muted);
-  font-size: 0.5625rem;
-  font-weight: 700;
-  cursor: help;
-  user-select: none;
-  line-height: 1;
-  padding: 0;
-  background: transparent;
-}
-
-.helpIcon:hover {
-  color: var(--color-text);
-  border-color: var(--color-text-muted);
 }
 
 .guideHeading {
