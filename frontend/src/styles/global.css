@@ -74,6 +74,12 @@
   --color-distance-near-text: #81c784;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   background-color: var(--color-bg);
