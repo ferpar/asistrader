@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { ScopeBlock, TickerView } from '../../domain/irr/types'
+import { computeExpectedOrders } from './expectedOrders'
 import { PortfolioCard } from './PortfolioCard'
 import { Tabs } from './Tabs'
 import { TickerTable } from './TickerTable'
@@ -31,6 +32,7 @@ export function ScopeSection({
   scope,
   ccy,
   unrealized = false,
+  openOrders,
 }: {
   title: string
   scope: ScopeBlock
@@ -38,6 +40,9 @@ export function ScopeSection({
   /** Switches the winners/losers toggle to present-tense Winning/Losing for
    *  open positions, where the outcome isn't locked in. */
   unrealized?: boolean
+  /** Current open-position count. When provided, the summary adds expected
+   *  orders/day and expected-orders-today KPIs (Realized section only). */
+  openOrders?: number
 }) {
   const [tickerView, setTickerView] = useState<TickerView>('mixed')
   const [subView, setSubView] = useState<SubView>('ticker')
@@ -65,6 +70,19 @@ export function ScopeSection({
     return scope.transactions
   }, [scope.transactions, tickerView])
 
+  const expectedExtras = useMemo(() => {
+    if (openOrders === undefined) return undefined
+    const expected = computeExpectedOrders(scope, openOrders, new Date())
+    const mode = expected[tickerView]
+    return [
+      { label: 'Exp. orders/day', value: mode.daily.toFixed(2) },
+      {
+        label: 'Exp. orders today',
+        value: mode.today === null ? '—' : mode.today.toFixed(2),
+      },
+    ]
+  }, [scope, openOrders, tickerView])
+
   // Toggle only makes sense once there's at least one trade in the scope.
   const showTickerViewToggle = scope.portfolio !== null
 
@@ -91,7 +109,7 @@ export function ScopeSection({
         </p>
       )}
       {portfolioGroup ? (
-        <PortfolioCard group={portfolioGroup} ccy={ccy} />
+        <PortfolioCard group={portfolioGroup} ccy={ccy} extras={expectedExtras} />
       ) : (
         <p className={shared.empty}>{emptyMessage}</p>
       )}
