@@ -1,0 +1,175 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.header h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.note {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin: 4px 0 16px;
+}
+
+.refreshBtn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.refreshBtn:hover:not(:disabled) {
+  background-color: var(--color-surface-hover);
+}
+
+.refreshBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.error {
+  color: var(--color-error);
+  background-color: var(--color-error-light);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.empty {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  padding: 6px 0;
+}
+
+.tierSection {
+  margin-bottom: 24px;
+}
+
+.tierHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  margin: 0 0 8px;
+}
+
+.tierBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #fff;
+}
+
+.tierA {
+  background-color: var(--color-success);
+}
+
+.tierB {
+  background-color: var(--color-info);
+}
+
+.tierC {
+  background-color: var(--color-text-muted);
+}
+
+.tierUnrated {
+  background-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.count {
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-size: 0.8rem;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th {
+  text-align: right;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  cursor: help;
+}
+
+.table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table tbody tr:hover {
+  background-color: var(--color-table-row-hover);
+}
+
+.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.symCol {
+  text-align: left;
+}
+
+.sym {
+  font-weight: 600;
+}
+
+.name {
+  color: var(--color-text-muted);
+  margin-left: 6px;
+  font-size: 0.75rem;
+}
+
+.scoreCell {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.guideHeading {
+  display: block;
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 6px;
+}
+
+.guideText {
+  margin: 0 0 6px;
+  max-width: 340px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--color-text);
+}
+
+.guideText:last-child {
+  margin-bottom: 0;
+}

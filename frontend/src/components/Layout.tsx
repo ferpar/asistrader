@@ -15,6 +15,7 @@ const TABS: ReadonlyArray<{ page: AppPage; label: string }> = [
   { page: 'fund', label: 'Fund' },
   { page: 'radar', label: 'Radar' },
   { page: 'drivers', label: 'Drivers' },
+  { page: 'screening', label: 'Screening' },
   { page: 'detection-sandbox', label: 'Detection' },
 ]
 
