@@ -5,12 +5,85 @@ import { HelpTooltip } from '../../components/HelpTooltip'
 import {
   computeScreening,
   DEFAULT_WEIGHTS,
+  HISTORY_CONFIDENCE_K,
+  historyConfidence,
   TIER_A_MIN,
   TIER_B_MIN,
   type ScreenedTicker,
   type Tier,
 } from '../../domain/screening/screeningScore'
 import styles from './ScreeningDashboard.module.css'
+
+const wpct = (w: number) => `${Math.round(w * 100)}%`
+const confPct = (n: number) => `${Math.round(historyConfidence(n) * 100)}%`
+
+/** Per-metric weights within each family, surfaced verbatim in the guide. */
+const HIST_WEIGHTS: [string, number][] = [
+  ['Avg return / trade', DEFAULT_WEIGHTS.historical.avgReturnPerTrade],
+  ['Winner frequency', DEFAULT_WEIGHTS.historical.winnerFreq],
+  ['Loser frequency (lower better)', DEFAULT_WEIGHTS.historical.loserFreq],
+  ['Avg holding days (lower better)', DEFAULT_WEIGHTS.historical.avgHoldingDays],
+]
+const TECH_WEIGHTS: [string, number][] = [
+  ['Avg annualized TIR', DEFAULT_WEIGHTS.technical.avgAnnualizedTir],
+  ['Bullish SMA score', DEFAULT_WEIGHTS.technical.bullishScore],
+  ['Divergence (signed strength)', DEFAULT_WEIGHTS.technical.divergence],
+  ['RSI band (oversold favored)', DEFAULT_WEIGHTS.technical.rsiBand],
+  ['5d / 50d momentum', DEFAULT_WEIGHTS.technical.momentum],
+]
+
+/** The full scoring methodology, shown in the title's info popover. */
+function ScoringGuide() {
+  return (
+    <div className={styles.guide}>
+      <span className={styles.guideHeading}>How the screening score works</span>
+      <p className={styles.guideText}>
+        Each watchlist ticker gets a <strong>0–100 composite</strong> from two families. Every
+        metric is normalized <em>relative to the current watchlist</em> (best in set = full marks),
+        weighted within its family, then the families are combined.
+      </p>
+
+      <span className={styles.guideSub}>
+        Historical — {wpct(DEFAULT_WEIGHTS.family.historical)} of composite
+      </span>
+      <ul className={styles.guideList}>
+        {HIST_WEIGHTS.map(([label, w]) => (
+          <li key={label}>
+            <span>{label}</span>
+            <span>{wpct(w)}</span>
+          </li>
+        ))}
+      </ul>
+
+      <span className={styles.guideSub}>
+        Technical — {wpct(DEFAULT_WEIGHTS.family.technical)} of composite
+      </span>
+      <ul className={styles.guideList}>
+        {TECH_WEIGHTS.map(([label, w]) => (
+          <li key={label}>
+            <span>{label}</span>
+            <span>{wpct(w)}</span>
+          </li>
+        ))}
+      </ul>
+
+      <span className={styles.guideSub}>Confidence — thin-history guard</span>
+      <p className={styles.guideText}>
+        The historical sub-score is <strong>shrunk toward neutral (50)</strong> when a ticker has
+        few closed trades, by a factor n / (n + {HISTORY_CONFIDENCE_K}): 1 trade ≈ {confPct(1)},
+        {' '}5 ≈ {confPct(5)}, 10 ≈ {confPct(10)}. So a single lucky win can't mint an A tier —
+        earning a top tier on track record needs a real sample.
+      </p>
+
+      <span className={styles.guideSub}>Tiers</span>
+      <p className={styles.guideText}>
+        <strong>A</strong> ≥ {TIER_A_MIN}, <strong>B</strong> ≥ {TIER_B_MIN}, <strong>C</strong>{' '}
+        below. Tickers with no closed trades have no historical family and are listed as{' '}
+        <strong>Unrated</strong>.
+      </p>
+    </div>
+  )
+}
 
 const TIER_LABEL: Record<Tier, string> = {
   A: `A — top (score ≥ ${TIER_A_MIN})`,
@@ -119,31 +192,8 @@ export const ScreeningDashboard = observer(function ScreeningDashboard() {
       <div className={styles.header}>
         <h2>
           Screening
-          <HelpTooltip ariaLabel="How screening scores work">
-            <span className={styles.guideHeading}>How the score works</span>
-            <p className={styles.guideText}>
-              Each ticker is scored 0–100 from two families, with{' '}
-              <strong>historical performance ({Math.round(DEFAULT_WEIGHTS.family.historical * 100)}%)</strong>{' '}
-              weighted above <strong>technicals ({Math.round(DEFAULT_WEIGHTS.family.technical * 100)}%)</strong>.
-              Every metric is normalized across the current watchlist (best in set = full marks),
-              then weighted and summed.
-            </p>
-            <p className={styles.guideText}>
-              <strong>Historical:</strong> higher avg return &amp; winner frequency, lower loser
-              frequency &amp; holding days. <strong>Technical:</strong> bullish SMA score, bullish
-              divergence (by strength), oversold RSI, higher avg annualized TIR, with recent 5d/50d
-              momentum as a small counterpoint.
-            </p>
-            <p className={styles.guideText}>
-              The historical sub-score is discounted when a ticker has few closed trades — a single
-              lucky win is pulled toward neutral, so earning a top tier on track record needs a real
-              sample (≈5 trades for most of the credit).
-            </p>
-            <p className={styles.guideText}>
-              Tiers: <strong>A</strong> ≥ {TIER_A_MIN}, <strong>B</strong> ≥ {TIER_B_MIN},{' '}
-              <strong>C</strong> below. Tickers with no closed trades have no historical track record
-              and are listed as <strong>Unrated</strong>.
-            </p>
+          <HelpTooltip ariaLabel="How screening scores work" placement="bottom">
+            <ScoringGuide />
           </HelpTooltip>
         </h2>
         <button className={styles.refreshBtn} onClick={refresh} disabled={loading}>

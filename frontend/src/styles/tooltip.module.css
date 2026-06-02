@@ -81,3 +81,19 @@
   visibility: visible;
   pointer-events: auto;
 }
+
+/* JS-positioned variant: portaled to <body> and placed with inline left/top so
+   it always stays within the viewport. Coordinates are viewport-relative, so it
+   is fixed (not absolute) and drops the CSS-centered anchoring. Always visible
+   and interactive once mounted; the host only renders it while open. */
+.richTooltip.floating {
+  position: fixed;
+  bottom: auto;
+  left: 0;
+  transform: none;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

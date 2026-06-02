@@ -153,6 +153,11 @@
   font-size: 0.9rem;
 }
 
+.guide {
+  width: 340px;
+  max-width: 100%;
+}
+
 .guideHeading {
   display: block;
   font-weight: 700;
@@ -172,4 +177,32 @@
 
 .guideText:last-child {
   margin-bottom: 0;
+}
+
+.guideSub {
+  display: block;
+  font-weight: 700;
+  font-size: 0.74rem;
+  margin: 8px 0 2px;
+  color: var(--color-text);
+}
+
+.guideList {
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.guideList li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.guideList li span:last-child {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
