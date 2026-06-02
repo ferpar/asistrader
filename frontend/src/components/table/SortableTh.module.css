@@ -1,3 +1,9 @@
+/* Right-align numeric headers (was borrowed from the page's shared.num). */
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .sortable {
   cursor: pointer;
   user-select: none;

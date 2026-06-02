@@ -3,7 +3,9 @@ import { observer } from '@legendapp/state/react'
 import { useRadarStore, useIrrStore } from '../../container/ContainerContext'
 import { HelpTooltip } from '../../components/HelpTooltip'
 import { PortfolioCard } from '../../components/portfolio/PortfolioCard'
+import { SortableTh } from '../../components/table/SortableTh'
 import { aggregateGroup } from '../../domain/irr/aggregate'
+import { useMultiSort, useSortedRows, type Sortable } from '../../hooks/useMultiSort'
 import {
   computeScreening,
   DEFAULT_WEIGHTS,
@@ -103,6 +105,8 @@ const signed = (v: number | null) => (v === null ? '—' : v > 0 ? `+${v}` : `${
 const sign = (v: number | null) => (v === null || v === 0 ? '' : v > 0 ? 'positive' : 'negative')
 
 interface Column {
+  /** Stable id used as the sort key. */
+  key: string
   label: string
   title: string
   get: (r: ScreenedTicker) => number | null
@@ -114,36 +118,53 @@ interface Column {
 }
 
 const COLUMNS: Column[] = [
-  { label: 'Hist', title: 'Historical family sub-score (0–100)', get: (r) => r.familyScores.historical, fmt: num0 },
-  { label: 'Tech', title: 'Technical family sub-score (0–100)', get: (r) => r.familyScores.technical, fmt: num0 },
-  { label: 'Avg ret', title: 'Average return per closed trade', get: (r) => r.metrics.avgReturnPerTrade, fmt: pct, signed: true },
-  { label: 'Win%', title: 'Winner frequency among decisive closes', get: (r) => r.metrics.winnerFreq, fmt: pct },
-  { label: 'Loss%', title: 'Loser frequency among decisive closes (lower is better)', get: (r) => r.metrics.loserFreq, fmt: pct },
-  { label: 'Avg days', title: 'Average holding days per trade (lower is better)', get: (r) => r.metrics.avgHoldingDays, fmt: num1 },
-  { label: 'Bullish', title: 'SMA bullish-order score (0–10)', get: (r) => r.metrics.bullishScore, fmt: bullish },
-  { label: 'TIR', title: 'Average annualized TIR over the 20/50/200 regression windows', get: (r) => r.metrics.avgAnnualizedTir, fmt: pct, signed: true },
-  { label: 'RSI', title: 'Latest RSI (oversold <30 favored, overbought >70 penalized)', get: (r) => r.metrics.rsiLatest, fmt: num0, signed: true, colorBy: (r) => r.metrics.rsiBand },
-  { label: 'Div', title: 'Signed divergence strength (+bullish / −bearish)', get: (r) => r.metrics.divergence, fmt: signed, signed: true },
-  { label: 'Mom', title: 'Average of 5d & 50d daily change %', get: (r) => r.metrics.momentum, fmt: pct, signed: true },
+  { key: 'hist', label: 'Hist', title: 'Historical family sub-score (0–100)', get: (r) => r.familyScores.historical, fmt: num0 },
+  { key: 'tech', label: 'Tech', title: 'Technical family sub-score (0–100)', get: (r) => r.familyScores.technical, fmt: num0 },
+  { key: 'avgRet', label: 'Avg ret', title: 'Average return per closed trade', get: (r) => r.metrics.avgReturnPerTrade, fmt: pct, signed: true },
+  { key: 'winPct', label: 'Win%', title: 'Winner frequency among decisive closes', get: (r) => r.metrics.winnerFreq, fmt: pct },
+  { key: 'lossPct', label: 'Loss%', title: 'Loser frequency among decisive closes (lower is better)', get: (r) => r.metrics.loserFreq, fmt: pct },
+  { key: 'avgDays', label: 'Avg days', title: 'Average holding days per trade (lower is better)', get: (r) => r.metrics.avgHoldingDays, fmt: num1 },
+  { key: 'bullish', label: 'Bullish', title: 'SMA bullish-order score (0–10)', get: (r) => r.metrics.bullishScore, fmt: bullish },
+  { key: 'tir', label: 'TIR', title: 'Average annualized TIR over the 20/50/200 regression windows', get: (r) => r.metrics.avgAnnualizedTir, fmt: pct, signed: true },
+  { key: 'rsi', label: 'RSI', title: 'Latest RSI (oversold <30 favored, overbought >70 penalized)', get: (r) => r.metrics.rsiLatest, fmt: num0, signed: true, colorBy: (r) => r.metrics.rsiBand },
+  { key: 'div', label: 'Div', title: 'Signed divergence strength (+bullish / −bearish)', get: (r) => r.metrics.divergence, fmt: signed, signed: true },
+  { key: 'mom', label: 'Mom', title: 'Average of 5d & 50d daily change %', get: (r) => r.metrics.momentum, fmt: pct, signed: true },
 ]
 
+const COL_BY_KEY = new Map(COLUMNS.map((c) => [c.key, c]))
+
+/** Comparable value for one cell, used by the multi-column sorter. */
+function cellValue(r: ScreenedTicker, key: string): Sortable {
+  if (key === 'score') return r.score
+  if (key === 'symbol') return r.symbol
+  if (key === 'tradeCount') return r.tradeCount
+  return COL_BY_KEY.get(key)?.get(r) ?? null
+}
+
 function ScoreTable({ rows, showScore }: { rows: ScreenedTicker[]; showScore: boolean }) {
+  // Default sort mirrors the prior order: rated tiers by score desc, the
+  // score-less unrated list alphabetically by ticker.
+  const sort = useMultiSort<string>(
+    showScore ? [{ key: 'score', dir: 'desc' }] : [{ key: 'symbol', dir: 'asc' }],
+  )
+  const sorted = useSortedRows(rows, sort.terms, cellValue)
+
   if (!rows.length) return <p className={styles.empty}>None.</p>
   return (
     <div className={styles.tableWrap}>
       <table className={styles.table}>
         <thead>
           <tr>
-            {showScore && <th className={styles.num}>Score</th>}
-            <th className={styles.symCol}>Ticker</th>
-            <th className={styles.num} title="Closed trades">N</th>
+            {showScore && <SortableTh label="Score" sortKey="score" numeric sort={sort} />}
+            <SortableTh label="Ticker" sortKey="symbol" sort={sort} className={styles.symCol} />
+            <SortableTh label="N" sortKey="tradeCount" numeric title="Closed trades" sort={sort} />
             {COLUMNS.map((c) => (
-              <th key={c.label} className={styles.num} title={c.title}>{c.label}</th>
+              <SortableTh key={c.key} label={c.label} sortKey={c.key} numeric title={c.title} sort={sort} />
             ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
+          {sorted.map((r) => (
             <tr key={r.symbol}>
               {showScore && <td className={`${styles.num} ${styles.scoreCell}`}>{num0(r.score)}</td>}
               <td className={styles.symCol}>
@@ -154,7 +175,7 @@ function ScoreTable({ rows, showScore }: { rows: ScreenedTicker[]; showScore: bo
               {COLUMNS.map((c) => {
                 const cls = c.signed ? sign((c.colorBy ?? c.get)(r)) : ''
                 return (
-                  <td key={c.label} className={`${styles.num} ${cls}`}>{c.fmt(c.get(r))}</td>
+                  <td key={c.key} className={`${styles.num} ${cls}`}>{c.fmt(c.get(r))}</td>
                 )
               })}
             </tr>
@@ -217,7 +238,8 @@ export const ScreeningDashboard = observer(function ScreeningDashboard() {
 
       <p className={styles.note}>
         Our watchlist ranked into A / B / C from the latest historical + technical data, recomputed
-        on every load. Hover a column header for its meaning.
+        on every load. Hover a column header for its meaning; click to sort, shift-click to add a
+        tie-breaker column.
       </p>
 
       {error && <div className={styles.error}>{error}</div>}
