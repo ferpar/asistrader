@@ -80,6 +80,26 @@ export const DEFAULT_WEIGHTS: ScreeningWeights = {
 export const TIER_A_MIN = 70
 export const TIER_B_MIN = 45
 
+/**
+ * Sample-size confidence for the HISTORICAL family. The historical metrics are
+ * normalized across the rated set, so a ticker with a single lucky win can land
+ * at the top of every historical metric and mint an undeserved A tier from thin
+ * data. To guard against that we shrink the historical family score toward a
+ * neutral baseline by a confidence factor c(n) = n / (n + K), where n is the
+ * number of closed trades: c ramps from low (thin record) toward 1 (proven
+ * record). K is the prior strength in trades — with K = 1.5, confidence reaches
+ * ~0.77 by 5 trades and ~0.87 by 10, so a real track record is needed to earn
+ * full credit. Shrinking toward 0.5 (not 0) means thin records land mid-pack
+ * rather than being punished outright.
+ */
+export const HISTORY_CONFIDENCE_K = 1.5
+const HISTORY_CONFIDENCE_BASELINE = 0.5
+
+/** Confidence weight in 0..1 from the number of closed trades. */
+export function historyConfidence(tradeCount: number): number {
+  return tradeCount / (tradeCount + HISTORY_CONFIDENCE_K)
+}
+
 /** Metrics where a lower raw value is better (inverted during normalization). */
 const LOWER_IS_BETTER = new Set<keyof MetricValues>(['loserFreq', 'avgHoldingDays'])
 
@@ -238,8 +258,15 @@ export function computeScreening(
   for (const k of keys) extents[k] = extent(rated, k)
 
   for (const row of rated) {
-    const hist01 = familyScore01(row.metrics, weights.historical, extents)
+    const hist01raw = familyScore01(row.metrics, weights.historical, extents)
     const tech01 = familyScore01(row.metrics, weights.technical, extents)
+
+    // Shrink the historical family toward neutral when the trade sample is thin,
+    // so few-trade tickers can't reach the top tiers on an unproven record.
+    const confidence = historyConfidence(row.tradeCount)
+    const hist01 =
+      hist01raw === null ? null : confidence * hist01raw + (1 - confidence) * HISTORY_CONFIDENCE_BASELINE
+
     row.familyScores = {
       historical: hist01 === null ? null : hist01 * 100,
       technical: tech01 === null ? null : tech01 * 100,

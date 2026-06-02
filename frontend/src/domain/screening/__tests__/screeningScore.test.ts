@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeScreening, DEFAULT_WEIGHTS, TIER_A_MIN } from '../screeningScore'
+import { computeScreening, DEFAULT_WEIGHTS, TIER_A_MIN, historyConfidence } from '../screeningScore'
 import type { TickerIndicators, LinearRegressionResult } from '../../radar/types'
 import type { ScopeBlock, TradeIrr } from '../../irr/types'
 
@@ -146,5 +146,43 @@ describe('computeScreening', () => {
 
   it('default weights favor the historical family', () => {
     expect(DEFAULT_WEIGHTS.family.historical).toBeGreaterThan(DEFAULT_WEIGHTS.family.technical)
+  })
+
+  it('historyConfidence ramps from low to ~1 as trades accumulate', () => {
+    expect(historyConfidence(0)).toBe(0)
+    expect(historyConfidence(1)).toBeCloseTo(0.4, 5) // 1 / (1 + 1.5)
+    expect(historyConfidence(5)).toBeCloseTo(0.769, 3)
+    expect(historyConfidence(10)).toBeCloseTo(0.87, 2)
+    // Monotonic increasing, never reaching 1.
+    expect(historyConfidence(100)).toBeGreaterThan(historyConfidence(10))
+    expect(historyConfidence(1000)).toBeLessThan(1)
+  })
+
+  it('discounts a thin lucky winner so its single great trade does not mint an A tier', () => {
+    // All three tickers share identical (default) technicals → technical family is
+    // a flat 50 for everyone, so the HISTORICAL shrinkage alone drives the tiers.
+    // THIN is best-in-set on every historical metric but has only one trade;
+    // PROVEN is a hair behind on avg return yet backed by a dozen trades; LOW is a
+    // loser that anchors the bottom of the normalization extents.
+    const thin = indicator({ symbol: 'THIN' })
+    const proven = indicator({ symbol: 'PROVEN' })
+    const low = indicator({ symbol: 'LOW' })
+    const realized = scope([
+      txn({ ticker: 'THIN', returnPct: 0.5, profitNative: 50, holdingDays: 5, isWinner: true }),
+      ...Array.from({ length: 12 }, () =>
+        txn({ ticker: 'PROVEN', returnPct: 0.35, profitNative: 35, holdingDays: 5, isWinner: true }),
+      ),
+      txn({ ticker: 'LOW', returnPct: -0.2, profitNative: -20, holdingDays: 60, isWinner: false }),
+      txn({ ticker: 'LOW', returnPct: -0.1, profitNative: -10, holdingDays: 50, isWinner: false }),
+    ])
+    const r = computeScreening([thin, proven, low], realized)
+    const rows = [...r.tiers.A, ...r.tiers.B, ...r.tiers.C]
+    const t = rows.find((x) => x.symbol === 'THIN')!
+    const p = rows.find((x) => x.symbol === 'PROVEN')!
+    // THIN is best-in-set on raw history yet its lone trade is shrunk toward neutral,
+    // so the proven (many-trade) ticker out-tiers it despite a slightly lower raw record.
+    expect(t.familyScores.historical!).toBeLessThan(p.familyScores.historical!)
+    expect(p.tier).toBe('A')
+    expect(t.tier).not.toBe('A')
   })
 })

@@ -135,6 +135,11 @@ export const ScreeningDashboard = observer(function ScreeningDashboard() {
               momentum as a small counterpoint.
             </p>
             <p className={styles.guideText}>
+              The historical sub-score is discounted when a ticker has few closed trades — a single
+              lucky win is pulled toward neutral, so earning a top tier on track record needs a real
+              sample (≈5 trades for most of the credit).
+            </p>
+            <p className={styles.guideText}>
               Tiers: <strong>A</strong> ≥ {TIER_A_MIN}, <strong>B</strong> ≥ {TIER_B_MIN},{' '}
               <strong>C</strong> below. Tickers with no closed trades have no historical track record
               and are listed as <strong>Unrated</strong>.
