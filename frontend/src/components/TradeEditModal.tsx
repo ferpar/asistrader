@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import FocusLock from 'react-focus-lock'
 import { getOverlayContainer } from '../overlay/overlayLayers'
-import { useFocusTrap } from '../hooks/useFocusTrap'
 import { TradeUpdateRequest, ExitType, ExitLevelCreateRequest, CancelReason, OrderType, TimeInEffect } from '../types/trade'
 import type { Strategy } from '../domain/strategy/types'
 import type { TradeWithMetrics } from '../domain/trade/types'
@@ -92,8 +92,6 @@ export function TradeEditModal({ trade, mode, currentPrice, onClose, onSaved }: 
 
   // Can edit layered mode for plan and ordered trades
   const canEditLayeredMode = trade.status === 'plan' || trade.status === 'ordered'
-
-  const modalRef = useFocusTrap<HTMLDivElement>()
 
   useEffect(() => {
     // Close modal on escape key
@@ -245,7 +243,11 @@ export function TradeEditModal({ trade, mode, currentPrice, onClose, onSaved }: 
 
   return createPortal(
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div ref={modalRef} className={styles.modal} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" tabIndex={-1}>
+      <FocusLock
+        returnFocus
+        className={styles.modal}
+        lockProps={{ role: 'dialog', 'aria-modal': true, onClick: (e: { stopPropagation: () => void }) => e.stopPropagation() }}
+      >
         <div className={styles.modalHeader}>
           <h3>{getTitle()}</h3>
           <button className={styles.modalClose} onClick={onClose}>&times;</button>
@@ -562,7 +564,7 @@ export function TradeEditModal({ trade, mode, currentPrice, onClose, onSaved }: 
             </button>
           </div>
         </form>
-      </div>
+      </FocusLock>
     </div>,
     getOverlayContainer('modal'),
   )

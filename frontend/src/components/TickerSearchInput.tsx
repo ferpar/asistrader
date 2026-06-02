@@ -75,10 +75,16 @@ export function TickerSearchInput({
   }
 
   const handleInputFocus = () => {
+    // Clear on focus so the user can type a fresh search without first erasing
+    // the current value. The dropdown opens showing their existing tickers.
+    setInputValue('')
     setIsOpen(true)
-    if (inputValue.length >= 1) {
-      searchYahoo(inputValue)
-    }
+  }
+
+  const handleInputBlur = () => {
+    // If they leave without picking anything, restore the current selection so
+    // the box never shows empty while a ticker is still selected.
+    if (inputValue === '') setInputValue(selectedTicker)
   }
 
   const handleExistingSelect = (symbol: string) => {
@@ -141,6 +147,7 @@ export function TickerSearchInput({
         value={inputValue}
         onChange={handleInputChange}
         onFocus={handleInputFocus}
+        onBlur={handleInputBlur}
         placeholder="Search ticker..."
         autoComplete="off"
       />

@@ -64,11 +64,12 @@ export const GuidedTradeForm = observer(function GuidedTradeForm({ form, onSubmi
   const next = () => { if (canAdvance && !isLast) setStep((s) => s + 1) }
   const back = () => setStep((s) => Math.max(0, s - 1))
 
-  // Enter / Create: submit on the last step, otherwise act as Next.
+  // Only the Review step submits. On earlier steps, swallow implicit submit
+  // (e.g. Enter in a field) so it can't skip ahead and create the trade —
+  // advancing is done explicitly via the Next button.
   const handleFormSubmit = (e: React.FormEvent) => {
-    if (isLast) { onSubmit(e); return }
     e.preventDefault()
-    next()
+    if (isLast) onSubmit(e)
   }
 
   const currentHint = loadingPrice
