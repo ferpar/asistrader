@@ -1,5 +1,6 @@
 """FastAPI application entry point."""
 
+from brotli_asgi import BrotliMiddleware
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -28,6 +29,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Compress responses (JSON compresses ~80-90%); skip tiny payloads not worth the CPU.
+# Brotli beats gzip on JSON; gzip_fallback keeps clients that don't accept brotli working.
+app.add_middleware(BrotliMiddleware, minimum_size=1000, gzip_fallback=True)
 
 app.include_router(auth_router)
 app.include_router(fund_router)

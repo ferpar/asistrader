@@ -5,6 +5,7 @@ description = "Trading operations management system"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.109.0",
+    "brotli-asgi>=1.4.0",
     "uvicorn[standard]>=0.27.0",
     "sqlalchemy>=2.0.25",
     "psycopg2-binary>=2.9.9",
