@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   useRadarStore,
+  useIndicatorStore,
   useTickerStore,
   useTradeStore,
   useLiveMetricsStore,
@@ -13,6 +14,7 @@ import type { TradeWithMetrics } from '../domain/trade/types'
 
 export function useRadarView() {
   const radarStore = useRadarStore()
+  const indicatorStore = useIndicatorStore()
   const tickerStore = useTickerStore()
   const tradeStore = useTradeStore()
   const metricsStore = useLiveMetricsStore()
@@ -20,11 +22,11 @@ export function useRadarView() {
 
   const [tickers, setTickers] = useState<Ticker[]>([])
 
-  const indicators = radarStore.indicators$.get()
+  const indicators = indicatorStore.indicators$.get()
   const benchmarkIndicators = radarStore.benchmarkIndicators$.get()
   const benchmarks = benchmarkStore.benchmarks$.get()
-  const loading = radarStore.loading$.get()
-  const error = radarStore.error$.get()
+  const loading = indicatorStore.loading$.get() || radarStore.loading$.get()
+  const error = indicatorStore.error$.get() || radarStore.error$.get()
   const watchlist = radarStore.symbols$.get()
   const trades = tradeStore.trades$.get()
   const liveMetrics = metricsStore.metrics$.get()
@@ -43,21 +45,12 @@ export function useRadarView() {
   }, [tradeStore])
 
   useEffect(() => {
-    radarStore.loadIndicators()
+    radarStore.loadBenchmarks()
   }, [radarStore])
 
   useEffect(() => {
     metricsStore.refreshPrices()
   }, [trades, metricsStore])
-
-  useEffect(() => {
-    const tradeSymbols = Array.from(
-      new Set(
-        trades.filter((t) => t.status !== 'canceled').map((t) => t.ticker.toUpperCase()),
-      ),
-    )
-    radarStore.setDerivedSymbols(tradeSymbols)
-  }, [trades, radarStore])
 
   const tickerMap = useMemo(() => {
     const map: Record<string, Ticker> = {}
@@ -119,7 +112,10 @@ export function useRadarView() {
       // Non-fatal: radar already cleared the symbol locally.
     }
   }
-  const refreshIndicators = () => radarStore.loadIndicators(true)
+  const refreshIndicators = () => {
+    indicatorStore.reload(true)
+    radarStore.loadBenchmarks(true)
+  }
   const setView = (next: RadarViewState) => radarStore.setView(next)
   const resetView = () => radarStore.resetView()
 

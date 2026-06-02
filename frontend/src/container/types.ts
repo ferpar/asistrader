@@ -8,6 +8,7 @@ import { TickerStore } from '../domain/ticker/TickerStore'
 import { FundStore } from '../domain/fund/FundStore'
 import { FxStore } from '../domain/fx/FxStore'
 import { RadarStore } from '../domain/radar/RadarStore'
+import { IndicatorStore } from '../domain/radar/IndicatorStore'
 import { BenchmarkStore } from '../domain/benchmark/BenchmarkStore'
 import { IrrStore } from '../domain/irr/IrrStore'
 import { AuthStore } from '../domain/auth/AuthStore'
@@ -26,6 +27,7 @@ export interface AppContainer {
   fundStore: FundStore
   fxStore: FxStore
   radarStore: RadarStore
+  indicatorStore: IndicatorStore
   benchmarkStore: BenchmarkStore
   irrStore: IrrStore
 }

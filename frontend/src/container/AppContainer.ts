@@ -14,6 +14,7 @@ import { FxStore } from '../domain/fx/FxStore'
 import { HttpRadarRepository } from '../domain/radar/HttpRadarRepository'
 import { HttpRadarPresetRepository } from '../domain/radar/HttpRadarPresetRepository'
 import { RadarStore } from '../domain/radar/RadarStore'
+import { IndicatorStore } from '../domain/radar/IndicatorStore'
 import { HttpBenchmarkRepository } from '../domain/benchmark/HttpBenchmarkRepository'
 import { BenchmarkStore } from '../domain/benchmark/BenchmarkStore'
 import { HttpIrrRepository } from '../domain/irr/HttpIrrRepository'
@@ -48,7 +49,8 @@ export function createAppContainer(): AppContainer {
   const benchmarkStore = new BenchmarkStore(benchmarkRepo)
   const radarRepo = new HttpRadarRepository(baseUrl, getAccessToken)
   const radarPresetRepo = new HttpRadarPresetRepository(baseUrl, getAccessToken)
-  const radarStore = new RadarStore(radarRepo, benchmarkRepo, radarPresetRepo)
+  const indicatorStore = new IndicatorStore(radarRepo)
+  const radarStore = new RadarStore(benchmarkRepo, radarPresetRepo)
   const irrRepo = new HttpIrrRepository(baseUrl, getAccessToken)
   const irrStore = new IrrStore(irrRepo)
   return {
@@ -64,6 +66,7 @@ export function createAppContainer(): AppContainer {
     fundStore,
     fxStore,
     radarStore,
+    indicatorStore,
     benchmarkStore,
     irrStore,
   }

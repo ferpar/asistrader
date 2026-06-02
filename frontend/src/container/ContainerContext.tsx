@@ -79,6 +79,10 @@ export function useRadarStore() {
   return useContainer().radarStore
 }
 
+export function useIndicatorStore() {
+  return useContainer().indicatorStore
+}
+
 export function useBenchmarkStore() {
   return useContainer().benchmarkStore
 }

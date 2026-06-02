@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { observer } from '@legendapp/state/react'
 import { Layout } from './components/Layout'
 import { AuthForm } from './components/AuthForm'
+import { IndicatorBootstrap } from './components/IndicatorBootstrap'
 import { TradeDashboard, FundDashboard, RadarDashboard, DriversDashboard, ScreeningDashboard, DetectionSandbox } from './pages'
 import { useAuthStore, useFundStore, useRouterStore } from './container/ContainerContext'
 import { DEFAULT_ROUTE, LOGIN_ROUTE, type AppPage } from './domain/router/RouterStore'
@@ -78,6 +79,7 @@ const App = observer(function App() {
 
   return (
     <Layout currentPage={page} onNavigate={(next) => routerStore.navigate(next)}>
+      <IndicatorBootstrap />
       {PAGES[page]}
     </Layout>
   )

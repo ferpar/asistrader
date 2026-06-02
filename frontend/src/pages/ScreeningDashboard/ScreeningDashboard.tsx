@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { observer } from '@legendapp/state/react'
-import { useRadarStore, useIrrStore } from '../../container/ContainerContext'
+import { useIndicatorStore, useIrrStore } from '../../container/ContainerContext'
 import { HelpTooltip } from '../../components/HelpTooltip'
 import { PortfolioCard } from '../../components/portfolio/PortfolioCard'
 import { SortableTh } from '../../components/table/SortableTh'
@@ -187,18 +187,19 @@ function ScoreTable({ rows, showScore }: { rows: ScreenedTicker[]; showScore: bo
 }
 
 export const ScreeningDashboard = observer(function ScreeningDashboard() {
-  const radarStore = useRadarStore()
+  const indicatorStore = useIndicatorStore()
   const irrStore = useIrrStore()
 
   useEffect(() => {
-    radarStore.loadIndicators()
     irrStore.loadAnalysis()
-  }, [radarStore, irrStore])
+  }, [irrStore])
 
-  const indicators = radarStore.indicators$.get()
+  // Indicators are loaded for the whole universe by IndicatorBootstrap (a common
+  // ancestor), so Screening reads the full set regardless of the Radar page.
+  const indicators = indicatorStore.indicators$.get()
   const analysis = irrStore.analysis$.get()
-  const loading = radarStore.loading$.get() || irrStore.loading$.get()
-  const error = radarStore.error$.get() || irrStore.error$.get()
+  const loading = indicatorStore.loading$.get() || irrStore.loading$.get()
+  const error = indicatorStore.error$.get() || irrStore.error$.get()
 
   const result = useMemo(() => {
     if (!analysis) return null
@@ -218,7 +219,7 @@ export const ScreeningDashboard = observer(function ScreeningDashboard() {
   }, [result, analysis])
 
   const refresh = () => {
-    radarStore.loadIndicators(true)
+    indicatorStore.reload(true)
     irrStore.loadAnalysis()
   }
 

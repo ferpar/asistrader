@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { observer } from '@legendapp/state/react'
 import {
+  useIndicatorStore,
   useLiveMetricsStore,
-  useRadarStore,
   useTradeStore,
 } from '../../container/ContainerContext'
 import { OrderedDistributions } from './OrderedDistributions'
@@ -20,11 +20,13 @@ import styles from './OrderedSection.module.css'
 export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: string }) {
   const tradeStore = useTradeStore()
   const liveMetricsStore = useLiveMetricsStore()
-  const radarStore = useRadarStore()
+  const indicatorStore = useIndicatorStore()
 
   const trades = tradeStore.trades$.get()
   const metrics = liveMetricsStore.metrics$.get()
-  const indicators = radarStore.indicators$.get()
+  // The convergence score, drift badge, and SMA column read shared indicators,
+  // loaded for the whole universe by IndicatorBootstrap (a common ancestor).
+  const indicators = indicatorStore.indicators$.get()
 
   useEffect(() => {
     if (trades.length === 0) tradeStore.loadTrades()
@@ -35,23 +37,6 @@ export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: s
   useEffect(() => {
     liveMetricsStore.refreshPrices()
   }, [liveMetricsStore, trades])
-
-  // Drive the radar indicator load from this page too — the convergence
-  // score, drift badge, and SMA column all read from radarStore.indicators$.
-  // Mirrors useRadarView so the data is available even if the user hasn't
-  // visited the Radar page in this session.
-  useEffect(() => {
-    const tradeSymbols = Array.from(
-      new Set(
-        trades.filter((t) => t.status !== 'canceled').map((t) => t.ticker.toUpperCase()),
-      ),
-    )
-    radarStore.setDerivedSymbols(tradeSymbols)
-  }, [trades, radarStore])
-
-  useEffect(() => {
-    radarStore.loadIndicators()
-  }, [radarStore])
 
   const [query, setQuery] = useState('')
 
