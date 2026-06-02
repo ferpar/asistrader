@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { observer } from '@legendapp/state/react'
 import { useIrrStore } from '../../container/ContainerContext'
+import { CollapsibleSection } from '../../components/CollapsibleSection'
 import { DailySection } from './DailySection'
 import { OrderedSection } from './OrderedSection'
 import { PipelineCard } from './PipelineCard'
@@ -34,19 +35,20 @@ export const DriversDashboard = observer(function DriversDashboard() {
 
       {analysis && (
         <>
-          <section className={shared.section}>
-            <div className={shared.sectionHeader}>
-              <h3 className={`${shared.sectionTitle} ${shared.headerTitle}`}>
-                Pipeline
-              </h3>
-            </div>
-            <p className={shared.note}>
-              Snapshot of how your active trades sit across plan → ordered → open.
-              Open capital is marked at the current price; plan/ordered use the
-              intended investment.
-            </p>
-            <PipelineCard pipeline={analysis.pipeline} ccy={analysis.baseCurrency} />
-          </section>
+          <CollapsibleSection
+            title="Pipeline"
+            persistKey="drivers:pipeline"
+            summary={
+              <>
+                <p className={shared.note}>
+                  Snapshot of how your active trades sit across plan → ordered → open.
+                  Open capital is marked at the current price; plan/ordered use the
+                  intended investment.
+                </p>
+                <PipelineCard pipeline={analysis.pipeline} ccy={analysis.baseCurrency} />
+              </>
+            }
+          />
 
           <ScopeSection
             title="Realized"
@@ -55,12 +57,14 @@ export const DriversDashboard = observer(function DriversDashboard() {
             openOrders={
               analysis.pipeline.slices.find((s) => s.label === 'Open')?.tradeCount ?? 0
             }
+            defaultExpanded={false}
           />
           <ScopeSection
             title="Unrealized"
             scope={analysis.unrealized}
             ccy={analysis.baseCurrency}
             unrealized
+            defaultExpanded={false}
           />
           <OrderedSection ccy={analysis.baseCurrency} />
           <DailySection daily={analysis.daily} ccy={analysis.baseCurrency} />

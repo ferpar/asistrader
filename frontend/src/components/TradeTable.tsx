@@ -4,6 +4,10 @@ import type { TradeWithMetrics, LiveMetrics } from '../domain/trade/types'
 import { ExitLevelSummary } from './ExitLevelSummary'
 import { TradeActions } from './TradeActions'
 import { useLiveMetricsStore, useTradeStore } from '../container/ContainerContext'
+import { useMultiSort, useSortedRows, type Sortable } from '../hooks/useMultiSort'
+import { useTopN } from '../hooks/useTopN'
+import { SortableTh } from './table/SortableTh'
+import { ShowMore } from './table/ShowMore'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen, formatOpenToClose } from '../utils/trade'
 import { getPositionNum } from '../utils/tradeLive'
 import { formatPrice } from '../utils/priceFormat'
@@ -15,27 +19,46 @@ interface TradeTableProps {
   error?: string | null
 }
 
-type SortKey = 'tickerName' | null
-type SortDir = 'asc' | 'desc'
+const ROW_LIMIT = 25
+
+type TradeKey =
+  | 'number' | 'ticker' | 'name' | 'status' | 'units' | 'entry' | 'amount'
+  | 'stop' | 'take' | 'risk' | 'riskPct' | 'profit' | 'profitPct' | 'ratio'
+  | 'planned' | 'actual' | 'strategy' | 'auto' | 'mode' | 'remaining'
+
+function tradeValue(t: TradeWithMetrics, key: TradeKey): Sortable {
+  switch (key) {
+    case 'number': return t.number ?? t.id
+    case 'ticker': return t.ticker
+    case 'name': return t.tickerName
+    case 'status': return t.status
+    case 'units': return t.units
+    case 'entry': return t.entryPrice.toNumber()
+    case 'amount': return t.amount.toNumber()
+    case 'stop': return t.stopLoss.toNumber()
+    case 'take': return t.takeProfit.toNumber()
+    case 'risk': return t.riskAbs.toNumber()
+    case 'riskPct': return t.riskPct.toNumber()
+    case 'profit': return t.profitAbs.toNumber()
+    case 'profitPct': return t.profitPct.toNumber()
+    case 'ratio': return t.ratio.toNumber()
+    case 'planned': return t.datePlanned ? t.datePlanned.getTime() : null
+    case 'actual': return t.dateActual ? t.dateActual.getTime() : null
+    case 'strategy': return t.strategyName
+    case 'auto': return t.autoDetect ? 1 : 0
+    case 'mode': return t.isLayered ? 1 : 0
+    case 'remaining': return t.remainingUnits
+  }
+}
 
 export const TradeTable = observer(function TradeTable({ trades, loading, error }: TradeTableProps) {
   const [expandedTradeId, setExpandedTradeId] = useState<number | null>(null)
   const [selectedTradeId, setSelectedTradeId] = useState<number | null>(null)
   const [docked, setDocked] = useState(true)
-  const [sortKey, setSortKey] = useState<SortKey>(null)
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const sort = useMultiSort<TradeKey>([])
+  const sorted = useSortedRows(trades, sort.terms, tradeValue)
+  const top = useTopN(sorted, ROW_LIMIT)
 
-  const handleSort = (key: Exclude<SortKey, null>) => {
-    if (sortKey !== key) {
-      setSortKey(key)
-      setSortDir('asc')
-    } else if (sortDir === 'asc') {
-      setSortDir('desc')
-    } else {
-      setSortKey(null)
-      setSortDir('asc')
-    }
-  }
   const metricsStore = useLiveMetricsStore()
   const tradeStore = useTradeStore()
 
@@ -56,6 +79,8 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
   if (trades.length === 0) {
     return <div data-testid="empty">No trades found</div>
   }
+
+  const sticky = (n: number) => (docked ? `${styles.stickyCol} ${styles[`stickyCol${n}`]}` : '')
 
   const formatCurrency = (value: number, trade: TradeWithMetrics) =>
     formatPrice(value, trade.tickerCurrency, trade.tickerPriceHint)
@@ -143,52 +168,39 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
     <table data-testid="trade-table" className={styles.tradeTable}>
       <thead>
         <tr>
-          <th className={docked ? `${styles.stickyCol} ${styles.stickyCol1}` : ''}>#</th>
-          <th className={docked ? `${styles.stickyCol} ${styles.stickyCol2}` : ''}>Ticker</th>
-          <th
-            className={`${docked ? `${styles.stickyCol} ${styles.stickyCol3}` : ''} ${styles.tickerName} ${styles.sortable}`}
-            onClick={() => handleSort('tickerName')}
-          >
-            Name <span className={styles.sortIndicator}>{sortKey === 'tickerName' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
-          </th>
-          <th className={docked ? `${styles.stickyCol} ${styles.stickyCol4}` : ''}>Status</th>
-          <th className={styles.separator}>Units</th>
-          <th>Entry</th>
-          <th>Amount</th>
-          <th className={styles.separator}>Stop Loss</th>
-          <th>Take Profit</th>
-          <th className={styles.separator}>Risk</th>
-          <th>Risk %</th>
-          <th>Profit</th>
-          <th>Profit %</th>
-          <th>Ratio</th>
+          <SortableTh label="#" sortKey="number" sort={sort} className={sticky(1)} />
+          <SortableTh label="Ticker" sortKey="ticker" sort={sort} className={sticky(2)} />
+          <SortableTh label="Name" sortKey="name" sort={sort} className={`${sticky(3)} ${styles.tickerName}`} />
+          <SortableTh label="Status" sortKey="status" sort={sort} className={sticky(4)} />
+          <SortableTh label="Units" sortKey="units" sort={sort} className={styles.separator} />
+          <SortableTh label="Entry" sortKey="entry" sort={sort} />
+          <SortableTh label="Amount" sortKey="amount" sort={sort} />
+          <SortableTh label="Stop Loss" sortKey="stop" sort={sort} className={styles.separator} />
+          <SortableTh label="Take Profit" sortKey="take" sort={sort} />
+          <SortableTh label="Risk" sortKey="risk" sort={sort} className={styles.separator} />
+          <SortableTh label="Risk %" sortKey="riskPct" sort={sort} />
+          <SortableTh label="Profit" sortKey="profit" sort={sort} />
+          <SortableTh label="Profit %" sortKey="profitPct" sort={sort} />
+          <SortableTh label="Ratio" sortKey="ratio" sort={sort} />
           <th className={styles.separator}>Current</th>
           <th>Unr. PnL</th>
           <th>Position</th>
           <th>PE Dist</th>
-          <th className={styles.separator}>Planned</th>
-          <th>Actual</th>
+          <SortableTh label="Planned" sortKey="planned" sort={sort} className={styles.separator} />
+          <SortableTh label="Actual" sortKey="actual" sort={sort} />
           <th>Plan Age</th>
           <th>Open Age</th>
           <th>Plan→Open</th>
           <th>Open→Close</th>
-          <th className={styles.separator}>Strategy</th>
-          <th>Auto</th>
-          <th>Mode</th>
-          <th>Remaining</th>
+          <SortableTh label="Strategy" sortKey="strategy" sort={sort} className={styles.separator} />
+          <SortableTh label="Auto" sortKey="auto" sort={sort} />
+          <SortableTh label="Mode" sortKey="mode" sort={sort} />
+          <SortableTh label="Remaining" sortKey="remaining" sort={sort} />
           <th>Actions</th>
         </tr>
       </thead>
       <tbody>
-        {(sortKey
-          ? [...trades].sort((a, b) => {
-              const av = (a.tickerName ?? '').toLowerCase()
-              const bv = (b.tickerName ?? '').toLowerCase()
-              const cmp = av.localeCompare(bv)
-              return sortDir === 'asc' ? cmp : -cmp
-            })
-          : trades
-        ).map((trade) => {
+        {top.visible.map((trade) => {
           const positionNum = getPositionNum(liveMetrics[trade.id])
           const peDistNum = liveMetrics[trade.id]?.distanceToPE?.toNumber() ?? null
           const pnlNum = liveMetrics[trade.id]?.unrealizedPnL?.toNumber() ?? null
@@ -254,7 +266,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
               style={trade.isLayered ? { cursor: 'pointer' } : undefined}
             >
               {trade.isLayered
-                ? <>{expandedTradeId === trade.id ? '\u25BC' : '\u25B6'} Layered</>
+                ? <>{expandedTradeId === trade.id ? '▼' : '▶'} Layered</>
                 : 'Simple'}
             </td>
             <td>
@@ -294,6 +306,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
         })}
       </tbody>
     </table>
+    {top.canExpand && <ShowMore expanded={top.expanded} total={top.total} onToggle={top.toggle} />}
     </div>
   </>
   )

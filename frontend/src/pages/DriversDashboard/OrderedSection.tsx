@@ -5,6 +5,7 @@ import {
   useLiveMetricsStore,
   useTradeStore,
 } from '../../container/ContainerContext'
+import { CollapsibleSection } from '../../components/CollapsibleSection'
 import { OrderedDistributions } from './OrderedDistributions'
 import { OrderedScatterChart } from './OrderedScatterChart'
 import { OrderedSummaryCard } from './OrderedSummaryCard'
@@ -55,10 +56,37 @@ export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: s
     return new Set(rows.filter((r) => matchesQuery(r, query)).map((r) => r.tradeId))
   }, [rows, query])
 
+  const body =
+    rows.length === 0 ? null : (
+      <>
+        <p className={shared.note}>
+          Outstanding orders — capital is committed to the broker but the trade hasn't
+          filled. <strong>Position %</strong> is signed distance from current price to
+          planned entry; <strong>order age</strong> is days since the order was placed.
+          High age or a "behind" drift badge are signals to refresh or cancel the order.
+        </p>
+        <OrderedScatterChart
+          rows={rows}
+          highlightIds={highlightIds}
+          hasActiveQuery={query.trim().length > 0}
+        />
+        <OrderedTable
+          rows={filteredRows}
+          ccy={ccy}
+          highlightIds={highlightIds}
+          hasDriftData={summary.hasDriftData}
+        />
+        <OrderedDistributions rows={rows} />
+      </>
+    )
+
   return (
-    <section className={shared.section}>
-      <div className={shared.sectionHeader}>
-        <h3 className={`${shared.sectionTitle} ${shared.headerTitle}`}>Ordered</h3>
+    <CollapsibleSection
+      title="Ordered"
+      persistKey="drivers:ordered"
+      defaultExpanded={false}
+      count={rows.length}
+      headerExtra={
         <input
           type="search"
           value={query}
@@ -67,33 +95,16 @@ export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: s
           className={styles.searchInput}
           aria-label="Search ordered trades"
         />
-      </div>
-      <p className={shared.note}>
-        Outstanding orders — capital is committed to the broker but the trade hasn't
-        filled. <strong>Position %</strong> is signed distance from current price to
-        planned entry; <strong>order age</strong> is days since the order was placed.
-        High age or a "behind" drift badge are signals to refresh or cancel the order.
-      </p>
-
-      {rows.length === 0 ? (
-        <p className={shared.empty}>No ordered trades right now.</p>
-      ) : (
-        <>
+      }
+      summary={
+        rows.length === 0 ? (
+          <p className={shared.empty}>No ordered trades right now.</p>
+        ) : (
           <OrderedSummaryCard summary={summary} ccy={ccy} />
-          <OrderedScatterChart
-            rows={rows}
-            highlightIds={highlightIds}
-            hasActiveQuery={query.trim().length > 0}
-          />
-          <OrderedTable
-            rows={filteredRows}
-            ccy={ccy}
-            highlightIds={highlightIds}
-            hasDriftData={summary.hasDriftData}
-          />
-          <OrderedDistributions rows={rows} />
-        </>
-      )}
-    </section>
+        )
+      }
+    >
+      {body}
+    </CollapsibleSection>
   )
 })

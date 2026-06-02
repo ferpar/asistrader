@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ScopeBlock, TickerView } from '../../domain/irr/types'
 import { computeExpectedOrders } from './expectedOrders'
+import { CollapsibleSection } from '../../components/CollapsibleSection'
 import { PortfolioCard } from '../../components/portfolio/PortfolioCard'
 import { Tabs } from './Tabs'
 import { TickerTable } from './TickerTable'
@@ -33,6 +34,7 @@ export function ScopeSection({
   ccy,
   unrealized = false,
   openOrders,
+  defaultExpanded = true,
 }: {
   title: string
   scope: ScopeBlock
@@ -43,6 +45,8 @@ export function ScopeSection({
   /** Current open-position count. When provided, the summary adds expected
    *  orders/day and expected-orders-today KPIs (Realized section only). */
   openOrders?: number
+  /** Whether the section's table starts expanded (persisted per section after). */
+  defaultExpanded?: boolean
 }) {
   const [tickerView, setTickerView] = useState<TickerView>('mixed')
   const [subView, setSubView] = useState<SubView>('ticker')
@@ -93,39 +97,44 @@ export function ScopeSection({
         ? `No ${title.toLowerCase()} ${unrealized ? 'losing' : 'loser'} trades.`
         : `No ${title.toLowerCase()} trades yet.`
 
-  return (
-    <section className={shared.section}>
-      <div className={shared.sectionHeader}>
-        <h3 className={`${shared.sectionTitle} ${shared.headerTitle}`}>{title}</h3>
-        {showTickerViewToggle && (
-          <Toggle options={tickerViews} value={tickerView} onChange={setTickerView} />
-        )}
+  const body = showTickerViewToggle ? (
+    <>
+      <p className={shared.note}>
+        {winLossNoun} re-aggregate the summary, each ticker and the trade
+        list from only the winning or losing trades — so the two sides can be
+        read without diluting each other.
+      </p>
+      <div className={shared.stickyTabs}>
+        <Tabs options={SUB_VIEWS} value={subView} onChange={setSubView} />
       </div>
-      {showTickerViewToggle && (
-        <p className={shared.note}>
-          {winLossNoun} re-aggregate the summary, each ticker and the trade
-          list from only the winning or losing trades — so the two sides can be
-          read without diluting each other.
-        </p>
-      )}
-      {portfolioGroup ? (
-        <PortfolioCard group={portfolioGroup} ccy={ccy} extras={expectedExtras} />
+      {subView === 'ticker' ? (
+        <TickerTable rows={tickerRows} ccy={ccy} />
       ) : (
-        <p className={shared.empty}>{emptyMessage}</p>
+        <TransactionTable rows={txnRows} ccy={ccy} />
       )}
+    </>
+  ) : null
 
-      {showTickerViewToggle && (
-        <>
-          <div className={shared.stickyTabs}>
-            <Tabs options={SUB_VIEWS} value={subView} onChange={setSubView} />
-          </div>
-          {subView === 'ticker' ? (
-            <TickerTable rows={tickerRows} ccy={ccy} />
-          ) : (
-            <TransactionTable rows={txnRows} ccy={ccy} />
-          )}
-        </>
-      )}
-    </section>
+  return (
+    <CollapsibleSection
+      title={title}
+      persistKey={`drivers:${title.toLowerCase()}`}
+      defaultExpanded={defaultExpanded}
+      count={portfolioGroup ? tickerRows.length : undefined}
+      headerExtra={
+        showTickerViewToggle ? (
+          <Toggle options={tickerViews} value={tickerView} onChange={setTickerView} />
+        ) : undefined
+      }
+      summary={
+        portfolioGroup ? (
+          <PortfolioCard group={portfolioGroup} ccy={ccy} extras={expectedExtras} />
+        ) : (
+          <p className={shared.empty}>{emptyMessage}</p>
+        )
+      }
+    >
+      {body}
+    </CollapsibleSection>
   )
 }
