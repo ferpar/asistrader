@@ -1,9 +1,13 @@
 import type { DailyPoint } from '../../domain/irr/types'
 import { useMultiSort, useSortedRows } from '../../hooks/useMultiSort'
+import { useTopN } from '../../hooks/useTopN'
 import { fmtMoney, fmtPct } from '../../components/portfolio/format'
 import { signClass } from '../../components/portfolio/signClass'
 import { SortableTh } from '../../components/table/SortableTh'
+import { ShowMore } from '../../components/table/ShowMore'
 import shared from './shared.module.css'
+
+const ROW_LIMIT = 12
 
 type DailyKey =
   | 'date'
@@ -53,6 +57,7 @@ export function DailyTable({
 }) {
   const sort = useMultiSort<DailyKey>([{ key: 'date', dir: 'asc' }])
   const sorted = useSortedRows(rows, sort.terms, dailyValue)
+  const top = useTopN(sorted, ROW_LIMIT)
   return (
     <div className={shared.tableWrap}>
       <table className={shared.table}>
@@ -77,7 +82,7 @@ export function DailyTable({
           </tr>
         </thead>
         <tbody>
-          {sorted.map((d) => (
+          {top.visible.map((d) => (
             <tr key={d.date}>
               <td>{d.date}</td>
               <td className={shared.num}>{d.tradeCount}</td>
@@ -112,6 +117,7 @@ export function DailyTable({
           ))}
         </tbody>
       </table>
+      {top.canExpand && <ShowMore expanded={top.expanded} total={top.total} onToggle={top.toggle} />}
     </div>
   )
 }

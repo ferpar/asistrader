@@ -1,10 +1,18 @@
 import { observer } from '@legendapp/state/react'
 import { formatPrice } from '../utils/priceFormat'
 import { useTradeMetricsStore } from '../container/ContainerContext'
+import { useMultiSort, useSortedRows } from '../hooks/useMultiSort'
+import { useTopN } from '../hooks/useTopN'
+import { CollapsibleSection } from './CollapsibleSection'
+import { SortableTh } from './table/SortableTh'
+import { ShowMore } from './table/ShowMore'
 import skeletonStyles from '../styles/skeleton.module.css'
 import styles from './TickerPerformance.module.css'
 
 const SKELETON_ROW_COUNT = 3
+const ROW_LIMIT = 12
+
+type PerfKey = 'symbol' | 'trades' | 'wl' | 'winRate' | 'totalPnL' | 'avgPnL'
 
 export const TickerPerformance = observer(function TickerPerformance() {
   const tradeMetricsStore = useTradeMetricsStore()
@@ -13,23 +21,42 @@ export const TickerPerformance = observer(function TickerPerformance() {
 
   // Skeleton on every recompute (cold + every base-currency switch / data load).
   const showSkeleton = computing || tickerStats === null
+  const stats = tickerStats ?? []
 
-  if (!showSkeleton && tickerStats!.length === 0) {
-    return null  // No closed trades — original behavior.
+  const sort = useMultiSort<PerfKey>([{ key: 'totalPnL', dir: 'desc' }])
+  const sorted = useSortedRows(stats, sort.terms, (s, key) => {
+    switch (key) {
+      case 'symbol':
+        return s.symbol
+      case 'trades':
+        return s.tradeCount
+      case 'wl':
+        return s.wins
+      case 'winRate':
+        return s.winRate
+      case 'totalPnL':
+        return s.totalPnL
+      case 'avgPnL':
+        return s.avgPnL
+    }
+  })
+  const top = useTopN(sorted, ROW_LIMIT)
+
+  if (!showSkeleton && stats.length === 0) {
+    return null // No closed trades — original behavior.
   }
 
-  return (
-    <div className={styles.tickerPerformance}>
-      <h3>Performance by Ticker</h3>
+  const body = (
+    <>
       <table className={styles.tickerPerformanceTable}>
         <thead>
           <tr>
-            <th>Ticker</th>
-            <th>Trades</th>
-            <th>W/L</th>
-            <th>Win Rate</th>
-            <th>Total P&L</th>
-            <th>Avg P&L</th>
+            <SortableTh label="Ticker" sortKey="symbol" sort={sort} />
+            <SortableTh label="Trades" sortKey="trades" sort={sort} />
+            <SortableTh label="W/L" sortKey="wl" sort={sort} />
+            <SortableTh label="Win Rate" sortKey="winRate" sort={sort} />
+            <SortableTh label="Total P&L" sortKey="totalPnL" sort={sort} />
+            <SortableTh label="Avg P&L" sortKey="avgPnL" sort={sort} />
           </tr>
         </thead>
         <tbody>
@@ -46,7 +73,7 @@ export const TickerPerformance = observer(function TickerPerformance() {
                   <td><span className={skeletonStyles.skeleton} style={{ minWidth: '5em' }}>&nbsp;</span></td>
                 </tr>
               ))
-            : tickerStats!.map((stat) => (
+            : top.visible.map((stat) => (
                 <tr key={stat.symbol}>
                   <td className={styles.tickerSymbol}>{stat.symbol}</td>
                   <td>{stat.tradeCount}</td>
@@ -64,6 +91,18 @@ export const TickerPerformance = observer(function TickerPerformance() {
               ))}
         </tbody>
       </table>
-    </div>
+      {top.canExpand && <ShowMore expanded={top.expanded} total={top.total} onToggle={top.toggle} />}
+    </>
+  )
+
+  return (
+    <CollapsibleSection
+      title="Performance by Ticker"
+      persistKey="trades:tickerPerf"
+      defaultExpanded={false}
+      count={showSkeleton ? undefined : stats.length}
+    >
+      {body}
+    </CollapsibleSection>
   )
 })

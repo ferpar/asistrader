@@ -1,11 +1,15 @@
 import type { OrderedRow, DriftBadge } from './orderedSelectors'
 import { useMultiSort, useSortedRows } from '../../hooks/useMultiSort'
+import { useTopN } from '../../hooks/useTopN'
 import { fmtMoney, fmtPct } from '../../components/portfolio/format'
 import { signClass } from '../../components/portfolio/signClass'
 import { SortableTh } from '../../components/table/SortableTh'
+import { ShowMore } from '../../components/table/ShowMore'
 import { ConvergenceChip } from '../../components/ConvergenceChip'
 import shared from './shared.module.css'
 import styles from './OrderedSection.module.css'
+
+const ROW_LIMIT = 12
 
 type OrderedKey =
   | 'tradeNumber'
@@ -90,6 +94,7 @@ export function OrderedTable({
 }) {
   const sort = useMultiSort<OrderedKey>([{ key: 'position', dir: 'desc' }])
   const sorted = useSortedRows(rows, sort.terms, value)
+  const top = useTopN(sorted, ROW_LIMIT)
 
   if (rows.length === 0) {
     return <p className={shared.empty}>No ordered trades match this search.</p>
@@ -121,7 +126,7 @@ export function OrderedTable({
           </tr>
         </thead>
         <tbody>
-          {sorted.map((r) => (
+          {top.visible.map((r) => (
             <tr
               key={r.tradeId}
               className={highlightIds.has(r.tradeId) ? styles.rowHighlight : ''}
@@ -171,6 +176,7 @@ export function OrderedTable({
           ))}
         </tbody>
       </table>
+      {top.canExpand && <ShowMore expanded={top.expanded} total={top.total} onToggle={top.toggle} />}
     </div>
   )
 }

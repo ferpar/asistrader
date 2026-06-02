@@ -1,9 +1,13 @@
 import type { GroupIrr } from '../../domain/irr/types'
 import { useMultiSort, useSortedRows } from '../../hooks/useMultiSort'
+import { useTopN } from '../../hooks/useTopN'
 import { fmtMoney, fmtPct, fmtXirr } from '../../components/portfolio/format'
 import { signClass } from '../../components/portfolio/signClass'
 import { SortableTh } from '../../components/table/SortableTh'
+import { ShowMore } from '../../components/table/ShowMore'
 import shared from './shared.module.css'
+
+const ROW_LIMIT = 12
 
 type GroupKey =
   | 'ticker'
@@ -42,6 +46,7 @@ function groupValue(g: GroupIrr, key: GroupKey) {
 export function TickerTable({ rows, ccy }: { rows: GroupIrr[]; ccy: string }) {
   const sort = useMultiSort<GroupKey>([{ key: 'profit', dir: 'desc' }])
   const sorted = useSortedRows(rows, sort.terms, groupValue)
+  const top = useTopN(sorted, ROW_LIMIT)
   if (rows.length === 0) {
     return <p className={shared.empty}>No tickers in this view.</p>
   }
@@ -62,7 +67,7 @@ export function TickerTable({ rows, ccy }: { rows: GroupIrr[]; ccy: string }) {
           </tr>
         </thead>
         <tbody>
-          {sorted.map((g) => (
+          {top.visible.map((g) => (
             <tr key={g.label}>
               <td>
                 <span className={shared.ticker}>{g.label}</span>
@@ -87,6 +92,7 @@ export function TickerTable({ rows, ccy }: { rows: GroupIrr[]; ccy: string }) {
           ))}
         </tbody>
       </table>
+      {top.canExpand && <ShowMore expanded={top.expanded} total={top.total} onToggle={top.toggle} />}
     </div>
   )
 }

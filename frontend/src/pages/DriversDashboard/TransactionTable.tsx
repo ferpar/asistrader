@@ -1,9 +1,13 @@
 import type { TradeIrr } from '../../domain/irr/types'
 import { useMultiSort, useSortedRows } from '../../hooks/useMultiSort'
+import { useTopN } from '../../hooks/useTopN'
 import { fmtMoney, fmtPct, fmtXirr } from '../../components/portfolio/format'
 import { signClass } from '../../components/portfolio/signClass'
 import { SortableTh } from '../../components/table/SortableTh'
+import { ShowMore } from '../../components/table/ShowMore'
 import shared from './shared.module.css'
+
+const ROW_LIMIT = 12
 
 type TxnKey =
   | 'ticker'
@@ -45,6 +49,7 @@ function txnValue(r: TradeIrr, key: TxnKey) {
 export function TransactionTable({ rows, ccy }: { rows: TradeIrr[]; ccy: string }) {
   const sort = useMultiSort<TxnKey>([{ key: 'closed', dir: 'desc' }])
   const sorted = useSortedRows(rows, sort.terms, txnValue)
+  const top = useTopN(sorted, ROW_LIMIT)
   if (rows.length === 0) {
     return <p className={shared.empty}>No transactions in this view.</p>
   }
@@ -66,7 +71,7 @@ export function TransactionTable({ rows, ccy }: { rows: TradeIrr[]; ccy: string 
           </tr>
         </thead>
         <tbody>
-          {sorted.map((r) => (
+          {top.visible.map((r) => (
             <tr key={r.tradeId}>
               <td>
                 <span className={shared.ticker}>{r.ticker}</span>
@@ -92,6 +97,7 @@ export function TransactionTable({ rows, ccy }: { rows: TradeIrr[]; ccy: string 
           ))}
         </tbody>
       </table>
+      {top.canExpand && <ShowMore expanded={top.expanded} total={top.total} onToggle={top.toggle} />}
     </div>
   )
 }
