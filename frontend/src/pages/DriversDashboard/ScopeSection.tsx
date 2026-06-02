@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ScopeBlock, TickerView } from '../../domain/irr/types'
 import { computeExpectedOrders } from './expectedOrders'
-import { PortfolioCard } from './PortfolioCard'
+import { PortfolioCard } from '../../components/portfolio/PortfolioCard'
 import { Tabs } from './Tabs'
 import { TickerTable } from './TickerTable'
 import { Toggle } from './Toggle'

@@ -6,7 +6,7 @@ import {
   type SmaOverlay,
 } from '../../components/charts/MetricTimeSeriesChart'
 import { TimeSeriesChart } from '../../components/charts/TimeSeriesChart'
-import { fmtDaysTick, fmtPctTick } from './format'
+import { fmtDaysTick, fmtPctTick } from '../../components/portfolio/format'
 import { Toggle } from './Toggle'
 import styles from './ThroughTimeChart.module.css'
 

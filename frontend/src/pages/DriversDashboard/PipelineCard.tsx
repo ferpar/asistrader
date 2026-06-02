@@ -1,5 +1,5 @@
 import type { Pipeline, PipelineSlice } from '../../domain/irr/types'
-import { fmtMoney, fmtPct } from './format'
+import { fmtMoney, fmtPct } from '../../components/portfolio/format'
 import shared from './shared.module.css'
 import styles from './PipelineCard.module.css'
 

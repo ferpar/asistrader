@@ -1,4 +1,4 @@
-import shared from './shared.module.css'
+import shared from './signClass.module.css'
 
 /** Returns the CSS class that colors a value green / red / neutral by sign. */
 export function signClass(value: number): string {

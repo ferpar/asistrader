@@ -1,4 +1,4 @@
-/** Money / percentage / IRR formatting for the Drivers dashboard. */
+/** Money / percentage / IRR formatting shared by IRR/portfolio views. */
 
 export function fmtMoney(value: number, ccy: string): string {
   if (ccy === 'GBp' || ccy === 'GBX') return `${value.toFixed(0)} GBp`

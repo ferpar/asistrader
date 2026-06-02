@@ -2,6 +2,8 @@ import { useEffect, useMemo } from 'react'
 import { observer } from '@legendapp/state/react'
 import { useRadarStore, useIrrStore } from '../../container/ContainerContext'
 import { HelpTooltip } from '../../components/HelpTooltip'
+import { PortfolioCard } from '../../components/portfolio/PortfolioCard'
+import { aggregateGroup } from '../../domain/irr/aggregate'
 import {
   computeScreening,
   DEFAULT_WEIGHTS,
@@ -182,6 +184,18 @@ export const ScreeningDashboard = observer(function ScreeningDashboard() {
     return computeScreening(indicators, analysis.realized, DEFAULT_WEIGHTS)
   }, [indicators, analysis])
 
+  // Realized-performance aggregate of each tier's tickers, for the per-tier
+  // PortfolioCard. Mixed-currency, so currency stays null (card shows FX drift).
+  const tierGroups = useMemo(() => {
+    if (!result || !analysis) return null
+    const txns = analysis.realized.transactions
+    const groupFor = (rows: ScreenedTicker[]) => {
+      const symbols = new Set(rows.map((r) => r.symbol.toUpperCase()))
+      return aggregateGroup('tier', txns.filter((t) => symbols.has(t.ticker.toUpperCase())))
+    }
+    return { A: groupFor(result.tiers.A), B: groupFor(result.tiers.B), C: groupFor(result.tiers.C) }
+  }, [result, analysis])
+
   const refresh = () => {
     radarStore.loadIndicators(true)
     irrStore.loadAnalysis()
@@ -211,16 +225,24 @@ export const ScreeningDashboard = observer(function ScreeningDashboard() {
 
       {result && (
         <>
-          {(['A', 'B', 'C'] as Tier[]).map((tier) => (
-            <section key={tier} className={styles.tierSection}>
-              <h3 className={styles.tierHeading}>
-                <span className={`${styles.tierBadge} ${styles[`tier${tier}`]}`}>{tier}</span>
-                <span>{TIER_LABEL[tier]}</span>
-                <span className={styles.count}>{result.tiers[tier].length}</span>
-              </h3>
-              <ScoreTable rows={result.tiers[tier]} showScore />
-            </section>
-          ))}
+          {(['A', 'B', 'C'] as Tier[]).map((tier) => {
+            const group = tierGroups?.[tier] ?? null
+            return (
+              <section key={tier} className={styles.tierSection}>
+                <h3 className={styles.tierHeading}>
+                  <span className={`${styles.tierBadge} ${styles[`tier${tier}`]}`}>{tier}</span>
+                  <span>{TIER_LABEL[tier]}</span>
+                  <span className={styles.count}>{result.tiers[tier].length}</span>
+                </h3>
+                {group && (
+                  <div className={styles.tierCard}>
+                    <PortfolioCard group={group} ccy={analysis?.baseCurrency ?? ''} />
+                  </div>
+                )}
+                <ScoreTable rows={result.tiers[tier]} showScore />
+              </section>
+            )
+          })}
 
           <section className={styles.tierSection}>
             <h3 className={styles.tierHeading}>

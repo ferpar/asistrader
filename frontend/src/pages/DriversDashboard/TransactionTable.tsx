@@ -1,7 +1,7 @@
 import type { TradeIrr } from '../../domain/irr/types'
 import { useMultiSort, useSortedRows } from '../../hooks/useMultiSort'
-import { fmtMoney, fmtPct, fmtXirr } from './format'
-import { signClass } from './signClass'
+import { fmtMoney, fmtPct, fmtXirr } from '../../components/portfolio/format'
+import { signClass } from '../../components/portfolio/signClass'
 import { SortableTh } from './SortableTh'
 import shared from './shared.module.css'
 

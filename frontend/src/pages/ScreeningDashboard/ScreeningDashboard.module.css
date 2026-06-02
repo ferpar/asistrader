@@ -56,6 +56,11 @@
   margin-bottom: 24px;
 }
 
+/* Per-tier realized-performance card, between the tier heading and its table. */
+.tierCard {
+  margin-bottom: 12px;
+}
+
 .tierHeading {
   display: flex;
   align-items: center;

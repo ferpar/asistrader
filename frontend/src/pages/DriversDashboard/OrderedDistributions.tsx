@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import type { OrderedRow } from './orderedSelectors'
 import { NormalParamsChart } from '../../components/charts/NormalParamsChart'
-import { fmtDaysTick, fmtPctTick } from './format'
+import { fmtDaysTick, fmtPctTick } from '../../components/portfolio/format'
 import shared from './shared.module.css'
 import styles from './DailyDistributions.module.css'
 

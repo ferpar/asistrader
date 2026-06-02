@@ -1,0 +1,8 @@
+/* Sign coloring for IRR/portfolio values. Mirrors the success/error tokens. */
+.pos {
+  color: var(--color-success, #1a7f37);
+}
+
+.neg {
+  color: var(--color-error, #cf222e);
+}

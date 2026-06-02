@@ -1,8 +1,8 @@
 import type { OrderedSummary } from './orderedSelectors'
 import { STALE_ORDER_DAYS } from './orderedSelectors'
-import { fmtMoney, fmtPct } from './format'
-import { signClass } from './signClass'
-import styles from './PortfolioCard.module.css'
+import { fmtMoney, fmtPct } from '../../components/portfolio/format'
+import { signClass } from '../../components/portfolio/signClass'
+import styles from '../../components/portfolio/PortfolioCard.module.css'
 
 interface Metric {
   label: string
