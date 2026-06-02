@@ -98,3 +98,22 @@ body {
 .neutral {
   color: var(--color-text-muted);
 }
+
+/* Overlay layer for all portaled UI (see src/overlay/overlayLayers.ts). The
+   isolated root forms its own stacking context, so it paints above the app
+   regardless of app z-index; the sublayers order tooltips above modals. The
+   layer divs have no box, so only their fixed-position children take pointer
+   events. */
+#overlay-root {
+  isolation: isolate;
+}
+
+#overlay-modals {
+  position: relative;
+  z-index: 1;
+}
+
+#overlay-tooltips {
+  position: relative;
+  z-index: 2;
+}

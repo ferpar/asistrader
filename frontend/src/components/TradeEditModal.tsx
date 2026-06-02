@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import { getOverlayContainer } from '../overlay/overlayLayers'
 import { TradeUpdateRequest, ExitType, ExitLevelCreateRequest, CancelReason, OrderType, TimeInEffect } from '../types/trade'
 import type { Strategy } from '../domain/strategy/types'
 import type { TradeWithMetrics } from '../domain/trade/types'
@@ -238,7 +240,7 @@ export function TradeEditModal({ trade, mode, currentPrice, onClose, onSaved }: 
   // Calculate totals for level validation display
   const tpTotal = tpLevels.reduce((sum, l) => sum + (parseFloat(l.units_pct) || 0), 0)
 
-  return (
+  return createPortal(
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
         <div className={styles.modalHeader}>
@@ -558,6 +560,7 @@ export function TradeEditModal({ trade, mode, currentPrice, onClose, onSaved }: 
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    getOverlayContainer('modal'),
   )
 }

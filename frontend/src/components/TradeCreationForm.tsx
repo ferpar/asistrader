@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { observer } from '@legendapp/state/react'
+import { getOverlayContainer } from '../overlay/overlayLayers'
 import { TickerSearchInput } from './TickerSearchInput'
 import { PriceInput } from './PriceInput'
 import { useTradeCreation } from '../hooks/useTradeCreation'
@@ -323,5 +324,5 @@ export const TradeCreationForm = observer(function TradeCreationForm({ onClose, 
     </div>
   )
 
-  return createPortal(modalContent, document.body)
+  return createPortal(modalContent, getOverlayContainer('modal'))
 })

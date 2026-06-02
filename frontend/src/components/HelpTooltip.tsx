@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { getOverlayContainer } from '../overlay/overlayLayers'
 import tooltipStyles from '../styles/tooltip.module.css'
 import styles from './HelpTooltip.module.css'
 
@@ -144,7 +145,7 @@ export function HelpTooltip({ ariaLabel, children, glyph = '?', placement = 'top
       >
         {children}
       </span>,
-      document.body,
+      getOverlayContainer('tooltip'),
     )
 
   return (

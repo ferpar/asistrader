@@ -8,6 +8,12 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Overlay layer for portaled UI. Placed after #root (paints above) and
+         isolated so it's immune to app z-index. Sublayers: tooltips over modals. -->
+    <div id="overlay-root">
+      <div id="overlay-modals"></div>
+      <div id="overlay-tooltips"></div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
