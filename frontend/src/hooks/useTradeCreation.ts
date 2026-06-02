@@ -36,7 +36,7 @@ export function useTradeCreation(initialTicker?: string) {
     date_planned: localTodayIso(),
     strategy_id: '',
     auto_detect: false,
-    order_type: '' as OrderType | '',
+    order_type: 'limit' as OrderType,
     time_in_effect: '' as TimeInEffect | '',
     gtd_date: '',
   })
@@ -273,7 +273,7 @@ export function useTradeCreation(initialTicker?: string) {
       date_planned: localTodayIso(),
       strategy_id: '',
       auto_detect: false,
-      order_type: '',
+      order_type: 'limit',
       time_in_effect: '',
       gtd_date: '',
     })
@@ -319,7 +319,7 @@ export function useTradeCreation(initialTicker?: string) {
         strategy_id: formData.strategy_id ? parseInt(formData.strategy_id) : null,
         auto_detect: formData.auto_detect,
         exit_levels: exitLevelsToSend,
-        order_type: formData.order_type ? formData.order_type as OrderType : null,
+        order_type: formData.order_type,
         time_in_effect: formData.time_in_effect ? formData.time_in_effect as TimeInEffect : null,
         gtd_date: formData.time_in_effect === 'gtd' && formData.gtd_date ? formData.gtd_date : null,
       }

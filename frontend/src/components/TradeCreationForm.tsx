@@ -150,7 +150,6 @@ export const TradeCreationForm = observer(function TradeCreationForm({ onClose, 
               <div className={formStyles.formGroup}>
                 <label htmlFor="order_type">Order Type</label>
                 <select id="order_type" name="order_type" value={formData.order_type} onChange={handleChange}>
-                  <option value="">None</option>
                   <option value="limit">Limit</option>
                   <option value="stop">Stop</option>
                   <option value="market">Market</option>
