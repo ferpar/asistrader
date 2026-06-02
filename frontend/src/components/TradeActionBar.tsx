@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { observer } from '@legendapp/state/react'
-import { TradeCreationForm } from './TradeCreationForm'
+import { TradeCreationModal } from './TradeCreationModal'
 import { AlertsModal } from './AlertsModal'
 import { TradeEditModal, EditMode } from './TradeEditModal'
 import type { AnyAlert, TradeWithMetrics } from '../domain/trade/types'
@@ -83,7 +83,7 @@ export const TradeActionBar = observer(function TradeActionBar() {
         <div className={`${styles.syncResult} ${styles.syncError}`}>{sync.error}</div>
       )}
 
-      {showCreateModal && <TradeCreationForm onClose={() => setShowCreateModal(false)} />}
+      {showCreateModal && <TradeCreationModal onClose={() => setShowCreateModal(false)} />}
       {showAlertsModal && (
         <AlertsModal
           onClose={() => setShowAlertsModal(false)}

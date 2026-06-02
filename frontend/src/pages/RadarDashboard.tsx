@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { observer } from '@legendapp/state/react'
 import { TickerSearchInput } from '../components/TickerSearchInput'
 import { BenchmarkSearchInput } from '../components/BenchmarkSearchInput'
-import { TradeCreationForm } from '../components/TradeCreationForm'
+import { TradeCreationModal } from '../components/TradeCreationModal'
 import { RadarTickerCard } from '../components/radar/RadarTickerCard'
 import { RadarBenchmarkCard } from '../components/radar/RadarBenchmarkCard'
 import { RadarFilterBar } from '../components/radar/RadarFilterBar'
@@ -144,7 +144,7 @@ export const RadarDashboard = observer(function RadarDashboard() {
       </div>
 
       {newTradeTicker && (
-        <TradeCreationForm
+        <TradeCreationModal
           initialTicker={newTradeTicker}
           onClose={() => setNewTradeTicker(null)}
         />

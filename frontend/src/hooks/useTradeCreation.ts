@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { TradeCreateRequest, ExitLevelCreateRequest, OrderType, TimeInEffect } from '../types/trade'
+import { TradeCreateRequest, ExitLevelCreateRequest, OrderType, TimeInEffect, TradeDirection } from '../types/trade'
 import type { Strategy } from '../domain/strategy/types'
 import type { Ticker } from '../domain/ticker/types'
 import { useTradeValidation } from './useTradeValidation'
 import { useTradeStore, useStrategyRepo, useTickerStore, useFundStore, useFxStore } from '../container/ContainerContext'
 import { localTodayIso } from '../utils/dateOnly'
 import { Decimal } from '../domain/shared/Decimal'
+import { deriveOrderType, wouldAutoSettle } from '../domain/trade/orderType'
 
 export interface ExitLevelInput {
   price: string
@@ -40,6 +41,11 @@ export function useTradeCreation(initialTicker?: string) {
     time_in_effect: '' as TimeInEffect | '',
     gtd_date: '',
   })
+
+  // Tracks whether the user has manually picked an order type. While false, the
+  // order type is auto-derived from direction + entry-vs-current price. Reset on
+  // ticker change and form reset (a new instrument is a fresh context).
+  const [orderTypeTouched, setOrderTypeTouched] = useState(false)
 
   const [layeredMode, setLayeredMode] = useState(false)
   const [tpLevels, setTpLevels] = useState<ExitLevelInput[]>([
@@ -89,6 +95,29 @@ export function useTradeCreation(initialTicker?: string) {
   useEffect(() => {
     loadCurrentPrice(formData.ticker)
   }, [formData.ticker, loadCurrentPrice])
+
+  // Live trade direction, derived from entry vs stop loss (long = SL below
+  // entry). Available mid-edit, unlike `validation.direction` which is null
+  // until the whole form is valid.
+  const direction = useMemo<TradeDirection | null>(() => {
+    const entry = parseFloat(formData.entry_price) || 0
+    const sl = parseFloat(formData.stop_loss) || 0
+    if (entry > 0 && sl > 0 && entry !== sl) return sl < entry ? 'long' : 'short'
+    return null
+  }, [formData.entry_price, formData.stop_loss])
+
+  // Auto-derive the order type as entry / stop loss / current price come into
+  // focus, so a limit/stop order defaults to the side that hasn't triggered
+  // yet. Stops once the user picks a type by hand (orderTypeTouched).
+  useEffect(() => {
+    if (orderTypeTouched || direction === null || currentPrice === null) return
+    const entry = parseFloat(formData.entry_price) || 0
+    if (entry <= 0) return
+    const derived = deriveOrderType(direction, entry, currentPrice)
+    if (derived && derived !== formData.order_type) {
+      setFormData(prev => ({ ...prev, order_type: derived }))
+    }
+  }, [orderTypeTouched, direction, currentPrice, formData.entry_price, formData.order_type])
 
   // Ensure FX rates for the selected ticker's currency AND the user's base
   // are loaded — both legs are needed since FxStore.convert triangulates via
@@ -257,8 +286,36 @@ export function useTradeCreation(initialTicker?: string) {
   const getFieldError = (field: string) =>
     validation.errors.find(e => e.field === field)?.message ?? null
 
+  // True while the order type is being auto-derived (not yet hand-picked) and
+  // the inputs needed to derive it are present.
+  const orderTypeAutoDerived = !orderTypeTouched && direction !== null && currentPrice !== null
+
+  // A limit/stop order whose entry is on the wrong side of the current price
+  // would fill on the next tick. Surfaced inline and confirmed before submit.
+  const autoSettleWarning = useMemo<string | null>(() => {
+    const entry = parseFloat(formData.entry_price) || 0
+    if (direction === null || currentPrice === null || entry <= 0) return null
+    if (formData.order_type !== 'limit' && formData.order_type !== 'stop') return null
+    if (!wouldAutoSettle(direction, formData.order_type, entry, currentPrice)) return null
+    return `A ${formData.order_type} order at ${entry} would fill immediately — the current price (${currentPrice}) is already on its fill side.`
+  }, [direction, currentPrice, formData.entry_price, formData.order_type])
+
+  // Non-blocking concerns surfaced as confirm() prompts before submit. Shared
+  // by both the guided and advanced forms so the gating stays identical.
+  const submitWarnings = useMemo<string[]>(() => {
+    const warnings: string[] = []
+    if (preview.ratio > 0 && preview.ratio < 1.5) {
+      warnings.push(`Risk/reward ratio is ${preview.ratio.toFixed(2)}. Continue anyway?`)
+    }
+    if (autoSettleWarning) {
+      warnings.push(`${autoSettleWarning} Place it anyway?`)
+    }
+    return warnings
+  }, [preview.ratio, autoSettleWarning])
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
+    if (name === 'order_type') setOrderTypeTouched(true)
     setFormData(prev => ({ ...prev, [name]: value }))
     setError(null)
   }
@@ -277,6 +334,7 @@ export function useTradeCreation(initialTicker?: string) {
       time_in_effect: '',
       gtd_date: '',
     })
+    setOrderTypeTouched(false)
     setLayeredMode(false)
     setTpLevels([
       { price: '', units_pct: '50', move_sl_to_breakeven: true },
@@ -339,6 +397,8 @@ export function useTradeCreation(initialTicker?: string) {
   }
 
   const selectTicker = (symbol: string) => {
+    // New instrument = fresh context: resume auto-deriving the order type.
+    setOrderTypeTouched(false)
     setFormData(prev => ({ ...prev, ticker: symbol }))
   }
 
@@ -363,6 +423,10 @@ export function useTradeCreation(initialTicker?: string) {
     suggestedUnits,
     applySuggestedUnits,
     validation,
+    direction,
+    orderTypeAutoDerived,
+    autoSettleWarning,
+    submitWarnings,
     getFieldError,
     handleChange,
     handleSubmit,
@@ -372,3 +436,5 @@ export function useTradeCreation(initialTicker?: string) {
     setAutoDetect,
   }
 }
+
+export type UseTradeCreation = ReturnType<typeof useTradeCreation>
