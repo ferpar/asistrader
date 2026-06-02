@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { getOverlayContainer } from '../overlay/overlayLayers'
 import { useTradeRepo } from '../container/ContainerContext'
 import type { DetectionTraceResult } from '../domain/trade/types'
 import { DetectionTraceTable } from './DetectionTraceTable'
@@ -78,5 +79,5 @@ export function DetectionTraceModal({ tradeId, ticker, onClose }: Props) {
     </div>
   )
 
-  return createPortal(content, document.body)
+  return createPortal(content, getOverlayContainer('modal'))
 }

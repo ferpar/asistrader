@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { observer } from '@legendapp/state/react'
+import { getOverlayContainer } from '../overlay/overlayLayers'
 import { useTradeAlerts, alertKey } from '../hooks/useTradeAlerts'
 import { useTradeStore } from '../container/ContainerContext'
 import type { AnyAlert, EntryAlert, SLTPAlert, LayeredAlert, TradeWithMetrics } from '../domain/trade/types'
@@ -239,7 +240,7 @@ export const AlertsModal = observer(function AlertsModal({ onClose, onTakeAction
 
   return (
     <>
-      {createPortal(modalContent, document.body)}
+      {createPortal(modalContent, getOverlayContainer('modal'))}
       {traceTarget !== null && (
         <DetectionTraceModal
           tradeId={traceTarget.tradeId}
