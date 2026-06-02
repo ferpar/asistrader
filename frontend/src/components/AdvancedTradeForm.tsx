@@ -2,6 +2,7 @@ import React from 'react'
 import { observer } from '@legendapp/state/react'
 import { TickerSearchInput } from './TickerSearchInput'
 import { PriceInput } from './PriceInput'
+import { TradePreviewCard } from './TradePreviewCard'
 import type { UseTradeCreation } from '../hooks/useTradeCreation'
 import { formatPrice } from '../utils/priceFormat'
 import formStyles from '../styles/forms.module.css'
@@ -28,10 +29,8 @@ export const AdvancedTradeForm = observer(function AdvancedTradeForm({ form, onS
     error,
     currentPrice,
     loadingPrice,
-    preview,
     suggestedUnits,
     applySuggestedUnits,
-    validation,
     orderTypeAutoDerived,
     autoSettleWarning,
     getFieldError,
@@ -44,15 +43,6 @@ export const AdvancedTradeForm = observer(function AdvancedTradeForm({ form, onS
   const selectedTicker = tickers.find((t) => t.symbol === formData.ticker) ?? null
   const formatCurrency = (value: number) =>
     formatPrice(value, selectedTicker?.currency, selectedTicker?.priceHint)
-
-  // Base-currency formatter uses 2 decimals (typical for reporting currency).
-  const formatBaseCurrency = (value: number) =>
-    formatPrice(value, preview.baseCurrency, 2)
-
-  const showBaseCurrencyPreview = preview.tickerCurrency !== preview.baseCurrency
-
-  const formatPercent = (value: number) =>
-    new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value)
 
   return (
     <form onSubmit={onSubmit} className={styles.modalBody}>
@@ -254,42 +244,7 @@ export const AdvancedTradeForm = observer(function AdvancedTradeForm({ form, onS
         </div>
       )}
 
-      <div className={styles.formPreview}>
-        <div className={styles.previewItem}>
-          <span>Amount:</span>
-          <span className={styles.previewValue}>
-            {formatCurrency(preview.amount)}
-            {showBaseCurrencyPreview && preview.amountInBase !== null && (
-              <span className={styles.previewBaseCurrency}>≈ {formatBaseCurrency(preview.amountInBase)}</span>
-            )}
-          </span>
-        </div>
-        <div className={styles.previewItem}>
-          <span>Risk:</span>
-          <span className={`${styles.previewValue} ${preview.riskAbs < 0 ? 'negative' : 'positive'}`}>
-            {formatCurrency(preview.riskAbs)} ({formatPercent(preview.riskPct)})
-            {showBaseCurrencyPreview && preview.riskAbsInBase !== null && (
-              <span className={styles.previewBaseCurrency}>≈ {formatBaseCurrency(preview.riskAbsInBase)}</span>
-            )}
-          </span>
-        </div>
-        <div className={styles.previewItem}>
-          <span>Profit:</span>
-          <span className={`${styles.previewValue} ${preview.profitAbs > 0 ? 'positive' : 'negative'}`}>
-            {formatCurrency(preview.profitAbs)} ({formatPercent(preview.profitPct)})
-            {showBaseCurrencyPreview && preview.profitAbsInBase !== null && (
-              <span className={styles.previewBaseCurrency}>≈ {formatBaseCurrency(preview.profitAbsInBase)}</span>
-            )}
-          </span>
-        </div>
-        <div className={styles.previewItem}><span>Ratio:</span><span>{preview.ratio.toFixed(2)}</span></div>
-        <div className={styles.previewItem}>
-          <span>Direction:</span>
-          <span className={validation.direction === 'long' ? 'positive' : validation.direction === 'short' ? 'negative' : ''}>
-            {validation.direction?.toUpperCase() ?? '-'}
-          </span>
-        </div>
-      </div>
+      <TradePreviewCard form={form} />
 
       <div className={styles.modalActions}>
         <button type="button" className={styles.btnSecondary} onClick={onCancel}>Cancel</button>

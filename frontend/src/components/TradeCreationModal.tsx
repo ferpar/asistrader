@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { observer } from '@legendapp/state/react'
 import { getOverlayContainer } from '../overlay/overlayLayers'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useTradeCreation } from '../hooks/useTradeCreation'
 import { GuidedTradeForm } from './GuidedTradeForm'
 import { AdvancedTradeForm } from './AdvancedTradeForm'
@@ -22,6 +23,7 @@ type Mode = 'guided' | 'advanced'
 export const TradeCreationModal = observer(function TradeCreationModal({ onClose, initialTicker }: TradeCreationModalProps) {
   const form = useTradeCreation(initialTicker)
   const [mode, setMode] = useState<Mode>('guided')
+  const modalRef = useFocusTrap<HTMLDivElement>()
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -43,7 +45,7 @@ export const TradeCreationModal = observer(function TradeCreationModal({ onClose
 
   const modalContent = (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+      <div ref={modalRef} className={styles.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="New Trade" tabIndex={-1}>
         <div className={styles.modalHeader}>
           <h3>New Trade</h3>
           <div className={styles.modeToggle} role="tablist" aria-label="Form mode">

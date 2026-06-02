@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { getOverlayContainer } from '../overlay/overlayLayers'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useTradeRepo } from '../container/ContainerContext'
 import type { DetectionTraceResult } from '../domain/trade/types'
 import { DetectionTraceTable } from './DetectionTraceTable'
@@ -21,6 +22,7 @@ export function DetectionTraceModal({ tradeId, ticker, onClose }: Props) {
   const repo = useTradeRepo()
   const [result, setResult] = useState<DetectionTraceResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const modalRef = useFocusTrap<HTMLDivElement>()
 
   useEffect(() => {
     let cancelled = false
@@ -41,7 +43,7 @@ export function DetectionTraceModal({ tradeId, ticker, onClose }: Props) {
 
   const content = (
     <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+      <div ref={modalRef} className={styles.modal} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" tabIndex={-1}>
         <div className={styles.header}>
           <h3>Detection trace — trade #{tradeId}</h3>
           <a

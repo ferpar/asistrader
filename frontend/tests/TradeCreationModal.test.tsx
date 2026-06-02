@@ -37,6 +37,15 @@ describe('TradeCreationModal', () => {
     expect(Array.from(orderType.options).map((o) => o.value)).toEqual(['limit', 'stop', 'market'])
   })
 
+  it('shows the preview card in the guided wizard from the first step', async () => {
+    renderModal()
+    // Preview card is rendered below the steps, visible on every step.
+    expect(await screen.findByText('Instrument')).toBeInTheDocument()
+    for (const label of ['Amount:', 'Risk:', 'Profit:', 'Ratio:', 'Direction:']) {
+      expect(screen.getByText(label)).toBeInTheDocument()
+    }
+  })
+
   it('keeps both mode tabs available in the header', async () => {
     renderModal()
     const header = (await screen.findByRole('tablist'))

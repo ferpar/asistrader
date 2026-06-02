@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { observer } from '@legendapp/state/react'
 import { TickerSearchInput } from './TickerSearchInput'
 import { PriceInput } from './PriceInput'
+import { TradePreviewCard } from './TradePreviewCard'
 import type { UseTradeCreation } from '../hooks/useTradeCreation'
 import { formatPrice } from '../utils/priceFormat'
 import formStyles from '../styles/forms.module.css'
@@ -187,26 +188,6 @@ export const GuidedTradeForm = observer(function GuidedTradeForm({ form, onSubmi
 
       {step === 3 && (
         <div className={wizard.stepBody}>
-          <div className={styles.formPreview}>
-            <div className={styles.previewItem}><span>Ticker:</span><span>{formData.ticker || '—'}</span></div>
-            <div className={styles.previewItem}>
-              <span>Direction:</span>
-              <span className={direction === 'long' ? 'positive' : direction === 'short' ? 'negative' : ''}>
-                {direction?.toUpperCase() ?? '—'}
-              </span>
-            </div>
-            <div className={styles.previewItem}><span>Amount:</span><span>{fmt(preview.amount)}</span></div>
-            <div className={styles.previewItem}>
-              <span>Risk:</span>
-              <span className={preview.riskAbs < 0 ? 'negative' : 'positive'}>{fmt(preview.riskAbs)}</span>
-            </div>
-            <div className={styles.previewItem}>
-              <span>Profit:</span>
-              <span className={preview.profitAbs > 0 ? 'positive' : 'negative'}>{fmt(preview.profitAbs)}</span>
-            </div>
-            <div className={styles.previewItem}><span>Ratio:</span><span>{preview.ratio.toFixed(2)}</span></div>
-          </div>
-
           <div className={formStyles.formRow}>
             <div className={formStyles.formGroup}>
               <label htmlFor="order_type">
@@ -224,6 +205,8 @@ export const GuidedTradeForm = observer(function GuidedTradeForm({ form, onSubmi
           {autoSettleWarning && <div className={styles.inlineWarning}>⚠ {autoSettleWarning}</div>}
         </div>
       )}
+
+      <TradePreviewCard form={form} />
 
       <div className={styles.modalActions}>
         {step > 0

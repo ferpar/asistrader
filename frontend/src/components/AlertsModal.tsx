@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { observer } from '@legendapp/state/react'
 import { getOverlayContainer } from '../overlay/overlayLayers'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useTradeAlerts, alertKey } from '../hooks/useTradeAlerts'
 import { useTradeStore } from '../container/ContainerContext'
 import type { AnyAlert, EntryAlert, SLTPAlert, LayeredAlert, TradeWithMetrics } from '../domain/trade/types'
@@ -68,6 +69,7 @@ export const AlertsModal = observer(function AlertsModal({ onClose, onTakeAction
   const [showDiscarded, setShowDiscarded] = useState(false)
   const [expanded, setExpanded] = useState<Set<SectionId>>(new Set())
   const [traceTarget, setTraceTarget] = useState<{ tradeId: number; ticker: string } | null>(null)
+  const modalRef = useFocusTrap<HTMLDivElement>()
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -103,7 +105,7 @@ export const AlertsModal = observer(function AlertsModal({ onClose, onTakeAction
 
   const modalContent = (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+      <div ref={modalRef} className={styles.modal} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" tabIndex={-1}>
         <div className={styles.modalHeader}>
           <h3>{showDiscarded ? 'Discarded alerts' : 'Alerts'} ({total})</h3>
           <button className={styles.modalClose} onClick={onClose}>&times;</button>
