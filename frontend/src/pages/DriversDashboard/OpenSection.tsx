@@ -6,44 +6,39 @@ import {
   useTradeStore,
 } from '../../container/ContainerContext'
 import { CollapsibleSection } from '../../components/CollapsibleSection'
-import { OrderedDistributions } from './OrderedDistributions'
-import { OrderedScatterChart } from './OrderedScatterChart'
-import { OrderedSummaryCard } from './OrderedSummaryCard'
-import { OrderedTable } from './OrderedTable'
+import { OpenScatterChart } from './OpenScatterChart'
+import { OpenSummaryCard } from './OpenSummaryCard'
+import { OpenTable } from './OpenTable'
 import { Toggle } from './Toggle'
-import {
-  buildOrderedRows,
-  filterBySign,
-  matchesQuery,
-  summarizeOrderedRows,
-  type SignFilter,
-} from './orderedSelectors'
+import { filterBySign, matchesQuery, type SignFilter } from './orderedSelectors'
+import { buildOpenRows, summarizeOpenRows } from './openSelectors'
 import shared from './shared.module.css'
 import styles from './OrderedSection.module.css'
 
+// Mirrors the Mixed/Winners/Losers toggles elsewhere; here the two sides are
+// the position rails — toward take-profit vs toward stop-loss.
 const SIGN_OPTIONS: { id: SignFilter; label: string }[] = [
   { id: 'mixed', label: 'Mixed' },
-  { id: 'positive', label: 'Positive' },
-  { id: 'negative', label: 'Negative' },
+  { id: 'positive', label: 'Toward TP' },
+  { id: 'negative', label: 'Toward SL' },
 ]
 
-export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: string }) {
+export const OpenSection = observer(function OpenSection({ ccy }: { ccy: string }) {
   const tradeStore = useTradeStore()
   const liveMetricsStore = useLiveMetricsStore()
   const indicatorStore = useIndicatorStore()
 
   const trades = tradeStore.trades$.get()
   const metrics = liveMetricsStore.metrics$.get()
-  // The convergence score, drift badge, and SMA column read shared indicators,
-  // loaded for the whole universe by IndicatorBootstrap (a common ancestor).
+  // Health score and SMA column read shared indicators, loaded for the whole
+  // universe by IndicatorBootstrap (a common ancestor).
   const indicators = indicatorStore.indicators$.get()
 
   useEffect(() => {
     if (trades.length === 0) tradeStore.loadTrades()
   }, [tradeStore, trades.length])
 
-  // Refresh prices whenever the set of active trades changes — prices are
-  // only fetched for active tickers, so loading trades first matters.
+  // Prices are only fetched for active tickers, so loading trades first matters.
   useEffect(() => {
     liveMetricsStore.refreshPrices()
   }, [liveMetricsStore, trades])
@@ -51,18 +46,15 @@ export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: s
   const [query, setQuery] = useState('')
   const [signFilter, setSignFilter] = useState<SignFilter>('mixed')
 
-  const rows = useMemo(
-    () => buildOrderedRows(trades, metrics, indicators),
-    [trades, metrics, indicators],
-  )
+  const rows = useMemo(() => buildOpenRows(trades, metrics, indicators), [trades, metrics, indicators])
 
-  // The sign filter narrows the whole section — summary, table, chart, and
-  // distributions all read this set so the partial-data view stays coherent.
+  // The segment filter narrows the whole section — summary, table, and chart all
+  // read this set so the partial-data view stays coherent.
   const signedRows = useMemo(
-    () => filterBySign(rows, signFilter, (r) => r.positionPct),
+    () => filterBySign(rows, signFilter, (r) => r.positionToTarget),
     [rows, signFilter],
   )
-  const summary = useMemo(() => summarizeOrderedRows(signedRows), [signedRows])
+  const summary = useMemo(() => summarizeOpenRows(signedRows), [signedRows])
 
   const filteredRows = useMemo(
     () => signedRows.filter((r) => matchesQuery(r, query)),
@@ -77,31 +69,25 @@ export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: s
     rows.length === 0 ? null : (
       <>
         <p className={shared.note}>
-          Outstanding orders — capital is committed to the broker but the trade hasn't
-          filled. <strong>Position %</strong> is signed distance from current price to
-          planned entry; <strong>order age</strong> is days since the order was placed.
-          High age or a "behind" drift badge are signals to refresh or cancel the order.
+          Open positions — capital is filled and live. <strong>To target</strong> is how
+          far price has travelled from PE toward the take-profit (above zero) or the
+          stop-loss (below zero); <strong>holding</strong> is days since the fill. Dots are
+          coloured by a health score that reads price drift toward TP (green) vs SL (red).
         </p>
-        <OrderedScatterChart
+        <OpenScatterChart
           rows={signedRows}
           highlightIds={highlightIds}
           hasActiveQuery={query.trim().length > 0}
           signFilter={signFilter}
         />
-        <OrderedTable
-          rows={filteredRows}
-          ccy={ccy}
-          highlightIds={highlightIds}
-          hasDriftData={summary.hasDriftData}
-        />
-        <OrderedDistributions rows={signedRows} />
+        <OpenTable rows={filteredRows} ccy={ccy} highlightIds={highlightIds} />
       </>
     )
 
   return (
     <CollapsibleSection
-      title="Ordered"
-      persistKey="drivers:ordered"
+      title="Open"
+      persistKey="drivers:open"
       defaultExpanded={false}
       count={rows.length}
       headerExtra={
@@ -113,15 +99,15 @@ export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: s
             onChange={(e) => setQuery(e.target.value)}
             placeholder="ticker or trade #"
             className={styles.searchInput}
-            aria-label="Search ordered trades"
+            aria-label="Search open trades"
           />
         </>
       }
       summary={
         rows.length === 0 ? (
-          <p className={shared.empty}>No ordered trades right now.</p>
+          <p className={shared.empty}>No open trades right now.</p>
         ) : (
-          <OrderedSummaryCard summary={summary} ccy={ccy} />
+          <OpenSummaryCard summary={summary} ccy={ccy} />
         )
       }
     >

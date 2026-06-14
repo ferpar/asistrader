@@ -125,23 +125,24 @@ describe('filterBySign', () => {
     ({ tradeId: positionPct ?? 0, positionPct }) as OrderedRow
 
   const rows = [row(0.05), row(-0.03), row(0), row(null), row(0.1)]
+  const pos = (r: OrderedRow) => r.positionPct
 
   it('returns every row for the "mixed" filter', () => {
-    expect(filterBySign(rows, 'mixed')).toBe(rows)
+    expect(filterBySign(rows, 'mixed', pos)).toBe(rows)
   })
 
   it('keeps only strictly-positive positions', () => {
-    expect(filterBySign(rows, 'positive').map((r) => r.positionPct)).toEqual([0.05, 0.1])
+    expect(filterBySign(rows, 'positive', pos).map((r) => r.positionPct)).toEqual([0.05, 0.1])
   })
 
   it('keeps only strictly-negative positions', () => {
-    expect(filterBySign(rows, 'negative').map((r) => r.positionPct)).toEqual([-0.03])
+    expect(filterBySign(rows, 'negative', pos).map((r) => r.positionPct)).toEqual([-0.03])
   })
 
   it('excludes null and exactly-zero positions from single-sided views', () => {
     const edge = [row(0), row(null)]
-    expect(filterBySign(edge, 'positive')).toEqual([])
-    expect(filterBySign(edge, 'negative')).toEqual([])
+    expect(filterBySign(edge, 'positive', pos)).toEqual([])
+    expect(filterBySign(edge, 'negative', pos)).toEqual([])
   })
 })
 

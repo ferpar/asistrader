@@ -3,9 +3,9 @@ import type {
   PriceChanges,
   LinearRegressionResult,
   RsiIndicator,
-  DivergenceStrength,
 } from './types'
 import type { TradeEtaCell } from './tradeEta'
+import { momentumRaw, smaRaw, lr20Raw, rsiRaw, type FavorSign } from './trendSignals'
 
 export type ConvergenceKey = 'drift' | 'momentum' | 'sma' | 'lr20' | 'rsi'
 
@@ -61,15 +61,11 @@ const LABELS: Record<ConvergenceKey, string> = {
   rsi: 'RSI divergence',
 }
 
-// A 1%/day 5d momentum compresses to tanh(1) ≈ 0.76; calibrated for typical equities.
-const MOMENTUM_SCALE = 0.01
-// A 0.5%/bar LR20 slope is a strong trend; produces tanh(1).
-const LR20_SCALE = 0.005
-
-const DIV_STRENGTH: Record<DivergenceStrength, number> = {
-  weak: 0.4,
-  moderate: 0.7,
-  strong: 1.0,
+/** Direction that favours filling toward PE: +1 = rising favourable (price below
+ *  PE), −1 = falling favourable (price above PE), 0 = unknown (null/at PE). */
+function fillFavor(positionPct: number | null): FavorSign {
+  if (positionPct === null || positionPct === 0) return 0
+  return positionPct > 0 ? -1 : 1
 }
 
 function driftComponent(peEta: TradeEtaCell | null): { raw: number | null; note: string } {
@@ -91,21 +87,12 @@ function momentumComponent(
   if (positionPct === null || !priceChanges || priceChanges.avgChangePct5d === null) {
     return { raw: null, note: 'no data' }
   }
-  // Convergence direction is opposite of positionPct's sign: price above PE needs to fall.
-  // When positionPct is ~0 the sign is ambiguous; treat as neutral.
+  // When positionPct is ~0 the fill direction is ambiguous; treat as neutral.
   if (positionPct === 0) return { raw: 0, note: 'already at PE' }
-  const convergSign = positionPct > 0 ? -1 : 1
-  const raw = convergSign * Math.tanh(priceChanges.avgChangePct5d / MOMENTUM_SCALE)
+  const raw = momentumRaw(fillFavor(positionPct), priceChanges.avgChangePct5d)
   const pct = (priceChanges.avgChangePct5d * 100).toFixed(2)
   const dir = raw >= 0 ? 'toward PE' : 'away from PE'
   return { raw, note: `5d avg ${pct}%/d (${dir})` }
-}
-
-/** Fill direction: price needs to fall (+1) or rise (-1) to reach PE.
- *  Returns 0 if positionPct is null or zero — caller treats those as no signal. */
-function fillDirection(positionPct: number | null): -1 | 0 | 1 {
-  if (positionPct === null || positionPct === 0) return 0
-  return positionPct > 0 ? 1 : -1
 }
 
 function smaComponent(
@@ -113,13 +100,11 @@ function smaComponent(
   sma: SmaStructure | null,
 ): { raw: number | null; note: string } {
   if (!sma || sma.bullishScore === null) return { raw: null, note: 'no data' }
-  const dir = fillDirection(positionPct)
-  if (dir === 0) return { raw: null, note: 'fill direction unknown' }
-  // bullishScore is 0..10. Normalise around 5 → bullishness in [-1, +1].
-  // When price is above PE (dir=+1, must fall), bearish trend favours filling;
-  // when price is below PE (dir=-1, must rise), bullish trend favours filling.
-  const bullishness = (sma.bullishScore - 5) / 5
-  const raw = -dir * bullishness
+  const favor = fillFavor(positionPct)
+  if (favor === 0) return { raw: null, note: 'fill direction unknown' }
+  // When price is above PE (must fall), a bearish trend favours filling; when
+  // below PE (must rise), a bullish trend favours filling.
+  const raw = smaRaw(favor, sma.bullishScore)
   const trend =
     sma.bullishScore >= 7 ? 'bullish' : sma.bullishScore <= 3 ? 'bearish' : 'mixed'
   const verdict = raw > 0 ? 'favours fill' : raw < 0 ? 'pushes away' : 'mixed'
@@ -131,10 +116,9 @@ function lr20Component(
   lr20: LinearRegressionResult | null,
 ): { raw: number | null; note: string } {
   if (!lr20 || lr20.slopePct === null) return { raw: null, note: 'no data' }
-  const dir = fillDirection(positionPct)
-  if (dir === 0) return { raw: null, note: 'fill direction unknown' }
-  const compressed = Math.tanh(lr20.slopePct / LR20_SCALE)
-  const raw = -dir * compressed
+  const favor = fillFavor(positionPct)
+  if (favor === 0) return { raw: null, note: 'fill direction unknown' }
+  const raw = lr20Raw(favor, lr20.slopePct)
   const pct = (lr20.slopePct * 100).toFixed(2)
   return { raw, note: `slope ${pct}%/bar` }
 }
@@ -144,17 +128,14 @@ function rsiComponent(
   rsi: RsiIndicator | null,
 ): { raw: number | null; note: string } {
   if (!rsi) return { raw: null, note: 'no data' }
-  const dir = fillDirection(positionPct)
-  if (dir === 0) return { raw: null, note: 'fill direction unknown' }
+  const favor = fillFavor(positionPct)
+  if (favor === 0) return { raw: null, note: 'fill direction unknown' }
   const bear = rsi.divergence.bearish
   const bull = rsi.divergence.bullish
   if (!bear && !bull) return { raw: 0, note: 'no divergence' }
-  // A bearish RSI divergence hints at a top → price may fall. Favours the
-  // fill if we need price to fall (dir=+1). Bullish divergence hints at a
-  // bottom → favours fill if dir=-1.
-  const bearWeight = bear ? DIV_STRENGTH[bear.strength] : 0
-  const bullWeight = bull ? DIV_STRENGTH[bull.strength] : 0
-  const raw = -dir * (bullWeight - bearWeight)
+  // A bearish RSI divergence hints at a top → price may fall (favours fill when
+  // price must fall). Bullish divergence hints at a bottom → favours a rise.
+  const raw = rsiRaw(favor, bull?.strength ?? null, bear?.strength ?? null)
   const parts: string[] = []
   if (bear) parts.push(`${bear.strength} bearish`)
   if (bull) parts.push(`${bull.strength} bullish`)

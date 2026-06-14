@@ -111,7 +111,10 @@ export function buildOrderedRows(
  *  - Pure-digit query → exact match on the human trade number.
  *  - Anything else → case-insensitive substring match on the ticker.
  */
-export function matchesQuery(row: OrderedRow, query: string): boolean {
+export function matchesQuery(
+  row: { tradeNumber: number | null; tradeId: number; ticker: string },
+  query: string,
+): boolean {
   const q = query.trim()
   if (!q) return true
   if (/^\d+$/.test(q)) {
@@ -129,20 +132,26 @@ export function matchesQuery(row: OrderedRow, query: string): boolean {
 export type SignFilter = 'mixed' | 'positive' | 'negative'
 
 /**
- * Keeps only rows whose position % matches the requested side.
+ * Keeps only rows whose signed position (via `value`) matches the requested side.
  *
  *  - `mixed` → every row (callers that plot still drop null positions upstream).
- *  - `positive` → strictly above PE (`positionPct > 0`).
- *  - `negative` → strictly below PE (`positionPct < 0`).
+ *  - `positive` → strictly positive value.
+ *  - `negative` → strictly negative value.
  *
- * Rows with a null or exactly-zero position are excluded from the single-sided
- * views, since they sit on neither side of PE.
+ * Rows with a null or exactly-zero value are excluded from the single-sided
+ * views, since they sit on neither side. The `value` accessor lets the Ordered
+ * section filter on distance-to-PE and the Open section on progress-to-target.
  */
-export function filterBySign(rows: OrderedRow[], filter: SignFilter): OrderedRow[] {
+export function filterBySign<T>(
+  rows: T[],
+  filter: SignFilter,
+  value: (r: T) => number | null,
+): T[] {
   if (filter === 'mixed') return rows
   return rows.filter((r) => {
-    if (r.positionPct === null) return false
-    return filter === 'positive' ? r.positionPct > 0 : r.positionPct < 0
+    const v = value(r)
+    if (v === null) return false
+    return filter === 'positive' ? v > 0 : v < 0
   })
 }
 

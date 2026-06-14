@@ -1,7 +1,7 @@
 import type { TooltipRow } from '../../components/charts/ChartTooltip'
 import { fmtPct } from '../../components/portfolio/format'
-import type { OrderedRow } from './orderedSelectors'
 import type { SignFilter } from './orderedSelectors'
+import type { OpenRow } from './openSelectors'
 import {
   PositionAgeChart,
   scoreColor,
@@ -12,39 +12,42 @@ import {
 import chartStyles from '../../components/charts/charts.module.css'
 
 interface Props {
-  rows: OrderedRow[]
+  rows: OpenRow[]
   highlightIds: Set<number>
   /** Whether the parent has an active search query — controls dimming of non-matches. */
   hasActiveQuery: boolean
-  /** Active position-sign filter — drives the y-axis anchoring and empty copy. */
+  /** Active segment filter — drives the y-axis anchoring and empty copy. */
   signFilter: SignFilter
 }
 
 const num = (v: number | null) =>
   v === null ? '—' : v.toLocaleString('en-US', { maximumFractionDigits: 4 })
 
-function tooltipRows(r: OrderedRow): TooltipRow[] {
+function tooltipRows(r: OpenRow): TooltipRow[] {
   return [
     { label: 'PE', value: num(r.entryPrice) },
     { label: 'Current', value: num(r.currentPrice) },
     {
-      label: 'Position',
-      value: fmtPct(r.positionPct ?? 0),
+      label: 'P&L',
+      value: r.unrealizedPnLPct === null ? '—' : fmtPct(r.unrealizedPnLPct),
       color:
-        r.positionPct === null
+        r.unrealizedPnLPct === null
           ? undefined
-          : r.positionPct >= 0
+          : r.unrealizedPnLPct >= 0
             ? 'var(--color-success, #1a7f37)'
             : 'var(--color-error, #cf222e)',
     },
-    { label: 'Order age', value: r.orderAgeDays === null ? '—' : `${r.orderAgeDays}d` },
-    ...(r.driftBadge ? [{ label: 'Drift', value: r.driftBadge }] : []),
-    ...(r.convergence
+    { label: 'To TP', value: r.distanceToTP === null ? '—' : fmtPct(r.distanceToTP) },
+    { label: 'To SL', value: r.distanceToSL === null ? '—' : fmtPct(r.distanceToSL) },
+    { label: 'Holding', value: r.holdingDays === null ? '—' : `${r.holdingDays}d` },
+    ...(r.tpEta?.badge ? [{ label: 'TP ETA', value: r.tpEta.badge }] : []),
+    ...(r.slEta?.badge ? [{ label: 'SL ETA', value: r.slEta.badge }] : []),
+    ...(r.health
       ? [
           {
-            label: 'Convergence',
-            value: (r.convergence.score > 0 ? '+' : '') + Math.round(r.convergence.score).toString(),
-            color: scoreColor(r.convergence.score),
+            label: 'Health',
+            value: (r.health.score > 0 ? '+' : '') + Math.round(r.health.score).toString(),
+            color: scoreColor(r.health.score),
           },
         ]
       : []),
@@ -55,19 +58,19 @@ const LEGEND = (
   <>
     <span className={chartStyles.legendItem}>
       <span className={chartStyles.swatch} style={{ background: 'var(--color-success, #1a7f37)' }} />
-      Position % (above PE)
+      Toward TP (profit)
     </span>
     <span className={chartStyles.legendItem}>
       <span className={chartStyles.swatch} style={{ background: 'var(--color-error, #cf222e)' }} />
-      Position % (below PE)
+      Toward SL (loss)
     </span>
     <span className={chartStyles.legendItem}>
-      Order age dots (coloured by convergence):
+      Holding dots (coloured by health):
       <span
         className={chartStyles.swatch}
         style={{ background: DOT_STRONG_NEG, borderRadius: '50%', width: 8, height: 8, marginLeft: 6 }}
       />
-      drifting away
+      heading to SL
       <span
         className={chartStyles.swatch}
         style={{ background: DOT_NEUTRAL, borderRadius: '50%', width: 8, height: 8 }}
@@ -77,17 +80,18 @@ const LEGEND = (
         className={chartStyles.swatch}
         style={{ background: DOT_STRONG_POS, borderRadius: '50%', width: 8, height: 8 }}
       />
-      converging
+      heading to TP
     </span>
   </>
 )
 
-const emptyText = (filter: SignFilter) =>
-  filter === 'mixed'
-    ? 'No live position data yet — waiting for prices to load.'
-    : `No ${filter} positions among the outstanding orders.`
+const emptyText = (filter: SignFilter) => {
+  if (filter === 'positive') return 'No open positions on the take-profit side.'
+  if (filter === 'negative') return 'No open positions on the stop-loss side.'
+  return 'No live position data yet — waiting for prices to load.'
+}
 
-export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery, signFilter }: Props) {
+export function OpenScatterChart({ rows, highlightIds, hasActiveQuery, signFilter }: Props) {
   return (
     <PositionAgeChart
       rows={rows}
@@ -96,16 +100,16 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery, signFi
       signFilter={signFilter}
       id={(r) => r.tradeId}
       label={(r) => r.ticker}
-      position={(r) => r.positionPct}
-      age={(r) => r.orderAgeDays}
-      score={(r) => r.convergence?.score ?? null}
+      position={(r) => r.positionToTarget}
+      age={(r) => r.holdingDays}
+      score={(r) => r.health?.score ?? null}
       title={(r) => `${r.ticker} · #${r.tradeNumber ?? r.tradeId}`}
       tooltipRows={tooltipRows}
-      positionAxisLabel="Position %"
-      ageAxisLabel="Age (days)"
+      positionAxisLabel="To target"
+      ageAxisLabel="Holding (days)"
       positionFormat={(v) => `${(v * 100).toFixed(0)}%`}
       ageFormat={(v) => `${v.toFixed(0)}d`}
-      ariaLabel="Ordered trades: position % and age"
+      ariaLabel="Open trades: progress to target and holding age"
       emptyText={emptyText}
       legend={LEGEND}
     />

@@ -3,6 +3,7 @@ import { observer } from '@legendapp/state/react'
 import { useIrrStore } from '../../container/ContainerContext'
 import { CollapsibleSection } from '../../components/CollapsibleSection'
 import { DailySection } from './DailySection'
+import { OpenSection } from './OpenSection'
 import { OrderedSection } from './OrderedSection'
 import { PipelineCard } from './PipelineCard'
 import { ScopeSection } from './ScopeSection'
@@ -66,6 +67,7 @@ export const DriversDashboard = observer(function DriversDashboard() {
             unrealized
             defaultExpanded={false}
           />
+          <OpenSection ccy={analysis.baseCurrency} />
           <OrderedSection ccy={analysis.baseCurrency} />
           <DailySection daily={analysis.daily} ccy={analysis.baseCurrency} />
         </>

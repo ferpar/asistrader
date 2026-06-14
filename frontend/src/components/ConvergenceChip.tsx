@@ -11,7 +11,14 @@ interface Props {
   score: ConvergenceScore
   /** Compact chip omits the sign for tighter table cells. */
   compact?: boolean
+  /** Heading/aria noun for the score — e.g. "Convergence" or "Health". */
+  title?: string
+  /** Explanatory blurb in the popover; defaults to the convergence/PE wording. */
+  intro?: string
 }
+
+const DEFAULT_INTRO =
+  'Signed score in [−100, +100]. Positive = price converging on PE in the direction needed to fill the order; negative = drifting away.'
 
 const BAND_CLASS: Record<ReturnType<typeof convergenceBand>, string> = {
   'strong-pos': styles.bandStrongPos,
@@ -33,7 +40,12 @@ function formatContribution(value: number): string {
   return rounded > 0 ? `+${rounded}` : String(rounded)
 }
 
-export function ConvergenceChip({ score, compact = false }: Props) {
+export function ConvergenceChip({
+  score,
+  compact = false,
+  title = 'Convergence',
+  intro = DEFAULT_INTRO,
+}: Props) {
   const [popoverPos, setPopoverPos] = useState<{ left: number; top: number } | null>(null)
   const chipRef = useRef<HTMLSpanElement | null>(null)
   const popoverRef = useRef<HTMLSpanElement | null>(null)
@@ -88,7 +100,7 @@ export function ConvergenceChip({ score, compact = false }: Props) {
       onFocus={openPopover}
       onBlur={() => setPopoverPos(null)}
       tabIndex={0}
-      aria-label={`Convergence score ${Math.round(score.score)}, ${score.confidence} confidence`}
+      aria-label={`${title} score ${Math.round(score.score)}, ${score.confidence} confidence`}
     >
       {formatScore(score.score, compact)}
       {open && popoverPos && (
@@ -99,12 +111,9 @@ export function ConvergenceChip({ score, compact = false }: Props) {
           role="tooltip"
         >
           <span className={styles.popoverTitle}>
-            Convergence {formatScore(score.score, false)} · {score.confidence} confidence
+            {title} {formatScore(score.score, false)} · {score.confidence} confidence
           </span>
-          <span className={styles.popoverIntro}>
-            Signed score in [−100, +100]. Positive = price converging on PE in the
-            direction needed to fill the order; negative = drifting away.
-          </span>
+          <span className={styles.popoverIntro}>{intro}</span>
           <table className={styles.table}>
             <thead>
               <tr>
