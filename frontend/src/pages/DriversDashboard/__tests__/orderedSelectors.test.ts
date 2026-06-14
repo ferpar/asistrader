@@ -9,9 +9,12 @@ import {
 import type { LiveMetrics, TradeWithMetrics } from '../../../domain/trade/types'
 import {
   buildOrderedRows,
+  filterBySign,
   matchesQuery,
+  positionDomain,
   summarizeOrderedRows,
 } from '../orderedSelectors'
+import type { OrderedRow } from '../orderedSelectors'
 
 const NOW = new Date('2026-06-01T00:00:00Z')
 
@@ -114,6 +117,49 @@ describe('matchesQuery', () => {
     expect(matchesQuery(row, 'aap')).toBe(true)
     expect(matchesQuery(row, 'AAPL')).toBe(true)
     expect(matchesQuery(row, 'msft')).toBe(false)
+  })
+})
+
+describe('filterBySign', () => {
+  const row = (positionPct: number | null): OrderedRow =>
+    ({ tradeId: positionPct ?? 0, positionPct }) as OrderedRow
+
+  const rows = [row(0.05), row(-0.03), row(0), row(null), row(0.1)]
+
+  it('returns every row for the "mixed" filter', () => {
+    expect(filterBySign(rows, 'mixed')).toBe(rows)
+  })
+
+  it('keeps only strictly-positive positions', () => {
+    expect(filterBySign(rows, 'positive').map((r) => r.positionPct)).toEqual([0.05, 0.1])
+  })
+
+  it('keeps only strictly-negative positions', () => {
+    expect(filterBySign(rows, 'negative').map((r) => r.positionPct)).toEqual([-0.03])
+  })
+
+  it('excludes null and exactly-zero positions from single-sided views', () => {
+    const edge = [row(0), row(null)]
+    expect(filterBySign(edge, 'positive')).toEqual([])
+    expect(filterBySign(edge, 'negative')).toEqual([])
+  })
+})
+
+describe('positionDomain', () => {
+  it('is symmetric around zero for the "mixed" filter', () => {
+    expect(positionDomain(0.2, 'mixed')).toEqual([-0.2, 0.2])
+  })
+
+  it('collapses the negative half for the positive filter', () => {
+    expect(positionDomain(0.2, 'positive')).toEqual([0, 0.2])
+  })
+
+  it('collapses the positive half for the negative filter', () => {
+    expect(positionDomain(0.2, 'negative')).toEqual([-0.2, 0])
+  })
+
+  it('never lets posMax go negative', () => {
+    expect(positionDomain(-1, 'positive')).toEqual([0, 0])
   })
 })
 

@@ -10,13 +10,22 @@ import { OrderedDistributions } from './OrderedDistributions'
 import { OrderedScatterChart } from './OrderedScatterChart'
 import { OrderedSummaryCard } from './OrderedSummaryCard'
 import { OrderedTable } from './OrderedTable'
+import { Toggle } from './Toggle'
 import {
   buildOrderedRows,
+  filterBySign,
   matchesQuery,
   summarizeOrderedRows,
+  type SignFilter,
 } from './orderedSelectors'
 import shared from './shared.module.css'
 import styles from './OrderedSection.module.css'
+
+const SIGN_OPTIONS: { id: SignFilter; label: string }[] = [
+  { id: 'mixed', label: 'Mixed' },
+  { id: 'positive', label: 'Positive' },
+  { id: 'negative', label: 'Negative' },
+]
 
 export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: string }) {
   const tradeStore = useTradeStore()
@@ -40,21 +49,26 @@ export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: s
   }, [liveMetricsStore, trades])
 
   const [query, setQuery] = useState('')
+  const [signFilter, setSignFilter] = useState<SignFilter>('mixed')
 
   const rows = useMemo(
     () => buildOrderedRows(trades, metrics, indicators),
     [trades, metrics, indicators],
   )
-  const summary = useMemo(() => summarizeOrderedRows(rows), [rows])
+
+  // The sign filter narrows the whole section — summary, table, chart, and
+  // distributions all read this set so the partial-data view stays coherent.
+  const signedRows = useMemo(() => filterBySign(rows, signFilter), [rows, signFilter])
+  const summary = useMemo(() => summarizeOrderedRows(signedRows), [signedRows])
 
   const filteredRows = useMemo(
-    () => rows.filter((r) => matchesQuery(r, query)),
-    [rows, query],
+    () => signedRows.filter((r) => matchesQuery(r, query)),
+    [signedRows, query],
   )
   const highlightIds = useMemo(() => {
     if (!query.trim()) return new Set<number>()
-    return new Set(rows.filter((r) => matchesQuery(r, query)).map((r) => r.tradeId))
-  }, [rows, query])
+    return new Set(signedRows.filter((r) => matchesQuery(r, query)).map((r) => r.tradeId))
+  }, [signedRows, query])
 
   const body =
     rows.length === 0 ? null : (
@@ -66,9 +80,10 @@ export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: s
           High age or a "behind" drift badge are signals to refresh or cancel the order.
         </p>
         <OrderedScatterChart
-          rows={rows}
+          rows={signedRows}
           highlightIds={highlightIds}
           hasActiveQuery={query.trim().length > 0}
+          signFilter={signFilter}
         />
         <OrderedTable
           rows={filteredRows}
@@ -76,7 +91,7 @@ export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: s
           highlightIds={highlightIds}
           hasDriftData={summary.hasDriftData}
         />
-        <OrderedDistributions rows={rows} />
+        <OrderedDistributions rows={signedRows} />
       </>
     )
 
@@ -87,14 +102,17 @@ export const OrderedSection = observer(function OrderedSection({ ccy }: { ccy: s
       defaultExpanded={false}
       count={rows.length}
       headerExtra={
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="ticker or trade #"
-          className={styles.searchInput}
-          aria-label="Search ordered trades"
-        />
+        <>
+          <Toggle options={SIGN_OPTIONS} value={signFilter} onChange={setSignFilter} />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="ticker or trade #"
+            className={styles.searchInput}
+            aria-label="Search ordered trades"
+          />
+        </>
       }
       summary={
         rows.length === 0 ? (

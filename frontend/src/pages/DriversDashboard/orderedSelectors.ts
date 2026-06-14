@@ -122,6 +122,42 @@ export function matchesQuery(row: OrderedRow, query: string): boolean {
   return row.ticker.toLowerCase().includes(q.toLowerCase())
 }
 
+/**
+ * Which side of PE to show across the Ordered section. `mixed` is the default,
+ * mirroring the Mixed / Winners / Losers toggles used by the other sections.
+ */
+export type SignFilter = 'mixed' | 'positive' | 'negative'
+
+/**
+ * Keeps only rows whose position % matches the requested side.
+ *
+ *  - `mixed` → every row (callers that plot still drop null positions upstream).
+ *  - `positive` → strictly above PE (`positionPct > 0`).
+ *  - `negative` → strictly below PE (`positionPct < 0`).
+ *
+ * Rows with a null or exactly-zero position are excluded from the single-sided
+ * views, since they sit on neither side of PE.
+ */
+export function filterBySign(rows: OrderedRow[], filter: SignFilter): OrderedRow[] {
+  if (filter === 'mixed') return rows
+  return rows.filter((r) => {
+    if (r.positionPct === null) return false
+    return filter === 'positive' ? r.positionPct > 0 : r.positionPct < 0
+  })
+}
+
+/**
+ * Position-axis domain `[min, max]` for the given filter, anchored at zero so
+ * the baseline stays meaningful. `posMax` is the largest absolute position in
+ * the visible set; single-sided views collapse the unused half onto zero.
+ */
+export function positionDomain(posMax: number, filter: SignFilter): [number, number] {
+  const max = Math.max(posMax, 0)
+  if (filter === 'positive') return [0, max]
+  if (filter === 'negative') return [-max, 0]
+  return [-max, max] // mixed stays symmetric so both sides read against zero
+}
+
 function mean(values: number[]): number | null {
   if (values.length === 0) return null
   return values.reduce((a, b) => a + b, 0) / values.length

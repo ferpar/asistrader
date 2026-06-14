@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { curveMonotoneX, line, scaleBand, scaleLinear } from 'd3'
 import { YAxis } from '../../components/charts/Axes'
 import { ChartTooltip, useTooltip } from '../../components/charts/ChartTooltip'
-import type { OrderedRow } from './orderedSelectors'
+import { positionDomain, type OrderedRow, type SignFilter } from './orderedSelectors'
 import { computeFit, type FitMode } from './orderedFits'
 import { fmtPct } from '../../components/portfolio/format'
 import { Toggle } from './Toggle'
@@ -48,9 +48,11 @@ interface Props {
   highlightIds: Set<number>
   /** Whether the parent has an active search query — controls dimming of non-matches. */
   hasActiveQuery: boolean
+  /** Active position-sign filter — drives the y-axis anchoring and empty copy. */
+  signFilter: SignFilter
 }
 
-export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Props) {
+export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery, signFilter }: Props) {
   const { tooltip, show, hide } = useTooltip()
   const [fitMode, setFitMode] = useState<FitMode>('local')
 
@@ -69,7 +71,9 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
   if (sorted.length === 0) {
     return (
       <p className={chartStyles.empty}>
-        No live position data yet — waiting for prices to load.
+        {signFilter === 'mixed'
+          ? 'No live position data yet — waiting for prices to load.'
+          : `No ${signFilter} positions among the outstanding orders.`}
       </p>
     )
   }
@@ -87,10 +91,11 @@ export function OrderedScatterChart({ rows, highlightIds, hasActiveQuery }: Prop
   const posMax = Math.max(...positions.map(Math.abs), 0.01)
   const ageMax = Math.max(...ages, 1)
 
-  // Position % axis is symmetric around zero so bars read naturally as
-  // "above PE" / "below PE" regardless of which side dominates the orders.
+  // Position % axis stays anchored at zero so bars read as "above PE" / "below
+  // PE". Under a single-sided filter the unused half collapses onto zero, so
+  // the visible bars fill the chart height instead of wasting it.
   const yPos = scaleLinear()
-    .domain([-posMax, posMax])
+    .domain(positionDomain(posMax, signFilter))
     .nice()
     .range([H - M.bottom, M.top])
 
