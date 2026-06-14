@@ -100,6 +100,7 @@ const num1 = (v: number | null) => (v === null ? '—' : v.toFixed(1))
 const pct = (v: number | null) => (v === null ? '—' : `${(v * 100).toFixed(1)}%`)
 const bullish = (v: number | null) => (v === null ? '—' : `${v}/10`)
 const signed = (v: number | null) => (v === null ? '—' : v > 0 ? `+${v}` : `${v}`)
+const signed0 = (v: number | null) => (v === null ? '—' : v > 0 ? `+${v.toFixed(0)}` : v.toFixed(0))
 
 /** Green/red/neutral via the global helper classes (see styles/global.css). */
 const sign = (v: number | null) => (v === null || v === 0 ? '' : v > 0 ? 'positive' : 'negative')
@@ -120,6 +121,17 @@ interface Column {
 const COLUMNS: Column[] = [
   { key: 'hist', label: 'Hist', title: 'Historical family sub-score (0–100)', get: (r) => r.familyScores.historical, fmt: num0 },
   { key: 'tech', label: 'Tech', title: 'Technical family sub-score (0–100)', get: (r) => r.familyScores.technical, fmt: num0 },
+  {
+    key: 'histVsTech',
+    label: 'H−T',
+    title: 'Historical minus technical sub-score (+ favors track record, − favors setup)',
+    get: (r) => {
+      const { historical, technical } = r.familyScores
+      return historical === null || technical === null ? null : historical - technical
+    },
+    fmt: signed0,
+    signed: true,
+  },
   { key: 'avgRet', label: 'Avg ret', title: 'Average return per closed trade', get: (r) => r.metrics.avgReturnPerTrade, fmt: pct, signed: true },
   { key: 'winPct', label: 'Win%', title: 'Winner frequency among decisive closes', get: (r) => r.metrics.winnerFreq, fmt: pct },
   { key: 'lossPct', label: 'Loss%', title: 'Loser frequency among decisive closes (lower is better)', get: (r) => r.metrics.loserFreq, fmt: pct },
