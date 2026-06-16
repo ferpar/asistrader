@@ -227,9 +227,10 @@ describe('summarizeOrderedRows', () => {
     expect(summarizeOrderedRows(bearishAbove).trendAlignedCount).toBe(1)
   })
 
-  it('counts an order whose price is moving away from PE as drifting away', () => {
-    // PE below current price (must fall to fill) while the trend is rising →
-    // the live ETA recedes, so the order is diverging from PE.
+  it('does not treat divergence as drift — a price moving away from PE is not "drifting away"', () => {
+    // PE below current price (must fall to fill) while the trend is rising → the
+    // price is currently diverging from PE. "Drifting away" measures *drift* (the
+    // gap vs the at-plan projection), not divergence, so this must not be counted.
     const trade = ordered({
       id: 1,
       ticker: 'AAPL',
@@ -242,8 +243,8 @@ describe('summarizeOrderedRows', () => {
     // Default fixture price changes are positive (rising) — away from a PE below.
     const indicators = [buildTickerIndicators({ symbol: 'AAPL' })]
     const [row] = buildOrderedRows([trade], metrics, indicators, NOW)
-    expect(row.peDiverging).toBe(true)
-    expect(summarizeOrderedRows([row]).driftingAwayCount).toBe(1)
+    expect(row.driftBadge).not.toBe('behind')
+    expect(summarizeOrderedRows([row]).driftingAwayCount).toBe(0)
   })
 
   it('ignores trend alignment when position is null or exactly at PE', () => {
