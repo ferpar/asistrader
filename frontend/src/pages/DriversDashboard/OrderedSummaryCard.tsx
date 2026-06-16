@@ -63,7 +63,7 @@ export function OrderedSummaryCard({
       {
         label: 'Trend-aligned',
         value: String(summary.trendAlignedCount),
-        hint: 'Bullish SMA stack for longs / bearish for shorts (bullishScore ≥7 or ≤3).',
+        hint: 'SMA stack favours the fill: bearish when price is above PE (must fall), bullish when below PE (must rise) — bullishScore ≤3 or ≥7.',
       },
     )
   }

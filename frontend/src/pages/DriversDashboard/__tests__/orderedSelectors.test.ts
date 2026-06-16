@@ -195,4 +195,52 @@ describe('summarizeOrderedRows', () => {
     expect(summary.staleCount).toBe(1)
     expect(summary.hasDriftData).toBe(false)
   })
+
+  it('counts trend-aligned by fill direction, not long/short', () => {
+    // Two longs with the same bullish SMA stack, on opposite sides of PE.
+    const trades = [
+      // Below PE (must rise): a bullish stack favours the fill → aligned.
+      ordered({ id: 1, ticker: 'UP', entryPrice: Decimal.from(100), stopLoss: Decimal.from(90) }),
+      // Above PE (must fall): a bullish stack pushes price further away → NOT aligned.
+      ordered({ id: 2, ticker: 'DN', entryPrice: Decimal.from(100), stopLoss: Decimal.from(90) }),
+    ]
+    const metrics: Record<number, LiveMetrics> = {
+      1: buildLiveMetrics({ distanceToPE: Decimal.from(-0.05) }),
+      2: buildLiveMetrics({ distanceToPE: Decimal.from(0.05) }),
+    }
+    const indicators = [
+      buildTickerIndicators({ symbol: 'UP', sma: buildSmaStructure({ bullishScore: 8 }) }),
+      buildTickerIndicators({ symbol: 'DN', sma: buildSmaStructure({ bullishScore: 8 }) }),
+    ]
+    const rows = buildOrderedRows(trades, metrics, indicators, NOW)
+    const summary = summarizeOrderedRows(rows)
+    // Only the below-PE long counts, even though both are longs with the same stack.
+    expect(summary.trendAlignedCount).toBe(1)
+
+    // A bearish stack above PE (must fall) favours the fill → aligned.
+    const bearishAbove = buildOrderedRows(
+      [ordered({ id: 3, ticker: 'DN', entryPrice: Decimal.from(100), stopLoss: Decimal.from(90) })],
+      { 3: buildLiveMetrics({ distanceToPE: Decimal.from(0.05) }) },
+      [buildTickerIndicators({ symbol: 'DN', sma: buildSmaStructure({ bullishScore: 2 }) })],
+      NOW,
+    )
+    expect(summarizeOrderedRows(bearishAbove).trendAlignedCount).toBe(1)
+  })
+
+  it('ignores trend alignment when position is null or exactly at PE', () => {
+    const trades = [
+      ordered({ id: 1, ticker: 'AT', entryPrice: Decimal.from(100), stopLoss: Decimal.from(90) }),
+      ordered({ id: 2, ticker: 'NO', entryPrice: Decimal.from(100), stopLoss: Decimal.from(90) }),
+    ]
+    const metrics: Record<number, LiveMetrics> = {
+      1: buildLiveMetrics({ distanceToPE: Decimal.from(0) }),
+      // id 2 has no live metrics → positionPct null
+    }
+    const indicators = [
+      buildTickerIndicators({ symbol: 'AT', sma: buildSmaStructure({ bullishScore: 9 }) }),
+      buildTickerIndicators({ symbol: 'NO', sma: buildSmaStructure({ bullishScore: 1 }) }),
+    ]
+    const rows = buildOrderedRows(trades, metrics, indicators, NOW)
+    expect(summarizeOrderedRows(rows).trendAlignedCount).toBe(0)
+  })
 })

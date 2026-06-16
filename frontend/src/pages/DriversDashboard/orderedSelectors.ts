@@ -181,7 +181,7 @@ export interface OrderedSummary {
   furthestFromFill: { ticker: string; positionPct: number } | null
   staleCount: number
   driftingAwayCount: number
-  /** Count whose SMA structure agrees with trade direction (bullish for longs / bearish for shorts). */
+  /** Count whose SMA structure favours the fill direction (bearish above PE / bullish below PE). */
   trendAlignedCount: number
   /** Whether any row had radar-derived drift data — drives whether radar KPIs are shown. */
   hasDriftData: boolean
@@ -216,11 +216,15 @@ export function summarizeOrderedRows(rows: OrderedRow[]): OrderedSummary {
     (r) => r.orderAgeDays !== null && r.orderAgeDays > STALE_ORDER_DAYS,
   ).length
   const driftingAwayCount = rows.filter((r) => r.driftBadge === 'behind').length
-  // SMA "alignment": a bullishScore of 7+/10 reads as a clear bullish stack,
-  // 3 or below as a clear bearish stack. Mid range is ambiguous and ignored.
+  // SMA "alignment" is measured against the *fill* direction, like the SMA term
+  // of the convergence score — not the trade's long/short side. Price above PE
+  // (positionPct > 0, must fall to fill) is favoured by a bearish stack
+  // (bullishScore ≤ 3); below PE (must rise) by a bullish stack (≥ 7). A 7+/10
+  // reads as a clear bullish stack, 3 or below as clearly bearish; the mid range
+  // is ambiguous and ignored, as is a null/at-PE position.
   const trendAlignedCount = rows.filter((r) => {
-    if (r.bullishScore === null) return false
-    return r.isLong ? r.bullishScore >= 7 : r.bullishScore <= 3
+    if (r.bullishScore === null || r.positionPct === null || r.positionPct === 0) return false
+    return r.positionPct > 0 ? r.bullishScore <= 3 : r.bullishScore >= 7
   }).length
   const hasDriftData = rows.some(
     (r) => r.driftBadge !== null || r.bullishScore !== null,
