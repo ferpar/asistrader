@@ -28,7 +28,15 @@ export interface OpenRow {
   /** `(current − PE) / (SL − PE)` — 1 = at SL. Null when no live price. */
   distanceToSL: number | null
   unrealizedPnLPct: number | null
+  /** Committed capital in the trade's native currency (the raw `amount`). */
   amount: number
+  /**
+   * Committed capital converted to the base currency at the order date — the
+   * same basis the backend IRR analysis uses for `investmentBase`. Falls back
+   * to the native `amount` when no FX rate is available. Summed for the section
+   * total so it agrees with the Unrealized "Invested" figure.
+   */
+  committedBase: number
   /** Days since the position was opened (dateActual). Null if missing. */
   holdingDays: number | null
   segment: Segment
@@ -56,11 +64,22 @@ function segmentOf(positionToTarget: number | null): Segment {
   return positionToTarget > 0 ? 'profit' : 'loss'
 }
 
+/**
+ * Converts a native committed amount to the base currency. Mirrors the
+ * backend's `_to_base`: convert at the order date, falling back to the native
+ * amount when no rate is available. The default identity converter leaves the
+ * native amount unchanged (used in tests and single-currency portfolios).
+ */
+export type ToBase = (amount: number, ccy: string | null, onDate: Date) => number
+
+const identityToBase: ToBase = (amount) => amount
+
 export function buildOpenRows(
   trades: TradeWithMetrics[],
   metrics: Record<number, LiveMetrics>,
   indicators: TickerIndicators[],
   now: Date = new Date(),
+  toBase: ToBase = identityToBase,
 ): OpenRow[] {
   const indicatorByTicker = new Map(
     indicators.map((ind) => [ind.symbol.toUpperCase(), ind] as const),
@@ -106,6 +125,13 @@ export function buildOpenRows(
         distanceToSL: m?.distanceToSL?.toNumber() ?? null,
         unrealizedPnLPct: m?.unrealizedPnLPct?.toNumber() ?? null,
         amount: t.amount.toNumber(),
+        // Order date is the basis the backend converts on (date_ordered, else
+        // date_planned), so the section total lines up with Unrealized.
+        committedBase: toBase(
+          t.amount.toNumber(),
+          t.tickerCurrency,
+          t.dateOrdered ?? t.datePlanned,
+        ),
         holdingDays: t.dateActual ? daysSince(t.dateActual, now) : null,
         segment,
         isLong: t.stopLoss.lt(t.entryPrice),
@@ -167,7 +193,7 @@ export function summarizeOpenRows(rows: OpenRow[]): OpenSummary {
 
   return {
     count: rows.length,
-    totalCommitted: rows.reduce((sum, r) => sum + r.amount, 0),
+    totalCommitted: rows.reduce((sum, r) => sum + r.committedBase, 0),
     avgPnLPct: mean(pnls),
     avgHoldingDays: mean(holdings),
     closestToTP: closestToTP
