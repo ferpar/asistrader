@@ -227,6 +227,25 @@ describe('summarizeOrderedRows', () => {
     expect(summarizeOrderedRows(bearishAbove).trendAlignedCount).toBe(1)
   })
 
+  it('counts an order whose price is moving away from PE as drifting away', () => {
+    // PE below current price (must fall to fill) while the trend is rising →
+    // the live ETA recedes, so the order is diverging from PE.
+    const trade = ordered({
+      id: 1,
+      ticker: 'AAPL',
+      entryPrice: Decimal.from(100),
+      stopLoss: Decimal.from(90),
+    })
+    const metrics: Record<number, LiveMetrics> = {
+      1: buildLiveMetrics({ currentPrice: Decimal.from(110), distanceToPE: Decimal.from(0.1) }),
+    }
+    // Default fixture price changes are positive (rising) — away from a PE below.
+    const indicators = [buildTickerIndicators({ symbol: 'AAPL' })]
+    const [row] = buildOrderedRows([trade], metrics, indicators, NOW)
+    expect(row.peDiverging).toBe(true)
+    expect(summarizeOrderedRows([row]).driftingAwayCount).toBe(1)
+  })
+
   it('ignores trend alignment when position is null or exactly at PE', () => {
     const trades = [
       ordered({ id: 1, ticker: 'AT', entryPrice: Decimal.from(100), stopLoss: Decimal.from(90) }),

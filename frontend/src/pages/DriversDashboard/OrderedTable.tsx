@@ -153,9 +153,19 @@ export function OrderedTable({
               <td className={shared.num}>{fmtMoney(r.amount, ccy)}</td>
               {hasDriftData && (
                 <>
-                  <td className={r.driftBadge ? DRIFT_CLASS[r.driftBadge] : ''}>
-                    {r.driftBadge ?? <span className={shared.muted}>—</span>}
-                  </td>
+                  {/* A receding live ETA carries no drift badge; show "↘ now" so a
+                      row counted as drifting away isn't blank here. */}
+                  {r.driftBadge ? (
+                    <td className={DRIFT_CLASS[r.driftBadge]}>{r.driftBadge}</td>
+                  ) : r.peDiverging ? (
+                    <td className={shared.neg} title="Price is currently moving away from PE">
+                      ↘ now
+                    </td>
+                  ) : (
+                    <td>
+                      <span className={shared.muted}>—</span>
+                    </td>
+                  )}
                   <td className={shared.num}>
                     {r.bullishScore === null ? (
                       <span className={shared.muted}>—</span>

@@ -58,7 +58,7 @@ export function OrderedSummaryCard({
       {
         label: 'Drifting away',
         value: String(summary.driftingAwayCount),
-        hint: 'Orders whose price is moving away from the planned entry vs. the at-plan baseline.',
+        hint: 'Orders moving away from the planned entry — behind the at-plan schedule, a baseline trend pointing away (↘ proj), or a price currently receding from PE (↘ now).',
       },
       {
         label: 'Trend-aligned',

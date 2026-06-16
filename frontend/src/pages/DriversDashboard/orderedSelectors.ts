@@ -5,6 +5,7 @@ import {
   computeConvergenceScore,
   type ConvergenceScore,
 } from '../../domain/radar/convergenceScore'
+import type { TimelineRange } from '../../utils/timelineExpectations'
 
 export type DriftBadge = 'new' | 'ahead' | 'behind' | 'on pace' | '↘ proj'
 
@@ -28,6 +29,9 @@ export interface OrderedRow {
   amount: number
   isLong: boolean
   driftBadge: DriftBadge | null
+  /** Price is currently moving away from PE (live ETA is receding). Such orders
+   *  carry no ahead/behind drift badge, so they're tracked separately. */
+  peDiverging: boolean
   bullishScore: number | null
   avgChangePct5d: number | null
   /** Composite "is the price converging on PE in our favor" score; null when no inputs. */
@@ -38,6 +42,14 @@ const MS_PER_DAY = 86_400_000
 
 /** Threshold above which an outstanding order is flagged "stale" in the summary. */
 export const STALE_ORDER_DAYS = 30
+
+/** A timeline range is "receding" when no numeric ETA survives because the
+ *  trend is carrying price away from the target (mirrors the projected-state
+ *  receding check in tradeEta). */
+function isReceding(range: TimelineRange | null | undefined): boolean {
+  if (!range) return false
+  return range.lo === null && (range.a === 'receding' || range.b === 'receding')
+}
 
 function daysSince(from: Date, now: Date): number {
   return Math.max(0, Math.round((now.getTime() - from.getTime()) / MS_PER_DAY))
@@ -67,7 +79,12 @@ export function buildOrderedRows(
         indicator && indicator.datedCloses.length > 0
           ? computeTradeEta(t, m, indicator.priceChanges, indicator.datedCloses, now)
           : null
-      const driftBadge = (eta?.pe?.badge ?? null) as DriftBadge | null
+      const peCell = eta?.pe ?? null
+      const driftBadge = (peCell?.badge ?? null) as DriftBadge | null
+      // A freshly-placed order has no trajectory to recede yet; otherwise treat a
+      // receding live ETA as "moving away from PE".
+      const peDiverging =
+        !!peCell && peCell.projectedState !== 'fresh' && isReceding(peCell.dynamic)
       const positionPct = m?.distanceToPE?.toNumber() ?? null
       const isLong = t.stopLoss.lt(t.entryPrice)
 
@@ -97,6 +114,7 @@ export function buildOrderedRows(
         amount: t.amount.toNumber(),
         isLong,
         driftBadge,
+        peDiverging,
         bullishScore: indicator?.sma.bullishScore ?? null,
         avgChangePct5d: indicator?.priceChanges.avgChangePct5d ?? null,
         convergence,
@@ -215,7 +233,12 @@ export function summarizeOrderedRows(rows: OrderedRow[]): OrderedSummary {
   const staleCount = rows.filter(
     (r) => r.orderAgeDays !== null && r.orderAgeDays > STALE_ORDER_DAYS,
   ).length
-  const driftingAwayCount = rows.filter((r) => r.driftBadge === 'behind').length
+  // "Drifting away" = the order's price is moving away from PE: behind the
+  // at-plan schedule, a baseline trend that pointed away (↘ proj), or a live ETA
+  // that is currently receding (peDiverging — which carries no drift badge).
+  const driftingAwayCount = rows.filter(
+    (r) => r.driftBadge === 'behind' || r.driftBadge === '↘ proj' || r.peDiverging,
+  ).length
   // SMA "alignment" is measured against the *fill* direction, like the SMA term
   // of the convergence score — not the trade's long/short side. Price above PE
   // (positionPct > 0, must fall to fill) is favoured by a bearish stack
@@ -227,7 +250,7 @@ export function summarizeOrderedRows(rows: OrderedRow[]): OrderedSummary {
     return r.positionPct > 0 ? r.bullishScore <= 3 : r.bullishScore >= 7
   }).length
   const hasDriftData = rows.some(
-    (r) => r.driftBadge !== null || r.bullishScore !== null,
+    (r) => r.driftBadge !== null || r.peDiverging || r.bullishScore !== null,
   )
 
   return {
