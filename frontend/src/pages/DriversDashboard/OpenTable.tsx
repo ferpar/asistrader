@@ -52,7 +52,7 @@ function value(r: OpenRow, key: OpenKey) {
     case 'holding':
       return r.holdingDays
     case 'amount':
-      return r.amount
+      return r.committedBase
     case 'bullish':
       return r.bullishScore
     case 'health':
@@ -136,7 +136,7 @@ export function OpenTable({
               <td className={shared.num}>{formatPctCell(r.distanceToTP)}</td>
               <td className={shared.num}>{formatPctCell(r.distanceToSL)}</td>
               <td className={shared.num}>{formatDays(r.holdingDays)}</td>
-              <td className={shared.num}>{fmtMoney(r.amount, ccy)}</td>
+              <td className={shared.num}>{fmtMoney(r.committedBase, ccy)}</td>
               {hasHealthData && (
                 <>
                   <td className={shared.num}>

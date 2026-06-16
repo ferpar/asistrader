@@ -68,6 +68,27 @@ describe('buildOpenRows', () => {
     expect(row.holdingDays).toBeNull()
   })
 
+  it('converts committed capital to base via the converter, keeping native amount', () => {
+    const toBase: (amount: number, ccy: string | null, onDate: Date) => number = (
+      amount,
+      ccy,
+    ) => (ccy === 'EUR' ? amount * 1.1 : amount)
+    const trades = [
+      open({ id: 1, amount: Decimal.from(1000), tickerCurrency: 'EUR' }),
+      open({ id: 2, amount: Decimal.from(1000), tickerCurrency: 'USD' }),
+    ]
+    const rows = buildOpenRows(trades, {}, [], NOW, toBase)
+    expect(rows[0].amount).toBe(1000) // native is preserved for the table
+    expect(rows[0].committedBase).toBeCloseTo(1100) // EUR converted to base
+    expect(rows[1].committedBase).toBe(1000) // base-currency trade unchanged
+    expect(summarizeOpenRows(rows).totalCommitted).toBeCloseTo(2100)
+  })
+
+  it('defaults committedBase to the native amount without a converter', () => {
+    const [row] = buildOpenRows([open({ amount: Decimal.from(1500) })], {}, [], NOW)
+    expect(row.committedBase).toBe(1500)
+  })
+
   it('marks long vs short by SL/entry relationship', () => {
     const longTrade = open({ id: 1, entryPrice: Decimal.from(100), stopLoss: Decimal.from(90) })
     const shortTrade = open({ id: 2, entryPrice: Decimal.from(100), stopLoss: Decimal.from(110) })
