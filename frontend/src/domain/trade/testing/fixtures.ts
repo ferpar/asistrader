@@ -30,6 +30,8 @@ export function buildTrade(overrides?: Partial<TradeWithMetrics>): TradeWithMetr
     exitLevels: [],
     strategyId: null,
     strategyName: null,
+    followedFaithfully: null,
+    strategySnapshot: null,
     cancelReason: null,
     riskAbs: Decimal.from(-100),
     profitAbs: Decimal.from(200),

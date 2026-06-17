@@ -59,6 +59,8 @@ export interface Trade {
   // Strategy
   strategy_id: number | null
   strategy_name: string | null
+  followed_faithfully: boolean | null
+  strategy_snapshot: Record<string, unknown> | null
   // Cancellation
   cancel_reason: CancelReason | null
   // Calculated fields
@@ -87,6 +89,9 @@ export interface TradeCreateRequest {
   order_type?: OrderType | null
   time_in_effect?: TimeInEffect | null
   gtd_date?: string | null
+  // Set when the trade was drafted by an automated strategy.
+  followed_faithfully?: boolean | null
+  strategy_snapshot?: Record<string, unknown> | null
 }
 
 export interface TradeUpdateRequest {

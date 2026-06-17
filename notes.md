@@ -1,27 +1,14 @@
-data entering -> a user keeps forgetting to mark trades a stop, or inserting the data wrong and creating limit orders that auto-complete on the next tick (day) because they are far above the current price. We need to implement a validation in the create trade inteface to prevent this kind of errors.
+- check trend aligned not being right at ordered summary, as well as on pace. Seems to be inverted for positive position trades.
 
-screener
-	- goal: from 200 tickers after 6 months we get to know which are the tickers to focus more capital on
-		it has a 3 tier system: A B C 
-		the tickers keep going in and out of a tier
-	- we have plenty of indicators that we will use for grading the tickers
-	- but we will combine them with our historical indicators we are deriving in the drivers section for the realized section
-		- TIR per trade
-		- annualized TIR
-		- avg days per trade
-	- and additional 
-		- number of winning trades / over time - trade frequency
-		- number of losing trades / over time - trade frequency
+- fix step 4 of trade creation wizard
+- keep step in wizard after switching to advanced and back
+- improve keyboard flow in wizard (start on the first input for the trade, maybe move options to the bottom?)
+- make ticker selector keyboard friendly
 
 webMCP exploration
 
 stock vs index comparison ( at radar? ) ( at drivers? )
 
-- create new diverging / converging indicator for ordered trades based on confluence of the current filters of the radar:
-	- sma
-	- averages
-	- drift
-	- rsi
 
 irr
 	- cummulative should have a max number of days, or alternatively have a parameter of limited days to measure as tail. Perhaps also parameterize the histogram and normal distrib charts to select date ranges for them.. Perhaps all graphs should have the same date range.
@@ -31,7 +18,6 @@ radar screen with
  	- macro indicators
 
 KPIs
-	- order/open proportion
 	- open unrealized  TIR winners and losers
 	- closed realized  TIR winners and losers
 	- 
@@ -222,3 +208,28 @@ DONE - check trades one-click to action
 	-> review auto detection in one click
 	-> open trade in one click 
 	-> close trade in one click
+
+DONE -screener
+	- goal: from 200 tickers after 6 months we get to know which are the tickers to focus more capital on
+		it has a 3 tier system: A B C 
+		the tickers keep going in and out of a tier
+	- we have plenty of indicators that we will use for grading the tickers
+	- but we will combine them with our historical indicators we are deriving in the drivers section for the realized section
+		- TIR per trade
+		- annualized TIR
+		- avg days per trade
+	- and additional 
+		- number of winning trades / over time - trade frequency
+		- number of losing trades / over time - trade frequency
+
+DONE - force trades created to be either limit stop or market, migrate trades without order type to limit
+
+DONE - fix the screening page not displaying all tickers when not entering radar page first
+
+DONE - data entering -> a user keeps forgetting to mark trades a stop, or inserting the data wrong and creating limit orders that auto-complete on the next tick (day) because they are far above the current price. We need to implement a validation in the create trade inteface to prevent this kind of errors.
+
+DONE - create new diverging / converging indicator for ordered trades based on confluence of the current filters of the radar:
+	- sma
+	- averages
+	- drift
+	- rsi

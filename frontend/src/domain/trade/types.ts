@@ -44,6 +44,10 @@ export interface Trade {
   exitLevels: ExitLevel[]
   strategyId: number | null
   strategyName: string | null
+  /** Whether auto-drafted prices were taken as-is (true) or nudged (false). Null for manual trades. */
+  followedFaithfully: boolean | null
+  /** Draft-time recommendation snapshot for realized-vs-expected analysis. Opaque blob. */
+  strategySnapshot: Record<string, unknown> | null
   cancelReason: CancelReason | null
 }
 

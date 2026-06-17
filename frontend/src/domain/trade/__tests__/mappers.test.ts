@@ -84,6 +84,8 @@ describe('mapTrade', () => {
     exit_levels: [],
     strategy_id: 1,
     strategy_name: 'Swing',
+    followed_faithfully: null,
+    strategy_snapshot: null,
     cancel_reason: null,
     risk_abs: -100,
     profit_abs: 200,

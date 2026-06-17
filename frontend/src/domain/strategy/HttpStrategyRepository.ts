@@ -1,7 +1,14 @@
 import type { IStrategyRepository } from './IStrategyRepository'
-import type { Strategy } from './types'
-import type { StrategyCreateRequest, StrategyUpdateRequest, StrategyListResponse, StrategyResponse } from '../../types/strategy'
-import { mapStrategy } from './mappers'
+import type { DraftResult, Strategy } from './types'
+import type {
+  StrategyCreateRequest,
+  StrategyUpdateRequest,
+  StrategyListResponse,
+  StrategyResponse,
+  StrategyDraftRequestDTO,
+  StrategyDraftResponseDTO,
+} from '../../types/strategy'
+import { mapDraftResult, mapStrategy } from './mappers'
 import { buildHeaders } from '../shared/httpHelpers'
 
 export class HttpStrategyRepository implements IStrategyRepository {
@@ -47,6 +54,20 @@ export class HttpStrategyRepository implements IStrategyRepository {
     }
     const data: StrategyResponse = await response.json()
     return mapStrategy(data.strategy)
+  }
+
+  async draftTrade(id: number, request: StrategyDraftRequestDTO): Promise<DraftResult> {
+    const response = await fetch(`${this.baseUrl}/api/strategies/${id}/draft`, {
+      method: 'POST',
+      headers: buildHeaders(this.getToken, true),
+      body: JSON.stringify(request),
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || `Failed to draft trade: ${response.statusText}`)
+    }
+    const data: StrategyDraftResponseDTO = await response.json()
+    return mapDraftResult(data)
   }
 
   async deleteStrategy(id: number): Promise<void> {

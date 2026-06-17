@@ -79,6 +79,8 @@ function makeTrade(overrides: Partial<TradeWithMetrics>): TradeWithMetrics {
     exitLevels: [],
     strategyId: null,
     strategyName: null,
+    followedFaithfully: null,
+    strategySnapshot: null,
     cancelReason: null,
     riskAbs: D(0),
     profitAbs: D(0),

@@ -71,6 +71,8 @@ export function mapTrade(dto: TradeDTO): TradeWithMetrics {
     exitLevels: dto.exit_levels.map(mapExitLevel),
     strategyId: dto.strategy_id,
     strategyName: dto.strategy_name,
+    followedFaithfully: dto.followed_faithfully ?? null,
+    strategySnapshot: dto.strategy_snapshot ?? null,
     cancelReason: dto.cancel_reason,
     riskAbs: Decimal.from(dto.risk_abs),
     profitAbs: Decimal.from(dto.profit_abs),
