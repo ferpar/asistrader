@@ -205,42 +205,51 @@ def recommend(sweep: SweepResult, cfg: RecommendConfig | None = None) -> Recomme
         if wr_ci[0] >= breakeven + cfg.min_margin_over_breakeven and eff_ci[0] > 0:
             confident_d2.append(d2)
 
-    if confident_d2:
-        # regular: highest efficiency CI lower bound (winner's-curse resistant).
-        regular_d2 = max(confident_d2, key=lambda d: cis[d]["efficiency"][0])
-        # conservative: highest win-rate CI lower bound.
-        conservative_d2 = max(confident_d2, key=lambda d: cis[d]["win_rate"][0])
-        # aggressive: shortest acceptable horizon.
-        aggressive_d2 = min(confident_d2)
-        presets = {
-            "regular": make_preset("regular", regular_d2),
-            "conservative": make_preset("conservative", conservative_d2),
-            "aggressive": make_preset("aggressive", aggressive_d2),
-        }
+    # Pick the pool the presets are drawn from: the confident set if any horizon
+    # cleared the gate, otherwise a best-effort fallback (enough samples to say
+    # anything; failing that, any horizon with a CI). We *always* surface all
+    # three presets so the user can compare — when not confident they're shown
+    # alongside the low-confidence banner, with CIs on each card.
+    confident = bool(confident_d2)
+    pool = confident_d2
+    if not pool:
+        pool = [d for d in sweep.config.d2_values
+                if stats_by_d2[d].n_trials >= cfg.min_effective_samples and d in cis and cis[d]]
+    if not pool:
+        pool = [d for d in sweep.config.d2_values
+                if stats_by_d2[d].n_trials > 0 and d in cis and cis[d]]
+
+    if not pool:
+        # Genuinely nothing to show (no fills / no usable horizons).
         return Recommendation(
-            confident=True,
+            confident=False,
             breakeven_win_rate=breakeven,
             fill_rate=fill_rate,
-            presets=presets,
-            reason=None,
+            presets={},
+            reason=_low_confidence_reason(sweep, cfg, breakeven),
             notes=notes,
         )
 
-    # Low confidence: nothing clears the gates. Return a best-effort regular by
-    # raw efficiency point estimate (flagged), so the UI can explain why.
-    reason = _low_confidence_reason(sweep, cfg, breakeven)
-    scored = [(d2, efficiency(d2)) for d2 in sweep.config.d2_values]
-    scored = [(d2, e) for d2, e in scored if e is not None]
-    presets = {}
-    if scored:
-        best_d2 = max(scored, key=lambda t: t[1])[0]
-        presets = {"regular": make_preset("regular", best_d2)}
+    def eff_low(d: int) -> float:
+        return cis[d].get("efficiency", (float("-inf"),))[0]
+
+    def wr_low(d: int) -> float:
+        return cis[d].get("win_rate", (float("-inf"),))[0]
+
+    regular_d2 = max(pool, key=eff_low)        # best capital-efficiency (CI lower bound)
+    conservative_d2 = max(pool, key=wr_low)    # safest (highest win-rate CI lower bound)
+    aggressive_d2 = min(pool)                  # shortest / fastest horizon
+    presets = {
+        "regular": make_preset("regular", regular_d2),
+        "conservative": make_preset("conservative", conservative_d2),
+        "aggressive": make_preset("aggressive", aggressive_d2),
+    }
     return Recommendation(
-        confident=False,
+        confident=confident,
         breakeven_win_rate=breakeven,
         fill_rate=fill_rate,
         presets=presets,
-        reason=reason,
+        reason=None if confident else _low_confidence_reason(sweep, cfg, breakeven),
         notes=notes,
     )
 

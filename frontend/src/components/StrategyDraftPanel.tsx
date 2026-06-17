@@ -33,9 +33,8 @@ export const StrategyDraftPanel = observer(function StrategyDraftPanel({
         <label className={styles.control}>
           PLR
           <input
-            type="number"
-            step="0.1"
-            min="0.1"
+            type="text"
+            inputMode="decimal"
             value={form.plrInput}
             onChange={(e) => form.setPlrInput(e.target.value)}
             className={styles.plrInput}
@@ -81,7 +80,13 @@ export const StrategyDraftPanel = observer(function StrategyDraftPanel({
             >
               <span className={styles.kind}>{p.kind}</span>
               <span className={styles.row}>Hold ~{p.d2}d · {p.nTrials} trials</span>
-              <span className={styles.row}>Win {pct(p.winRate)} · Fill {pct(result.fillRate)}</span>
+              <span className={styles.row}>
+                Win {pct(p.winRate)}
+                {p.winRateCi && ` (CI ${pct(p.winRateCi[0])}–${pct(p.winRateCi[1])})`}
+              </span>
+              <span className={styles.row}>
+                Fill {pct(result.fillRate)} · break-even {pct(result.breakevenWinRate)}
+              </span>
               <span className={styles.row}>Eff/day {pctFine(p.expectancyPerDay)}</span>
               <span className={styles.prices}>
                 {p.entry} · TP {p.takeProfit} · SL {p.stopLoss}

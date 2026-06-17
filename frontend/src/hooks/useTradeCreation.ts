@@ -307,7 +307,8 @@ export function useTradeCreation(initialTicker?: string) {
     setDraftLoading(true)
     setDraftError(null)
     try {
-      const plr = parseFloat(plrInput)
+      // Locale-safe: accept a decimal comma (e.g. "1,5") as well as a period.
+      const plr = parseFloat(plrInput.replace(',', '.'))
       const res = await strategyRepo.draftTrade(selectedStrategy.id, {
         ticker: formData.ticker,
         plr: Number.isFinite(plr) ? plr : null,

@@ -74,3 +74,7 @@ def test_high_margin_requirement_rejects_a_marginal_edge() -> None:
     sweep = _uptrend_sweep(n=90)
     rec = recommend(sweep, RecommendConfig(min_effective_samples=30, min_margin_over_breakeven=0.95, bootstrap_iterations=200))
     assert rec.confident is False
+    # Even when not confident, all three best-effort presets are surfaced (with a
+    # reason) so the user can compare — not just a lone "regular".
+    assert {"regular", "conservative", "aggressive"} <= set(rec.presets)
+    assert rec.reason is not None
