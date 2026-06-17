@@ -25,7 +25,7 @@ services:
       db:
         condition: service_healthy
     command: >
-      sh -c "alembic upgrade head && uvicorn asistrader.main:app --host 0.0.0.0 --port 8005"
+      sh -c "alembic upgrade head && python -m asistrader.db.seed_strategies && uvicorn asistrader.main:app --host 0.0.0.0 --port 8005"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
       interval: 10s

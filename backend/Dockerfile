@@ -27,5 +27,6 @@ RUN uv pip install --system -e .
 # Expose port
 EXPOSE 8005
 
-# Run migrations and start the application
-CMD ["sh", "-c", "alembic upgrade head && uvicorn asistrader.main:app --host 0.0.0.0 --port 8005"]
+# Run migrations, ensure default strategies exist (idempotent), then start.
+# Demo data (tickers/trades) is seeded separately via scripts/seed_data.py, not here.
+CMD ["sh", "-c", "alembic upgrade head && python -m asistrader.db.seed_strategies && uvicorn asistrader.main:app --host 0.0.0.0 --port 8005"]
