@@ -1,12 +1,12 @@
 import { observable } from '@legendapp/state'
 
 /** The authenticated pages. */
-export type AppPage = 'trades' | 'fund' | 'radar' | 'drivers' | 'screening' | 'detection-sandbox'
+export type AppPage = 'trades' | 'fund' | 'radar' | 'drivers' | 'screening' | 'detection-sandbox' | 'strategies'
 
 /** Every addressable route, including the auth page. */
 export type RouteKey = AppPage | 'login'
 
-export const ROUTES: readonly RouteKey[] = ['trades', 'fund', 'radar', 'drivers', 'screening', 'detection-sandbox', 'login']
+export const ROUTES: readonly RouteKey[] = ['trades', 'fund', 'radar', 'drivers', 'screening', 'detection-sandbox', 'strategies', 'login']
 // Declared as literal types so `route !== LOGIN_ROUTE` narrows RouteKey to AppPage.
 export const DEFAULT_ROUTE = 'trades' as const
 export const LOGIN_ROUTE = 'login' as const

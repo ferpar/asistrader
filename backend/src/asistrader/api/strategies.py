@@ -3,17 +3,22 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
+from dataclasses import asdict
+
 from asistrader.db.database import get_db
 from asistrader.models.schemas import (
     StrategyCreateRequest,
     StrategyDraftRequest,
     StrategyDraftResponse,
+    StrategyEngineListResponse,
+    StrategyEngineSchema,
     StrategyListResponse,
     StrategyResponse,
     StrategySchema,
     StrategyUpdateRequest,
 )
 from asistrader.services.strategies.draft_service import draft_trade
+from asistrader.services.strategies.engines import list_engines
 from asistrader.services.strategy_service import (
     StrategyInUseError,
     StrategyNameExistsError,
@@ -34,6 +39,24 @@ def list_strategies(db: Session = Depends(get_db)) -> StrategyListResponse:
     strategies = get_all_strategies(db)
     strategy_schemas = [StrategySchema.model_validate(s) for s in strategies]
     return StrategyListResponse(strategies=strategy_schemas, count=len(strategy_schemas))
+
+
+@router.get("/engines", response_model=StrategyEngineListResponse)
+def list_strategy_engines() -> StrategyEngineListResponse:
+    """The code-defined catalog of automated-strategy engines + their param schemas.
+
+    Defined before `/{strategy_id}` so the literal path isn't captured as an id.
+    """
+    engines = [
+        StrategyEngineSchema(
+            id=e.id,
+            label=e.label,
+            description=e.description,
+            fields=[asdict(f) for f in e.fields],
+        )
+        for e in list_engines()
+    ]
+    return StrategyEngineListResponse(engines=engines)
 
 
 @router.get("/{strategy_id}", response_model=StrategyResponse)

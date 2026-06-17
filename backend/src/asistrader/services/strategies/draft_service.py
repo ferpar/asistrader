@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from asistrader.models.db import Strategy, SweepResultCache
 from asistrader.services.market_data_service import get_data_bounds, get_market_data
 
+from .engines import get_engine
 from .historical_expected_days import SweepConfig, draft_prices, run_sweep
 from .recommend import RecommendConfig, recommend
 from .speed import trailing_avg_change_pct
@@ -51,8 +52,12 @@ def _resolve(strategy: Strategy, overrides: dict) -> tuple[SweepConfig, Recommen
         time_in_effect=tie,
     )
     rec_cfg = RecommendConfig(
-        min_margin_over_breakeven=float(gates.get("min_margin_over_breakeven", 0.05)),
-        min_effective_samples=int(gates.get("min_effective_samples", 30)),
+        min_margin_over_breakeven=float(
+            p.get("min_margin_over_breakeven", gates.get("min_margin_over_breakeven", 0.05))
+        ),
+        min_effective_samples=int(
+            p.get("min_effective_samples", gates.get("min_effective_samples", 30))
+        ),
     )
 
     # Stable hash over everything that affects the result.
@@ -89,6 +94,19 @@ def draft_trade(db: Session, strategy: Strategy, overrides: dict) -> dict:
     ticker = overrides["ticker"]
     sweep_cfg, rec_cfg, side, order_type, params_hash = _resolve(strategy, overrides)
     breakeven = 1.0 / (1.0 + sweep_cfg.plr)
+
+    engine_id = (strategy.params or {}).get("engine", "historical_expected_days")
+    if get_engine(engine_id) is None:
+        return {
+            "confident": False,
+            "reason": f"Unknown strategy engine '{engine_id}'.",
+            "breakeven_win_rate": breakeven,
+            "fill_rate": 0.0,
+            "ticker": ticker,
+            "last_bar_date": None,
+            "speed": None,
+            "presets": [],
+        }
 
     _, last_bar = get_data_bounds(db, ticker)
     if last_bar is None:

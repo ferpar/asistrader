@@ -19,6 +19,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from asistrader.models.db import Base, Bias, Strategy, Ticker, Trade, TradeStatus
+from asistrader.services.strategies.engines import HISTORICAL_EXPECTED_DAYS
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -65,6 +66,17 @@ def seed_database():
                 sl_method="Below consolidation low",
                 tp_method="Measured move equal to range height",
                 description="Range breakout momentum strategy",
+            ),
+            # Automated strategy bound to the historical-expected-days engine.
+            # Params come from the engine's own defaults (single source of truth).
+            Strategy(
+                name="Historical Expected Days",
+                automated=True,
+                pe_method="speed_offset",
+                sl_method="plr",
+                tp_method="historical_expected_days",
+                description="Automated: triple-barrier sweep recommending a holding horizon.",
+                params=HISTORICAL_EXPECTED_DAYS.default_params(),
             ),
         ]
 

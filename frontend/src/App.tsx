@@ -3,7 +3,7 @@ import { observer } from '@legendapp/state/react'
 import { Layout } from './components/Layout'
 import { AuthForm } from './components/AuthForm'
 import { IndicatorBootstrap } from './components/IndicatorBootstrap'
-import { TradeDashboard, FundDashboard, RadarDashboard, DriversDashboard, ScreeningDashboard, DetectionSandbox } from './pages'
+import { TradeDashboard, FundDashboard, RadarDashboard, DriversDashboard, ScreeningDashboard, DetectionSandbox, StrategyAdmin } from './pages'
 import { useAuthStore, useFundStore, useRouterStore } from './container/ContainerContext'
 import { DEFAULT_ROUTE, LOGIN_ROUTE, type AppPage } from './domain/router/RouterStore'
 import './styles/global.css'
@@ -16,6 +16,7 @@ const PAGES: Record<AppPage, JSX.Element> = {
   drivers: <DriversDashboard />,
   screening: <ScreeningDashboard />,
   'detection-sandbox': <DetectionSandbox />,
+  strategies: <StrategyAdmin />,
 }
 
 /**

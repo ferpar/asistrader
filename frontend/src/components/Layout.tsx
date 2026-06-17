@@ -17,6 +17,7 @@ const TABS: ReadonlyArray<{ page: AppPage; label: string }> = [
   { page: 'drivers', label: 'Drivers' },
   { page: 'screening', label: 'Screening' },
   { page: 'detection-sandbox', label: 'Detection' },
+  { page: 'strategies', label: 'Strategies' },
 ]
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {

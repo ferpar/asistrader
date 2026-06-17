@@ -178,6 +178,33 @@ class StrategyDraftResponse(BaseModel):
     presets: list[StrategyDraftPreset] = []
 
 
+class StrategyEngineParamSchema(BaseModel):
+    """One configurable param of an engine, enough for the UI to render an input."""
+
+    key: str
+    label: str
+    type: str  # "number" | "int" | "int_range" | "select"
+    default: Any = None
+    options: list[str] | None = None
+    min: float | None = None
+    max: float | None = None
+    step: float | None = None
+    help: str | None = None
+
+
+class StrategyEngineSchema(BaseModel):
+    """A code-defined automated-strategy engine and its param schema."""
+
+    id: str
+    label: str
+    description: str
+    fields: list[StrategyEngineParamSchema]
+
+
+class StrategyEngineListResponse(BaseModel):
+    engines: list[StrategyEngineSchema]
+
+
 class RadarPresetSchema(BaseModel):
     """Schema for a saved radar preset.
 

@@ -2,8 +2,15 @@ import type {
   StrategyDTO,
   StrategyDraftPresetDTO,
   StrategyDraftResponseDTO,
+  StrategyEngineDTO,
 } from '../../types/strategy'
-import type { DraftPreset, DraftPresetKind, DraftResult, Strategy } from './types'
+import type {
+  DraftPreset,
+  DraftPresetKind,
+  DraftResult,
+  Strategy,
+  StrategyEngine,
+} from './types'
 
 export function mapStrategy(dto: StrategyDTO): Strategy {
   return {
@@ -32,6 +39,25 @@ export function mapDraftPreset(dto: StrategyDraftPresetDTO): DraftPreset {
     entry: dto.entry,
     stopLoss: dto.stop_loss,
     takeProfit: dto.take_profit,
+  }
+}
+
+export function mapEngine(dto: StrategyEngineDTO): StrategyEngine {
+  return {
+    id: dto.id,
+    label: dto.label,
+    description: dto.description,
+    fields: dto.fields.map((f) => ({
+      key: f.key,
+      label: f.label,
+      type: f.type,
+      default: f.default,
+      options: f.options ?? null,
+      min: f.min ?? null,
+      max: f.max ?? null,
+      step: f.step ?? null,
+      help: f.help ?? null,
+    })),
   }
 }
 

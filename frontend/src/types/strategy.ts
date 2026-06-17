@@ -75,3 +75,28 @@ export interface StrategyDraftResponseDTO {
   speed: number | null
   presets: StrategyDraftPresetDTO[]
 }
+
+// --- Engine catalog (code-defined automated-strategy engines) ---
+
+export interface StrategyEngineParamDTO {
+  key: string
+  label: string
+  type: string
+  default: unknown
+  options?: string[] | null
+  min?: number | null
+  max?: number | null
+  step?: number | null
+  help?: string | null
+}
+
+export interface StrategyEngineDTO {
+  id: string
+  label: string
+  description: string
+  fields: StrategyEngineParamDTO[]
+}
+
+export interface StrategyEngineListResponse {
+  engines: StrategyEngineDTO[]
+}

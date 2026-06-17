@@ -29,6 +29,27 @@ export interface DraftPreset {
   takeProfit: number
 }
 
+/** One configurable param of an engine (for rendering a typed admin input). */
+export interface EngineParamField {
+  key: string
+  label: string
+  type: string // "number" | "int" | "int_range" | "select"
+  default: unknown
+  options: string[] | null
+  min: number | null
+  max: number | null
+  step: number | null
+  help: string | null
+}
+
+/** A code-defined automated-strategy engine and its param schema. */
+export interface StrategyEngine {
+  id: string
+  label: string
+  description: string
+  fields: EngineParamField[]
+}
+
 /** Result of asking an automated strategy to draft a trade for a ticker. */
 export interface DraftResult {
   confident: boolean

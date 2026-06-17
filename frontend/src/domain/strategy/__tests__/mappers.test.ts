@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { mapDraftResult, mapStrategy } from '../mappers'
-import type { StrategyDTO, StrategyDraftResponseDTO } from '../../../types/strategy'
+import { mapDraftResult, mapEngine, mapStrategy } from '../mappers'
+import type { StrategyDTO, StrategyDraftResponseDTO, StrategyEngineDTO } from '../../../types/strategy'
 
 describe('mapStrategy', () => {
   it('maps snake_case to camelCase incl. automated/params', () => {
@@ -31,6 +31,24 @@ describe('mapStrategy', () => {
     const s = mapStrategy(dto)
     expect(s.automated).toBe(false)
     expect(s.params).toBeNull()
+  })
+})
+
+describe('mapEngine', () => {
+  it('maps an engine and normalises optional field props to null', () => {
+    const dto: StrategyEngineDTO = {
+      id: 'historical_expected_days',
+      label: 'Historical Expected Days',
+      description: 'desc',
+      fields: [
+        { key: 'plr_default', label: 'PLR', type: 'number', default: 1.5, step: 0.1 },
+        { key: 'order_type_default', label: 'Order type', type: 'select', default: 'limit', options: ['limit', 'stop'] },
+      ],
+    }
+    const e = mapEngine(dto)
+    expect(e.id).toBe('historical_expected_days')
+    expect(e.fields[0]).toMatchObject({ key: 'plr_default', type: 'number', default: 1.5, step: 0.1, min: null, options: null })
+    expect(e.fields[1].options).toEqual(['limit', 'stop'])
   })
 })
 

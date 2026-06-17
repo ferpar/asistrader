@@ -1,5 +1,5 @@
 import type { IStrategyRepository } from './IStrategyRepository'
-import type { DraftResult, Strategy } from './types'
+import type { DraftResult, Strategy, StrategyEngine } from './types'
 import type {
   StrategyCreateRequest,
   StrategyUpdateRequest,
@@ -7,8 +7,9 @@ import type {
   StrategyResponse,
   StrategyDraftRequestDTO,
   StrategyDraftResponseDTO,
+  StrategyEngineListResponse,
 } from '../../types/strategy'
-import { mapDraftResult, mapStrategy } from './mappers'
+import { mapDraftResult, mapEngine, mapStrategy } from './mappers'
 import { buildHeaders } from '../shared/httpHelpers'
 
 export class HttpStrategyRepository implements IStrategyRepository {
@@ -54,6 +55,17 @@ export class HttpStrategyRepository implements IStrategyRepository {
     }
     const data: StrategyResponse = await response.json()
     return mapStrategy(data.strategy)
+  }
+
+  async fetchEngines(): Promise<StrategyEngine[]> {
+    const response = await fetch(`${this.baseUrl}/api/strategies/engines`, {
+      headers: buildHeaders(this.getToken),
+    })
+    if (!response.ok) {
+      throw new Error(`Failed to fetch strategy engines: ${response.statusText}`)
+    }
+    const data: StrategyEngineListResponse = await response.json()
+    return data.engines.map(mapEngine)
   }
 
   async draftTrade(id: number, request: StrategyDraftRequestDTO): Promise<DraftResult> {
