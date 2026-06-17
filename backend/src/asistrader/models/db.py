@@ -150,6 +150,12 @@ class Strategy(Base):
     tp_method = Column(String, nullable=True)
     description = Column(String, nullable=True)
 
+    # Automation: when True, the pe/sl/tp_method slots name registered executable
+    # derivations and `params` configures the engine (see services/strategies/).
+    # A trade opened through an automated strategy has its strategy_id locked.
+    automated = Column(Boolean, nullable=False, default=False, server_default="0")
+    params = Column(JSON, nullable=True)
+
     # Relationships
     tickers = relationship("Ticker", back_populates="strategy_rel")
     trades = relationship("Trade", back_populates="strategy_rel")
@@ -227,6 +233,13 @@ class Trade(Base):
 
     # Strategy
     strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True)
+    # For trades drafted by an automated strategy: whether the suggested prices
+    # were taken as-is (True) or nudged by the user (False). Null for manual trades.
+    followed_faithfully = Column(Boolean, nullable=True)
+    # Snapshot of the draft-time recommendation (preset, plr_used, d1, d2, expected
+    # win-rate/efficiency/fill-rate, CI bounds, sweep_last_bar_date) for later
+    # realized-vs-expected attribution. Can't be reconstructed once the sweep moves.
+    strategy_snapshot = Column(JSON, nullable=True)
 
     # User (owner)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -529,3 +542,30 @@ class RadarPreset(Base):
     )
 
     user_rel = relationship("User", back_populates="radar_presets")
+
+
+class SweepResultCache(Base):
+    """Cached output of an automated-strategy sweep for one ticker + config.
+
+    The sweep is deterministic given (ticker, resolved params, last bar date), so
+    a row is valid until a newer MarketData bar lands for the ticker. `payload`
+    is the opaque draft response (presets, stats, CIs, drafted prices).
+    """
+
+    __tablename__ = "sweep_results"
+
+    id = Column(Integer, primary_key=True)
+    ticker = Column(String, ForeignKey("tickers.symbol"), nullable=False)
+    params_hash = Column(String, nullable=False)
+    last_bar_date = Column(Date, nullable=False)
+    payload = Column(JSON, nullable=False)
+    computed_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "ticker", "params_hash", "last_bar_date", name="uq_sweep_results_key"
+        ),
+        Index("ix_sweep_results_ticker", "ticker"),
+    )

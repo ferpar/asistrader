@@ -38,6 +38,8 @@ def create_trade(
     order_type: OrderType | None = None,
     time_in_effect: TimeInEffect | None = None,
     gtd_date: date | None = None,
+    followed_faithfully: bool | None = None,
+    strategy_snapshot: dict | None = None,
 ) -> Trade:
     """
     Create a new trade with status=PLAN.
@@ -94,6 +96,8 @@ def create_trade(
         order_type=order_type,
         time_in_effect=time_in_effect,
         gtd_date=gtd_date,
+        followed_faithfully=followed_faithfully,
+        strategy_snapshot=strategy_snapshot,
     )
     db.add(trade)
     db.commit()

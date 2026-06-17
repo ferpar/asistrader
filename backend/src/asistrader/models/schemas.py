@@ -89,6 +89,8 @@ class StrategySchema(BaseModel):
     sl_method: str | None = None
     tp_method: str | None = None
     description: str | None = None
+    automated: bool = False
+    params: dict[str, Any] | None = None
 
     model_config = {"from_attributes": True}
 
@@ -101,6 +103,8 @@ class StrategyCreateRequest(BaseModel):
     sl_method: str | None = None
     tp_method: str | None = None
     description: str | None = None
+    automated: bool = False
+    params: dict[str, Any] | None = None
 
 
 class StrategyUpdateRequest(BaseModel):
@@ -111,6 +115,8 @@ class StrategyUpdateRequest(BaseModel):
     sl_method: str | None = None
     tp_method: str | None = None
     description: str | None = None
+    automated: bool | None = None
+    params: dict[str, Any] | None = None
 
 
 class StrategyListResponse(BaseModel):
@@ -125,6 +131,51 @@ class StrategyResponse(BaseModel):
 
     strategy: StrategySchema
     message: str
+
+
+class StrategyDraftRequest(BaseModel):
+    """Request to draft a trade for a ticker using an automated strategy.
+
+    Any field left unset falls back to the strategy's params, then the engine
+    default (PLR 1.5, D1 1, ...).
+    """
+
+    ticker: str
+    plr: float | None = None
+    d1: int | None = None
+    side: str | None = None  # "long" | "short"
+    order_type: OrderType | None = None
+    time_in_effect: TimeInEffect | None = None
+
+
+class StrategyDraftPreset(BaseModel):
+    """One recommended preset with its stats and concrete drafted prices."""
+
+    kind: str  # "regular" | "conservative" | "aggressive"
+    d2: int
+    win_rate: float | None = None
+    expectancy: float | None = None
+    expectancy_per_day: float | None = None
+    efficiency: float | None = None
+    win_rate_ci: tuple[float, float] | None = None
+    efficiency_ci: tuple[float, float] | None = None
+    n_trials: int
+    entry: float
+    stop_loss: float
+    take_profit: float
+
+
+class StrategyDraftResponse(BaseModel):
+    """Draft recommendation for a ticker, or a low-confidence verdict."""
+
+    confident: bool
+    reason: str | None = None
+    breakeven_win_rate: float
+    fill_rate: float
+    ticker: str
+    last_bar_date: date | None = None
+    speed: float | None = None
+    presets: list[StrategyDraftPreset] = []
 
 
 class RadarPresetSchema(BaseModel):
@@ -309,6 +360,8 @@ class TradeSchema(BaseModel):
     # Strategy
     strategy_id: int | None = None
     strategy_name: str | None = None
+    followed_faithfully: bool | None = None
+    strategy_snapshot: dict[str, Any] | None = None
 
     # Cancellation
     cancel_reason: CancelReason | None = None
@@ -349,6 +402,9 @@ class TradeCreateRequest(BaseModel):
     order_type: OrderType | None = None
     time_in_effect: TimeInEffect | None = None
     gtd_date: date | None = None
+    # Set when the trade was drafted by an automated strategy.
+    followed_faithfully: bool | None = None
+    strategy_snapshot: dict[str, Any] | None = None
 
 
 class TradeUpdateRequest(BaseModel):
@@ -372,6 +428,8 @@ class TradeUpdateRequest(BaseModel):
     order_type: OrderType | None = None
     time_in_effect: TimeInEffect | None = None
     gtd_date: date | None = None
+    followed_faithfully: bool | None = None
+    strategy_snapshot: dict[str, Any] | None = None
 
 
 class TradeResponse(BaseModel):

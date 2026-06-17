@@ -40,6 +40,8 @@ def create_strategy(
     sl_method: str | None = None,
     tp_method: str | None = None,
     description: str | None = None,
+    automated: bool = False,
+    params: dict | None = None,
 ) -> Strategy:
     """Create a new strategy.
 
@@ -71,6 +73,8 @@ def create_strategy(
         sl_method=sl_method,
         tp_method=tp_method,
         description=description,
+        automated=automated,
+        params=params,
     )
     db.add(strategy)
     db.commit()
@@ -87,6 +91,8 @@ def update_strategy(
     sl_method: str | None = None,
     tp_method: str | None = None,
     description: str | None = None,
+    automated: bool | None = None,
+    params: dict | None = None,
 ) -> Strategy:
     """Update an existing strategy.
 
@@ -127,6 +133,10 @@ def update_strategy(
         strategy.tp_method = tp_method
     if description is not None:
         strategy.description = description
+    if automated is not None:
+        strategy.automated = automated
+    if params is not None:
+        strategy.params = params
 
     db.commit()
     db.refresh(strategy)

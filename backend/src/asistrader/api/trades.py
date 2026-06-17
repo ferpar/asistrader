@@ -86,6 +86,8 @@ def _trade_to_schema(t: Trade) -> TradeSchema:
         remaining_units=t.remaining_units,
         exit_levels=exit_level_schemas,
         strategy_id=t.strategy_id,
+        followed_faithfully=t.followed_faithfully,
+        strategy_snapshot=t.strategy_snapshot,
         order_type=t.order_type,
         time_in_effect=t.time_in_effect,
         gtd_date=t.gtd_date,
@@ -166,6 +168,8 @@ def create_new_trade(
             order_type=request.order_type,
             time_in_effect=request.time_in_effect,
             gtd_date=request.gtd_date,
+            followed_faithfully=request.followed_faithfully,
+            strategy_snapshot=request.strategy_snapshot,
         )
     except (ExitLevelValidationError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))

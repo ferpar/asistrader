@@ -6,11 +6,14 @@ from sqlalchemy.orm import Session
 from asistrader.db.database import get_db
 from asistrader.models.schemas import (
     StrategyCreateRequest,
+    StrategyDraftRequest,
+    StrategyDraftResponse,
     StrategyListResponse,
     StrategyResponse,
     StrategySchema,
     StrategyUpdateRequest,
 )
+from asistrader.services.strategies.draft_service import draft_trade
 from asistrader.services.strategy_service import (
     StrategyInUseError,
     StrategyNameExistsError,
@@ -29,17 +32,7 @@ router = APIRouter(prefix="/api/strategies", tags=["strategies"])
 def list_strategies(db: Session = Depends(get_db)) -> StrategyListResponse:
     """Get all strategies."""
     strategies = get_all_strategies(db)
-    strategy_schemas = [
-        StrategySchema(
-            id=s.id,
-            name=s.name,
-            pe_method=s.pe_method,
-            sl_method=s.sl_method,
-            tp_method=s.tp_method,
-            description=s.description,
-        )
-        for s in strategies
-    ]
+    strategy_schemas = [StrategySchema.model_validate(s) for s in strategies]
     return StrategyListResponse(strategies=strategy_schemas, count=len(strategy_schemas))
 
 
@@ -50,14 +43,7 @@ def get_strategy(strategy_id: int, db: Session = Depends(get_db)) -> StrategyRes
     if not strategy:
         raise HTTPException(status_code=404, detail=f"Strategy with ID {strategy_id} not found")
 
-    strategy_schema = StrategySchema(
-        id=strategy.id,
-        name=strategy.name,
-        pe_method=strategy.pe_method,
-        sl_method=strategy.sl_method,
-        tp_method=strategy.tp_method,
-        description=strategy.description,
-    )
+    strategy_schema = StrategySchema.model_validate(strategy)
     return StrategyResponse(strategy=strategy_schema, message="Strategy retrieved successfully")
 
 
@@ -75,15 +61,10 @@ def create_new_strategy(
             sl_method=request.sl_method,
             tp_method=request.tp_method,
             description=request.description,
+            automated=request.automated,
+            params=request.params,
         )
-        strategy_schema = StrategySchema(
-            id=strategy.id,
-            name=strategy.name,
-            pe_method=strategy.pe_method,
-            sl_method=strategy.sl_method,
-            tp_method=strategy.tp_method,
-            description=strategy.description,
-        )
+        strategy_schema = StrategySchema.model_validate(strategy)
         return StrategyResponse(
             strategy=strategy_schema,
             message=f"Strategy '{strategy.name}' created successfully",
@@ -108,15 +89,10 @@ def update_existing_strategy(
             sl_method=request.sl_method,
             tp_method=request.tp_method,
             description=request.description,
+            automated=request.automated,
+            params=request.params,
         )
-        strategy_schema = StrategySchema(
-            id=strategy.id,
-            name=strategy.name,
-            pe_method=strategy.pe_method,
-            sl_method=strategy.sl_method,
-            tp_method=strategy.tp_method,
-            description=strategy.description,
-        )
+        strategy_schema = StrategySchema.model_validate(strategy)
         return StrategyResponse(
             strategy=strategy_schema,
             message=f"Strategy '{strategy.name}' updated successfully",
@@ -125,6 +101,32 @@ def update_existing_strategy(
         raise HTTPException(status_code=404, detail=str(e))
     except StrategyNameExistsError as e:
         raise HTTPException(status_code=409, detail=str(e))
+
+
+@router.post("/{strategy_id}/draft", response_model=StrategyDraftResponse)
+def draft_trade_for_ticker(
+    strategy_id: int,
+    request: StrategyDraftRequest,
+    db: Session = Depends(get_db),
+) -> StrategyDraftResponse:
+    """Draft a trade for `request.ticker` using an automated strategy.
+
+    Runs (or reuses a cached) historical sweep and returns the regular/
+    aggressive/conservative presets with drafted entry/SL/TP, or a low-confidence
+    verdict. Kept sync: Starlette runs it in a threadpool so the CPU-bound sweep
+    doesn't block the event loop.
+    """
+    strategy = get_strategy_by_id(db, strategy_id)
+    if not strategy:
+        raise HTTPException(status_code=404, detail=f"Strategy with ID {strategy_id} not found")
+    if not strategy.automated:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Strategy '{strategy.name}' is not automated; cannot draft a trade.",
+        )
+
+    payload = draft_trade(db, strategy, request.model_dump(mode="json", exclude_none=True))
+    return StrategyDraftResponse.model_validate(payload)
 
 
 @router.delete("/{strategy_id}", status_code=204)
