@@ -1,0 +1,93 @@
+.panel {
+  border: 1px solid var(--border-color, #d0d7de);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin: 0 0 0.75rem;
+  background: var(--surface-2, #f6f8fa);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.title {
+  font-weight: 600;
+  margin-right: auto;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.plrInput {
+  width: 4rem;
+}
+
+.redraft {
+  font-size: 0.8rem;
+  padding: 0.2rem 0.5rem;
+}
+
+.status {
+  font-size: 0.85rem;
+  color: var(--text-muted, #57606a);
+}
+
+.warn {
+  font-size: 0.85rem;
+  color: var(--color-warning, #9a6700);
+}
+
+.err {
+  font-size: 0.85rem;
+  color: var(--color-danger, #cf222e);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.5rem;
+}
+
+.card {
+  text-align: left;
+  border: 1px solid var(--border-color, #d0d7de);
+  border-radius: 6px;
+  padding: 0.5rem;
+  background: var(--surface-1, #fff);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.card:hover {
+  border-color: var(--color-accent, #0969da);
+}
+
+.cardActive {
+  border-color: var(--color-accent, #0969da);
+  box-shadow: 0 0 0 1px var(--color-accent, #0969da) inset;
+}
+
+.kind {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.row {
+  font-size: 0.8rem;
+  color: var(--text-muted, #57606a);
+}
+
+.prices {
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}

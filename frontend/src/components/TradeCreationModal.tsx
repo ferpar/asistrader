@@ -6,6 +6,7 @@ import { getOverlayContainer } from '../overlay/overlayLayers'
 import { useTradeCreation } from '../hooks/useTradeCreation'
 import { GuidedTradeForm } from './GuidedTradeForm'
 import { AdvancedTradeForm } from './AdvancedTradeForm'
+import { StrategyDraftPanel } from './StrategyDraftPanel'
 import styles from './TradeCreationForm.module.css'
 
 interface TradeCreationModalProps {
@@ -72,10 +73,19 @@ export const TradeCreationModal = observer(function TradeCreationModal({ onClose
 
         {form.loadingTickers ? (
           <div className={styles.modalBody}>Loading tickers...</div>
-        ) : mode === 'guided' ? (
-          <GuidedTradeForm form={form} onSubmit={onSubmit} onCancel={onClose} />
         ) : (
-          <AdvancedTradeForm form={form} onSubmit={onSubmit} onCancel={onClose} />
+          <>
+            {form.isAutomatedStrategy && (
+              <div className={styles.modalBody} style={{ paddingBottom: 0 }}>
+                <StrategyDraftPanel form={form} />
+              </div>
+            )}
+            {mode === 'guided' ? (
+              <GuidedTradeForm form={form} onSubmit={onSubmit} onCancel={onClose} />
+            ) : (
+              <AdvancedTradeForm form={form} onSubmit={onSubmit} onCancel={onClose} />
+            )}
+          </>
         )}
       </FocusLock>
     </div>

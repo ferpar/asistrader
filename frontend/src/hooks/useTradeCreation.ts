@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { TradeCreateRequest, ExitLevelCreateRequest, OrderType, TimeInEffect, TradeDirection } from '../types/trade'
-import type { Strategy } from '../domain/strategy/types'
+import type { DraftPreset, DraftResult, Strategy } from '../domain/strategy/types'
+import { buildStrategySnapshot } from '../domain/strategy/draftPresets'
 import type { Ticker } from '../domain/ticker/types'
 import { useTradeValidation } from './useTradeValidation'
 import { useTradeStore, useStrategyRepo, useTickerStore, useFundStore, useFxStore } from '../container/ContainerContext'
@@ -46,6 +47,17 @@ export function useTradeCreation(initialTicker?: string) {
   // order type is auto-derived from direction + entry-vs-current price. Reset on
   // ticker change and form reset (a new instrument is a fresh context).
   const [orderTypeTouched, setOrderTypeTouched] = useState(false)
+
+  // --- Automated-strategy draft state ---
+  const [draftResult, setDraftResult] = useState<DraftResult | null>(null)
+  const [draftLoading, setDraftLoading] = useState(false)
+  const [draftError, setDraftError] = useState<string | null>(null)
+  const [plrInput, setPlrInput] = useState('1.5')
+  const [draftSide, setDraftSide] = useState<'long' | 'short'>('long')
+  // The preset whose prices were last applied, and the exact strings written, so
+  // we can tell on submit whether the user nudged them (followed_faithfully).
+  const [appliedPreset, setAppliedPreset] = useState<DraftPreset | null>(null)
+  const [appliedPrices, setAppliedPrices] = useState<{ entry: string; sl: string; tp: string } | null>(null)
 
   const [layeredMode, setLayeredMode] = useState(false)
   const [tpLevels, setTpLevels] = useState<ExitLevelInput[]>([
@@ -281,6 +293,60 @@ export function useTradeCreation(initialTicker?: string) {
     }
   }
 
+  // --- Automated-strategy draft flow ---
+  const selectedStrategy = useMemo(
+    () => strategies.find(s => String(s.id) === formData.strategy_id) ?? null,
+    [strategies, formData.strategy_id],
+  )
+  const isAutomatedStrategy = !!selectedStrategy?.automated
+
+  const fmtPrice = (n: number) => String(Number(n.toFixed(4)))
+
+  const runDraft = useCallback(async () => {
+    if (!selectedStrategy?.automated || !formData.ticker) return
+    setDraftLoading(true)
+    setDraftError(null)
+    try {
+      const plr = parseFloat(plrInput)
+      const res = await strategyRepo.draftTrade(selectedStrategy.id, {
+        ticker: formData.ticker,
+        plr: Number.isFinite(plr) ? plr : null,
+        side: draftSide,
+      })
+      setDraftResult(res)
+    } catch (err) {
+      setDraftError(err instanceof Error ? err.message : 'Failed to draft trade')
+      setDraftResult(null)
+    } finally {
+      setDraftLoading(false)
+    }
+  }, [selectedStrategy, formData.ticker, plrInput, draftSide, strategyRepo])
+
+  // Auto-draft when an automated strategy is selected (re-runs on ticker/PLR/side
+  // change); clear draft state when switching back to a manual strategy.
+  useEffect(() => {
+    if (isAutomatedStrategy && formData.ticker) {
+      runDraft()
+    } else {
+      setDraftResult(null)
+      setAppliedPreset(null)
+      setAppliedPrices(null)
+    }
+  }, [isAutomatedStrategy, formData.ticker, plrInput, draftSide, runDraft])
+
+  const applyPreset = (p: DraftPreset) => {
+    const entry = fmtPrice(p.entry)
+    const sl = fmtPrice(p.stopLoss)
+    const tp = fmtPrice(p.takeProfit)
+    setLayeredMode(false)
+    setOrderTypeTouched(false) // let the order type auto-derive from the new entry vs price
+    setFormData(prev => ({ ...prev, entry_price: entry, stop_loss: sl, take_profit: tp }))
+    setAppliedPreset(p)
+    setAppliedPrices({ entry, sl, tp })
+  }
+
+  const appliedPresetKind = appliedPreset?.kind ?? null
+
   const validation = useTradeValidation(validationValues)
 
   const getFieldError = (field: string) =>
@@ -341,6 +407,9 @@ export function useTradeCreation(initialTicker?: string) {
       { price: '', units_pct: '30', move_sl_to_breakeven: false },
       { price: '', units_pct: '20', move_sl_to_breakeven: false },
     ])
+    setDraftResult(null)
+    setAppliedPreset(null)
+    setAppliedPrices(null)
     setError(null)
   }
 
@@ -369,6 +438,24 @@ export function useTradeCreation(initialTicker?: string) {
         ]
       }
 
+      // Automated draft: stamp whether the suggested prices were kept as-is and
+      // snapshot the draft-time expectations for realized-vs-expected analysis.
+      let followedFaithfully: boolean | null = null
+      let strategySnapshot: Record<string, unknown> | null = null
+      if (isAutomatedStrategy && appliedPreset && appliedPrices && draftResult) {
+        followedFaithfully =
+          formData.entry_price === appliedPrices.entry &&
+          formData.stop_loss === appliedPrices.sl &&
+          !layeredMode &&
+          formData.take_profit === appliedPrices.tp
+        strategySnapshot = buildStrategySnapshot(
+          draftResult,
+          appliedPreset,
+          parseFloat(plrInput) || draftResult.breakevenWinRate,
+          1,
+        )
+      }
+
       const request: TradeCreateRequest = {
         ticker: formData.ticker,
         entry_price: parseFloat(formData.entry_price),
@@ -380,6 +467,8 @@ export function useTradeCreation(initialTicker?: string) {
         order_type: formData.order_type,
         time_in_effect: formData.time_in_effect ? formData.time_in_effect as TimeInEffect : null,
         gtd_date: formData.time_in_effect === 'gtd' && formData.gtd_date ? formData.gtd_date : null,
+        followed_faithfully: followedFaithfully,
+        strategy_snapshot: strategySnapshot,
       }
       await store.createTrade(request)
       resetForm()
@@ -422,6 +511,19 @@ export function useTradeCreation(initialTicker?: string) {
     preview,
     suggestedUnits,
     applySuggestedUnits,
+    // Automated-strategy draft flow
+    selectedStrategy,
+    isAutomatedStrategy,
+    draftResult,
+    draftLoading,
+    draftError,
+    plrInput,
+    setPlrInput,
+    draftSide,
+    setDraftSide,
+    runDraft,
+    applyPreset,
+    appliedPresetKind,
     validation,
     direction,
     orderTypeAutoDerived,
