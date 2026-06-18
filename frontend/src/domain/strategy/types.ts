@@ -59,5 +59,7 @@ export interface DraftResult {
   ticker: string
   lastBarDate: string | null
   speed: number | null
+  engineLabel: string | null
+  engineDescription: string | null
   presets: DraftPreset[]
 }

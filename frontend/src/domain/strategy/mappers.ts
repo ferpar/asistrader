@@ -70,6 +70,8 @@ export function mapDraftResult(dto: StrategyDraftResponseDTO): DraftResult {
     ticker: dto.ticker,
     lastBarDate: dto.last_bar_date,
     speed: dto.speed,
+    engineLabel: dto.engine_label,
+    engineDescription: dto.engine_description,
     presets: dto.presets.map(mapDraftPreset),
   }
 }

@@ -73,6 +73,8 @@ export interface StrategyDraftResponseDTO {
   ticker: string
   last_bar_date: string | null
   speed: number | null
+  engine_label: string | null
+  engine_description: string | null
   presets: StrategyDraftPresetDTO[]
 }
 

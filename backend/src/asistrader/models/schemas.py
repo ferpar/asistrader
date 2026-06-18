@@ -175,6 +175,8 @@ class StrategyDraftResponse(BaseModel):
     ticker: str
     last_bar_date: date | None = None
     speed: float | None = None
+    engine_label: str | None = None
+    engine_description: str | None = None
     presets: list[StrategyDraftPreset] = []
 
 

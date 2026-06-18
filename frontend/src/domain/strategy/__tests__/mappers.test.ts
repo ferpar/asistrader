@@ -62,6 +62,8 @@ describe('mapDraftResult', () => {
       ticker: 'AAA',
       last_bar_date: '2026-06-16',
       speed: 0.012,
+      engine_label: 'Historical Expected Days',
+      engine_description: 'desc',
       presets: [
         {
           kind: 'regular',
@@ -82,6 +84,8 @@ describe('mapDraftResult', () => {
     const r = mapDraftResult(dto)
     expect(r.confident).toBe(true)
     expect(r.breakevenWinRate).toBe(0.4)
+    expect(r.engineLabel).toBe('Historical Expected Days')
+    expect(r.engineDescription).toBe('desc')
     expect(r.presets).toHaveLength(1)
     expect(r.presets[0]).toMatchObject({
       kind: 'regular',

@@ -35,6 +35,8 @@ function result(presets: DraftPreset[], overrides: Partial<DraftResult> = {}): D
     ticker: 'AAA',
     lastBarDate: '2026-06-16',
     speed: 0.01,
+    engineLabel: 'Historical Expected Days',
+    engineDescription: 'desc',
     presets,
     ...overrides,
   }

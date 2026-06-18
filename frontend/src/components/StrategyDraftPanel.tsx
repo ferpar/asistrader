@@ -11,11 +11,25 @@ function pctFine(n: number | null): string {
   return n == null ? '—' : `${(n * 100).toFixed(2)}%`
 }
 
+function price(n: number): string {
+  return String(Number(n.toFixed(4)))
+}
+
+/** What each preset optimizes — engine-agnostic, so it lives as UI help copy. */
+const PRESET_INFO: Record<string, string> = {
+  aggressive:
+    'Fastest turnover — the shortest viable horizon: smaller, quicker targets and more trades, accepting a lower win-rate.',
+  regular:
+    'Best capital efficiency — the horizon with the highest return per holding-day, weighted by how often the order actually fills.',
+  conservative:
+    'Safest — the horizon whose win-rate most convincingly clears break-even (highest lower bound of its confidence interval).',
+}
+
 /**
  * Draft panel shown when an automated strategy is selected in the trade form.
  * Lets the user tweak PLR/side, see the regular/aggressive/conservative presets
- * (with their stats), and apply one to pre-fill the entry/SL/TP. A low-confidence
- * sweep shows its reason and offers no presets.
+ * (with their stats + what each optimizes), and apply one to pre-fill entry/SL/TP.
+ * A low-confidence sweep shows its reason.
  */
 export const StrategyDraftPanel = observer(function StrategyDraftPanel({
   form,
@@ -57,6 +71,10 @@ export const StrategyDraftPanel = observer(function StrategyDraftPanel({
         </button>
       </div>
 
+      {result?.engineDescription && (
+        <p className={styles.blurb}>{result.engineDescription}</p>
+      )}
+
       {form.draftError && <p className={styles.err}>{form.draftError}</p>}
 
       {!form.draftError && form.draftLoading && !result && (
@@ -70,30 +88,42 @@ export const StrategyDraftPanel = observer(function StrategyDraftPanel({
       )}
 
       {result && result.presets.length > 0 && (
-        <div className={styles.cards}>
-          {orderedPresets(result).map((p) => (
-            <button
-              key={p.kind}
-              type="button"
-              className={`${styles.card} ${form.appliedPresetKind === p.kind ? styles.cardActive : ''}`}
-              onClick={() => form.applyPreset(p)}
-            >
-              <span className={styles.kind}>{p.kind}</span>
-              <span className={styles.row}>Hold ~{p.d2}d · {p.nTrials} trials</span>
-              <span className={styles.row}>
-                Win {pct(p.winRate)}
-                {p.winRateCi && ` (CI ${pct(p.winRateCi[0])}–${pct(p.winRateCi[1])})`}
-              </span>
-              <span className={styles.row}>
-                Fill {pct(result.fillRate)} · break-even {pct(result.breakevenWinRate)}
-              </span>
-              <span className={styles.row}>Eff/day {pctFine(p.expectancyPerDay)}</span>
-              <span className={styles.prices}>
-                {p.entry} · TP {p.takeProfit} · SL {p.stopLoss}
-              </span>
-            </button>
-          ))}
-        </div>
+        <>
+          <div className={styles.cards}>
+            {orderedPresets(result).map((p) => (
+              <button
+                key={p.kind}
+                type="button"
+                title={PRESET_INFO[p.kind]}
+                className={`${styles.card} ${form.appliedPresetKind === p.kind ? styles.cardActive : ''}`}
+                onClick={() => form.applyPreset(p)}
+              >
+                <span className={styles.kind}>{p.kind}</span>
+                <span className={styles.criterion}>{PRESET_INFO[p.kind]}</span>
+                <span className={styles.row}>Hold ~{p.d2}d · {p.nTrials} trials</span>
+                <span className={styles.row}>
+                  Win {pct(p.winRate)}
+                  {p.winRateCi && ` (CI ${pct(p.winRateCi[0])}–${pct(p.winRateCi[1])})`}
+                </span>
+                <span className={styles.row}>
+                  Fill {pct(result.fillRate)} · break-even {pct(result.breakevenWinRate)}
+                </span>
+                <span className={styles.row}>Eff/day {pctFine(p.expectancyPerDay)}</span>
+                <span className={styles.prices}>
+                  <span className={styles.pair}>Entry {price(p.entry)}</span>
+                  <span className={styles.pair}>TP {price(p.takeProfit)}</span>
+                  <span className={styles.pair}>SL {price(p.stopLoss)}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className={styles.legend}>
+            <strong>Win</strong> = share of filled trades that hit the target before the stop ·{' '}
+            <strong>CI</strong> = 90% confidence range (wide = few independent windows) ·{' '}
+            <strong>break-even</strong> = win-rate needed just to not lose at this PLR — clear it
+            with margin for a real edge · <strong>Eff/day</strong> = expected return per holding-day.
+          </p>
+        </>
       )}
     </div>
   )

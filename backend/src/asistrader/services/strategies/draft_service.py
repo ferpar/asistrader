@@ -99,8 +99,15 @@ def draft_trade(db: Session, strategy: Strategy, overrides: dict) -> dict:
     breakeven = 1.0 / (1.0 + sweep_cfg.plr)
 
     engine_id = (strategy.params or {}).get("engine", "historical_expected_days")
-    if get_engine(engine_id) is None:
+    engine = get_engine(engine_id)
+    meta = {
+        "engine_label": engine.label if engine else None,
+        "engine_description": engine.description if engine else None,
+    }
+
+    if engine is None:
         return {
+            **meta,
             "confident": False,
             "reason": f"Unknown strategy engine '{engine_id}'.",
             "breakeven_win_rate": breakeven,
@@ -114,6 +121,7 @@ def draft_trade(db: Session, strategy: Strategy, overrides: dict) -> dict:
     _, last_bar = get_data_bounds(db, ticker)
     if last_bar is None:
         return {
+            **meta,
             "confident": False,
             "reason": f"No market data for {ticker}.",
             "breakeven_win_rate": breakeven,
@@ -134,9 +142,10 @@ def draft_trade(db: Session, strategy: Strategy, overrides: dict) -> dict:
         .first()
     )
     if cached is not None:
-        return cached.payload
+        # Merge meta so older cache rows (pre-meta) still carry the description.
+        return {**meta, **cached.payload}
 
-    payload = _compute(db, ticker, sweep_cfg, rec_cfg, side, order_type, breakeven, last_bar)
+    payload = {**meta, **_compute(db, ticker, sweep_cfg, rec_cfg, side, order_type, breakeven, last_bar)}
 
     db.add(
         SweepResultCache(
