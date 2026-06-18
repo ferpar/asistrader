@@ -50,3 +50,34 @@ def trailing_avg_change_pct(
     if end_idx < 1:
         return None
     return avg_change_pct(arr[: end_idx + 1], period)
+
+
+def daily_vol(closes: list[float] | np.ndarray, period: int) -> float | None:
+    """Std-dev of per-bar % changes over the trailing `period` bars.
+
+    The volatility counterpart of `avg_change_pct`, used to floor out degenerate
+    targets that are smaller than normal intrabar noise. Returns ``None`` with
+    fewer than 2 usable deltas.
+    """
+    arr = np.asarray(closes, dtype=float)
+    start = max(0, len(arr) - period - 1)
+    sl = arr[start:]
+    if len(sl) < 2:
+        return None
+    prev = sl[:-1]
+    cur = sl[1:]
+    mask = prev != 0
+    if mask.sum() < 2:
+        return None
+    rets = (cur[mask] - prev[mask]) / prev[mask]
+    return float(np.std(rets))
+
+
+def trailing_daily_vol(
+    closes: list[float] | np.ndarray, end_idx: int, period: int
+) -> float | None:
+    """Point-in-time daily volatility as of bar `end_idx` (inclusive)."""
+    arr = np.asarray(closes, dtype=float)
+    if end_idx < 1:
+        return None
+    return daily_vol(arr[: end_idx + 1], period)

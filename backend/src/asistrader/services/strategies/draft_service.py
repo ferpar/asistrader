@@ -39,6 +39,7 @@ def _resolve(strategy: Strategy, overrides: dict) -> tuple[SweepConfig, Recommen
     side = overrides.get("side") or p.get("side_default", "long")
     order_type = overrides.get("order_type") or p.get("order_type_default", "limit")
     tie = overrides.get("time_in_effect") or p.get("time_in_effect_default", "gtd")
+    min_risk_vol_mult = p.get("min_risk_vol_mult", 1.0)
 
     sweep_cfg = SweepConfig(
         plr=float(plr),
@@ -50,6 +51,7 @@ def _resolve(strategy: Strategy, overrides: dict) -> tuple[SweepConfig, Recommen
         side=side,
         order_type=order_type,
         time_in_effect=tie,
+        min_risk_vol_mult=float(min_risk_vol_mult),
     )
     rec_cfg = RecommendConfig(
         min_margin_over_breakeven=float(
@@ -68,6 +70,7 @@ def _resolve(strategy: Strategy, overrides: dict) -> tuple[SweepConfig, Recommen
         "d2": [sweep_cfg.d2_min, sweep_cfg.d2_max],
         "lookback": sweep_cfg.lookback_years,
         "speed_period": sweep_cfg.speed_period,
+        "min_risk_vol_mult": sweep_cfg.min_risk_vol_mult,
         "side": side,
         "order_type": order_type,
         "tie": tie,

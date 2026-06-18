@@ -239,6 +239,11 @@ def recommend(sweep: SweepResult, cfg: RecommendConfig | None = None) -> Recomme
     regular_d2 = max(pool, key=eff_low)        # best capital-efficiency (CI lower bound)
     conservative_d2 = max(pool, key=wr_low)    # safest (highest win-rate CI lower bound)
     aggressive_d2 = min(pool)                  # shortest / fastest horizon
+    # Backstop: if "conservative" collapsed onto the shortest horizon, fall back
+    # to the longest available so the three presets stay distinct and the labels
+    # keep meaning (aggressive = fastest, conservative = most patient).
+    if conservative_d2 == aggressive_d2 and len(pool) > 1:
+        conservative_d2 = max(pool)
     presets = {
         "regular": make_preset("regular", regular_d2),
         "conservative": make_preset("conservative", conservative_d2),

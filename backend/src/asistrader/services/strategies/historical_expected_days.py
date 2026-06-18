@@ -24,7 +24,7 @@ from datetime import date
 import numpy as np
 
 from . import barriers
-from .speed import trailing_avg_change_pct
+from .speed import trailing_avg_change_pct, trailing_daily_vol
 
 TRADING_DAYS_PER_YEAR = 252
 
@@ -42,6 +42,10 @@ class SweepConfig:
     time_in_effect: str = "gtd"  # "day" | "gtc" | "gtd"
     fill_window: int | None = None  # bars to wait for a fill; derived from TIE if None
     recency_weighted: bool = True
+    # Skip trials whose stop (risk) distance is smaller than this many trailing
+    # daily volatilities — drops degenerate horizons whose TP/SL sit inside a
+    # single bar's range (where outcomes are intrabar-tiebreak noise, not edge).
+    min_risk_vol_mult: float = 1.0
 
     @property
     def d2_values(self) -> list[int]:
@@ -200,6 +204,7 @@ def run_sweep(
         speed = trailing_avg_change_pct(c, t, config.speed_period)
         if speed is None or speed == 0:
             continue
+        vol = trailing_daily_vol(c, t, config.speed_period)
         n_attempts += 1
         attempt_entry_idx.append(t)
 
@@ -227,6 +232,10 @@ def run_sweep(
             if end > n:
                 continue  # not enough forward history for this D2
             target = abs(speed) * d2
+            # Skip degenerate trials: a stop tighter than ~1 daily vol sits inside
+            # a single bar's range, so the outcome is intrabar-tiebreak noise.
+            if vol and vol > 0 and (target / config.plr) < config.min_risk_vol_mult * vol:
+                continue
             tp, sl = _barriers_for(entry, target, config.plr, config.side)
             res = barriers.evaluate(
                 is_long, entry, sl, tp,

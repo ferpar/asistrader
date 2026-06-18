@@ -63,6 +63,10 @@ HISTORICAL_EXPECTED_DAYS = Engine(
                    help="Recency-weighted history window."),
         ParamField("speed_period", "Speed window (bars)", "int", 50, min=2,
                    help="Trailing window for the avg daily % change (drift)."),
+        ParamField("min_risk_vol_mult", "Min stop size (daily σ)", "number", 1.0,
+                   min=0, step=0.5,
+                   help="Skip horizons whose stop is smaller than this many daily "
+                        "volatilities — avoids degenerate intrabar targets."),
         ParamField("order_type_default", "Default order type", "select", "limit",
                    options=["limit", "stop", "market"]),
         ParamField("time_in_effect_default", "Default time-in-effect", "select", "gtd",

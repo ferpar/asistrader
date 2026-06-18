@@ -192,6 +192,29 @@ def test_market_long_in_uptrend_fills_and_wins() -> None:
     assert d2_1.win_rate is not None and d2_1.win_rate > 0.9
 
 
+def test_volatility_floor_drops_degenerate_short_horizons() -> None:
+    # A volatile series (alternating ±2% on a mild uptrend) so daily vol > 0.
+    # At D2=1 the target is tiny vs daily vol, so the floor should exclude it;
+    # with the floor off (mult=0) those trials are kept.
+    closes = [100.0 * (1.003**i) * (1.0 + (0.02 if i % 2 else -0.02)) for i in range(80)]
+    o, h, low, c, dates = _series(closes)
+
+    floored = run_sweep(o, h, low, c, dates, SweepConfig(
+        speed_period=5, d2_min=1, d2_max=8, lookback_years=100,
+        order_type="market", side="long", min_risk_vol_mult=1.0,
+    ))
+    unfloored = run_sweep(o, h, low, c, dates, SweepConfig(
+        speed_period=5, d2_min=1, d2_max=8, lookback_years=100,
+        order_type="market", side="long", min_risk_vol_mult=0.0,
+    ))
+
+    d2_1_floored = next(s for s in floored.per_d2 if s.d2 == 1).n_trials
+    d2_1_unfloored = next(s for s in unfloored.per_d2 if s.d2 == 1).n_trials
+    # The floor removes the degenerate 1-day trials that the unfloored sweep keeps.
+    assert d2_1_unfloored > 0
+    assert d2_1_floored < d2_1_unfloored
+
+
 def test_large_d2_has_no_more_trials_than_small_d2() -> None:
     closes = [100.0 * (1.01**i) for i in range(70)]
     o, h, low, c, dates = _series(closes)

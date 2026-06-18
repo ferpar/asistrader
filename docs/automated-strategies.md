@@ -137,6 +137,7 @@ Python, **on-demand per-ticker** (not a universe batch — there is no scheduler
 - **Transaction costs** baked into the simulated outcome (the principled replacement for a `Tmin` floor).
 - **Realized-vs-expected analytics** dashboard, fed by `strategy_snapshot`.
 - **Walk-forward / out-of-sample validation** (v2).
+- **Raising statistical confidence** — cross-sectional pooling across the ticker universe, volatility-normalized barriers, return-model Monte Carlo, and a vol/drift first-passage prior. The v1 engine is deliberately assumption-light (replays the one realized path), so it's honest but low-powered on thin single-ticker history. Full analysis and ranked options in [`automated-strategies-confidence.md`](./automated-strategies-confidence.md).
 - **Backfilling** `Ticker.trend_mean_growth` / `trend_std_deviation` / `probability` from the sweep.
 - **End-user documentation** — the preset definitions plus the 40% / capital-efficiency rationale above are its spine.
 
