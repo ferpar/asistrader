@@ -81,3 +81,65 @@ def trailing_daily_vol(
     if end_idx < 1:
         return None
     return daily_vol(arr[: end_idx + 1], period)
+
+
+def blended_speed(
+    closes: list[float] | np.ndarray,
+    end_idx: int,
+    windows: list[tuple[int, float]] | list[list[float]],
+) -> float | None:
+    """Weighted blend of trailing avg daily % change over several windows.
+
+    `windows` is a list of `(period, weight)` pairs — e.g. `[[50, 0.2], [5, 0.8]]`
+    weights the slow 50-bar drift 20% and the fast 5-bar drift 80%. The result is
+    the weight-normalized mean over the components that have enough history; a
+    component that can't be computed (too short) is dropped and the remaining
+    weights renormalize. Point-in-time: only closes at indices `<= end_idx` are
+    used. A single window of weight 1 reduces to `trailing_avg_change_pct`.
+    """
+    acc = 0.0
+    total_w = 0.0
+    for period, weight in windows:
+        s = trailing_avg_change_pct(closes, end_idx, int(period))
+        if s is None:
+            continue
+        acc += float(weight) * s
+        total_w += float(weight)
+    if total_w == 0:
+        return None
+    return acc / total_w
+
+
+def dispersion_pct(
+    highs: list[float] | np.ndarray,
+    lows: list[float] | np.ndarray,
+    closes: list[float] | np.ndarray,
+    end_idx: int,
+    window: int,
+) -> float | None:
+    """Trailing high-low range over `window` bars, as a fraction of current price.
+
+    `(max(high) - min(low))` over the trailing `window` bars ending at `end_idx`
+    (inclusive), divided by `closes[end_idx]`. The range counterpart of
+    `avg_change_pct`: it sizes a target off realized dispersion rather than drift,
+    so it stays meaningful in a ranging regime where speed ~ 0. Point-in-time
+    (only bars `<= end_idx`). Returns ``None`` with fewer than 2 usable bars or a
+    non-positive reference price.
+    """
+    if end_idx < 1:
+        return None
+    h = np.asarray(highs, dtype=float)
+    low = np.asarray(lows, dtype=float)
+    c = np.asarray(closes, dtype=float)
+    start = max(0, end_idx - window + 1)
+    hi = h[start : end_idx + 1]
+    lo = low[start : end_idx + 1]
+    if len(hi) < 2:
+        return None
+    price = c[end_idx]
+    if not np.isfinite(price) or price <= 0:
+        return None
+    rng = float(np.nanmax(hi) - np.nanmin(lo))
+    if not np.isfinite(rng) or rng < 0:
+        return None
+    return rng / price

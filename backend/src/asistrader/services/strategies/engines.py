@@ -81,7 +81,57 @@ HISTORICAL_EXPECTED_DAYS = Engine(
 )
 
 
-ENGINES: dict[str, Engine] = {HISTORICAL_EXPECTED_DAYS.id: HISTORICAL_EXPECTED_DAYS}
+DISPERSION_MOMENTUM = Engine(
+    id="dispersion_momentum",
+    label="Dispersion and Momentum",
+    description=(
+        "Triple-barrier sweep over two scales — drift-scaled targets (blended "
+        "fast/slow momentum) and range-scaled targets (30-day dispersion) — and "
+        "recommends whichever historically paid better, per regular/aggressive/"
+        "conservative preset. Generalizes Historical Expected Days."
+    ),
+    fields=[
+        ParamField("plr_default", "Profit-loss ratio (PLR)", "number", 1.5,
+                   min=0.1, step=0.1, help="Reward:risk. Default 1.5; overridable per draft."),
+        ParamField("d1_default", "Days to fill (D1)", "int", 1, min=0,
+                   help="Drift entry offset, in bars of speed."),
+        ParamField("d2_range", "Drift horizon range (days)", "int_range", [1, 60],
+                   help="Holding horizons the drift scale searches."),
+        ParamField("lookback_years", "Lookback (years)", "int", 3, min=1, max=15,
+                   help="Recency-weighted history window."),
+        ParamField("speed_slow_period", "Slow speed window (bars)", "int", 50, min=2,
+                   help="The slow leg of the blended drift."),
+        ParamField("speed_fast_period", "Fast speed window (bars)", "int", 5, min=2,
+                   help="The fast leg of the blended drift."),
+        ParamField("speed_weight_slow", "Weight on slow window", "number", 0.2,
+                   min=0, max=1, step=0.05,
+                   help="Blend weight on the slow leg; the fast leg gets the rest."),
+        ParamField("dispersion_window", "Dispersion window (bars)", "int", 30, min=2,
+                   help="Trailing high-low range window for the range scale."),
+        ParamField("range_entry_coef", "Range entry offset (× dispersion)", "number", 0.25,
+                   min=0, step=0.05, help="Entry pullback as a fraction of the range."),
+        ParamField("min_risk_vol_mult", "Min stop size (daily σ)", "number", 1.0,
+                   min=0, step=0.5,
+                   help="Skip candidates whose stop is smaller than this many daily "
+                        "volatilities — avoids degenerate intrabar targets."),
+        ParamField("order_type_default", "Default order type", "select", "limit",
+                   options=["limit", "stop", "market"]),
+        ParamField("time_in_effect_default", "Default time-in-effect", "select", "gtd",
+                   options=["day", "gtc", "gtd"]),
+        ParamField("side_default", "Default side", "select", "long",
+                   options=["long", "short"]),
+        ParamField("min_margin_over_breakeven", "Min margin over break-even", "number", 0.05,
+                   min=0, max=1, step=0.01, help="Win-rate CI must clear 1/(1+PLR) by this."),
+        ParamField("min_effective_samples", "Min effective samples", "int", 30, min=1,
+                   help="Below this a preset is flagged low-confidence."),
+    ],
+)
+
+
+ENGINES: dict[str, Engine] = {
+    HISTORICAL_EXPECTED_DAYS.id: HISTORICAL_EXPECTED_DAYS,
+    DISPERSION_MOMENTUM.id: DISPERSION_MOMENTUM,
+}
 
 
 def list_engines() -> list[Engine]:

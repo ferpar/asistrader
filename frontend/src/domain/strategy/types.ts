@@ -27,6 +27,10 @@ export interface DraftPreset {
   entry: number
   stopLoss: number
   takeProfit: number
+  /** Multi-scale engines tag which scale won this preset; single-scale leaves it null. */
+  scale?: 'drift' | 'range' | null
+  targetCoef?: number | null
+  entryCoef?: number | null
 }
 
 /** One configurable param of an engine (for rendering a typed admin input). */
@@ -59,6 +63,7 @@ export interface DraftResult {
   ticker: string
   lastBarDate: string | null
   speed: number | null
+  dispersion?: number | null
   engineLabel: string | null
   engineDescription: string | null
   presets: DraftPreset[]

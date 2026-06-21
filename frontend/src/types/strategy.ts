@@ -63,6 +63,10 @@ export interface StrategyDraftPresetDTO {
   entry: number
   stop_loss: number
   take_profit: number
+  // Multi-scale engines (dispersion_momentum) tag the winning scale + coefficients.
+  scale?: string | null
+  target_coef?: number | null
+  entry_coef?: number | null
 }
 
 export interface StrategyDraftResponseDTO {
@@ -73,6 +77,7 @@ export interface StrategyDraftResponseDTO {
   ticker: string
   last_bar_date: string | null
   speed: number | null
+  dispersion?: number | null
   engine_label: string | null
   engine_description: string | null
   presets: StrategyDraftPresetDTO[]

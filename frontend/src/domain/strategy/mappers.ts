@@ -39,6 +39,9 @@ export function mapDraftPreset(dto: StrategyDraftPresetDTO): DraftPreset {
     entry: dto.entry,
     stopLoss: dto.stop_loss,
     takeProfit: dto.take_profit,
+    scale: (dto.scale ?? null) as DraftPreset['scale'],
+    targetCoef: dto.target_coef ?? null,
+    entryCoef: dto.entry_coef ?? null,
   }
 }
 
@@ -70,6 +73,7 @@ export function mapDraftResult(dto: StrategyDraftResponseDTO): DraftResult {
     ticker: dto.ticker,
     lastBarDate: dto.last_bar_date,
     speed: dto.speed,
+    dispersion: dto.dispersion ?? null,
     engineLabel: dto.engine_label,
     engineDescription: dto.engine_description,
     presets: dto.presets.map(mapDraftPreset),

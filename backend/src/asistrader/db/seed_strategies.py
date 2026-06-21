@@ -20,7 +20,18 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from asistrader.models.db import Base, Strategy
-from asistrader.services.strategies.engines import HISTORICAL_EXPECTED_DAYS
+from asistrader.services.strategies.engines import (
+    DISPERSION_MOMENTUM,
+    HISTORICAL_EXPECTED_DAYS,
+)
+
+# Structural params that have no scalar admin widget yet — seeded explicitly on
+# top of the engine's scalar defaults (see docs/dispersion-momentum-strategy.md).
+_DM_STRUCTURAL = {
+    "scales": ["drift", "range"],
+    "range_target_coefs": [0.3, 0.5, 0.8, 1.0],
+    "range_time_barriers": [5, 10, 15, 20, 30, 40],
+}
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -39,6 +50,18 @@ def _default_strategies() -> list[dict]:
             tp_method="historical_expected_days",
             description="Automated: triple-barrier sweep recommending a holding horizon.",
             params=HISTORICAL_EXPECTED_DAYS.default_params(),
+        ),
+        dict(
+            name="Dispersion and Momentum",
+            automated=True,
+            pe_method="scale_offset",
+            sl_method="plr",
+            tp_method="dispersion_momentum",
+            description=(
+                "Automated: dual-scale triple-barrier sweep (blended momentum + "
+                "30-day dispersion) recommending whichever scale historically paid better."
+            ),
+            params={**DISPERSION_MOMENTUM.default_params(), **_DM_STRUCTURAL},
         ),
     ]
 

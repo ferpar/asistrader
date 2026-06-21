@@ -163,6 +163,11 @@ class StrategyDraftPreset(BaseModel):
     entry: float
     stop_loss: float
     take_profit: float
+    # Multi-scale engines (dispersion_momentum) tag which scale won this preset and
+    # the coefficients used; single-scale (HED) leaves these unset.
+    scale: str | None = None  # "drift" | "range"
+    target_coef: float | None = None
+    entry_coef: float | None = None
 
 
 class StrategyDraftResponse(BaseModel):
@@ -175,6 +180,7 @@ class StrategyDraftResponse(BaseModel):
     ticker: str
     last_bar_date: date | None = None
     speed: float | None = None
+    dispersion: float | None = None  # range scale unit (dispersion_momentum)
     engine_label: str | None = None
     engine_description: str | None = None
     presets: list[StrategyDraftPreset] = []

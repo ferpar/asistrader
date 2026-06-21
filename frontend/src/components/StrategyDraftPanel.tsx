@@ -119,6 +119,11 @@ export const StrategyDraftPanel = observer(function StrategyDraftPanel({
                 <span className={styles.kind}>{p.kind}</span>
                 <span className={styles.criterion}>{PRESET_INFO[p.kind]}</span>
                 <span className={styles.row}>Hold ~{p.d2}d · {p.nTrials} trials</span>
+                {p.scale && (
+                  <span className={styles.row}>
+                    Basis: {p.scale === 'drift' ? 'momentum' : 'dispersion'}
+                  </span>
+                )}
                 <span className={styles.row}>
                   Win {pct(p.winRate)}
                   {p.winRateCi && ` (CI ${pct(p.winRateCi[0])}–${pct(p.winRateCi[1])})`}
