@@ -1,9 +1,10 @@
 .panel {
-  border: 1px solid var(--border-color, #d0d7de);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 0.75rem;
   margin: 0 0 0.75rem;
-  background: var(--surface-2, #f6f8fa);
+  background: var(--color-surface);
+  color: var(--color-text);
 }
 
 .header {
@@ -37,36 +38,36 @@
 
 .status {
   font-size: 0.85rem;
-  color: var(--text-muted, #57606a);
+  color: var(--color-text-muted);
 }
 
 .blurb {
   font-size: 0.85rem;
-  color: var(--text-muted, #57606a);
+  color: var(--color-text-muted);
   margin: 0 0 0.6rem;
 }
 
 .criterion {
   font-size: 0.75rem;
-  color: var(--text-muted, #57606a);
+  color: var(--color-text-muted);
   margin-bottom: 0.2rem;
 }
 
 .legend {
   font-size: 0.75rem;
-  color: var(--text-muted, #57606a);
+  color: var(--color-text-muted);
   margin: 0.6rem 0 0;
   line-height: 1.4;
 }
 
 .warn {
   font-size: 0.85rem;
-  color: var(--color-warning, #9a6700);
+  color: var(--color-warning-dark);
 }
 
 .err {
   font-size: 0.85rem;
-  color: var(--color-danger, #cf222e);
+  color: var(--color-error);
 }
 
 .cards {
@@ -77,10 +78,11 @@
 
 .card {
   text-align: left;
-  border: 1px solid var(--border-color, #d0d7de);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 0.5rem;
-  background: var(--surface-1, #fff);
+  background: var(--color-bg);
+  color: var(--color-text);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -88,12 +90,12 @@
 }
 
 .card:hover {
-  border-color: var(--color-accent, #0969da);
+  border-color: var(--color-info);
 }
 
 .cardActive {
-  border-color: var(--color-accent, #0969da);
-  box-shadow: 0 0 0 1px var(--color-accent, #0969da) inset;
+  border-color: var(--color-info);
+  box-shadow: 0 0 0 1px var(--color-info) inset;
 }
 
 .kind {
@@ -103,7 +105,7 @@
 
 .row {
   font-size: 0.8rem;
-  color: var(--text-muted, #57606a);
+  color: var(--color-text-muted);
 }
 
 .prices {
@@ -126,7 +128,7 @@
 
 .compareSummary {
   cursor: pointer;
-  color: var(--text-muted, #57606a);
+  color: var(--color-text-muted);
   font-weight: 600;
 }
 
@@ -139,18 +141,19 @@
   border-collapse: collapse;
   width: 100%;
   font-size: 0.76rem;
+  color: var(--color-text);
 }
 
 .table th,
 .table td {
   text-align: right;
   padding: 0.15rem 0.45rem;
-  border-bottom: 1px solid var(--border-color, #e1e4e8);
+  border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
 }
 
 .table th {
-  color: var(--text-muted, #57606a);
+  color: var(--color-text-muted);
   font-weight: 600;
 }
 
@@ -158,19 +161,19 @@
   text-align: left;
   font-weight: 600;
   padding-top: 0.4rem;
-  color: var(--color-accent, #0969da);
+  color: var(--color-info);
 }
 
 .rowPicked {
-  background: var(--surface-2, #f6f8fa);
+  background: var(--color-table-row-selected);
   font-weight: 600;
 }
 
 .pick {
   text-transform: capitalize;
-  color: var(--color-accent, #0969da);
+  color: var(--color-info);
 }
 
 .confDot {
-  color: var(--color-success, #1a7f37);
+  color: var(--color-success);
 }
