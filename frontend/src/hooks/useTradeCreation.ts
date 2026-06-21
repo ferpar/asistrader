@@ -54,6 +54,10 @@ export function useTradeCreation(initialTicker?: string) {
   const [draftError, setDraftError] = useState<string | null>(null)
   const [plrInput, setPlrInput] = useState('1.5')
   const [draftSide, setDraftSide] = useState<'long' | 'short'>('long')
+  // Entry order type for the draft. 'limit' buys the dip / sells strength (mean
+  // reversion); 'stop' buys the breakout / sells the breakdown (trend
+  // continuation). Flips the sign of the entry offset and reshapes the sweep.
+  const [draftOrderType, setDraftOrderType] = useState<'limit' | 'stop'>('limit')
   // The preset whose prices were last applied, and the exact strings written, so
   // we can tell on submit whether the user nudged them (followed_faithfully).
   const [appliedPreset, setAppliedPreset] = useState<DraftPreset | null>(null)
@@ -313,6 +317,7 @@ export function useTradeCreation(initialTicker?: string) {
         ticker: formData.ticker,
         plr: Number.isFinite(plr) ? plr : null,
         side: draftSide,
+        order_type: draftOrderType,
       })
       setDraftResult(res)
     } catch (err) {
@@ -321,7 +326,7 @@ export function useTradeCreation(initialTicker?: string) {
     } finally {
       setDraftLoading(false)
     }
-  }, [selectedStrategy, formData.ticker, plrInput, draftSide, strategyRepo])
+  }, [selectedStrategy, formData.ticker, plrInput, draftSide, draftOrderType, strategyRepo])
 
   // Auto-draft when an automated strategy is selected (re-runs on ticker/PLR/side
   // change); clear draft state when switching back to a manual strategy.
@@ -333,7 +338,7 @@ export function useTradeCreation(initialTicker?: string) {
       setAppliedPreset(null)
       setAppliedPrices(null)
     }
-  }, [isAutomatedStrategy, formData.ticker, plrInput, draftSide, runDraft])
+  }, [isAutomatedStrategy, formData.ticker, plrInput, draftSide, draftOrderType, runDraft])
 
   const applyPreset = (p: DraftPreset) => {
     const entry = fmtPrice(p.entry)
@@ -522,6 +527,8 @@ export function useTradeCreation(initialTicker?: string) {
     setPlrInput,
     draftSide,
     setDraftSide,
+    draftOrderType,
+    setDraftOrderType,
     runDraft,
     applyPreset,
     appliedPresetKind,

@@ -66,6 +66,24 @@ export const StrategyDraftPanel = observer(function StrategyDraftPanel({
             <option value="short">Short</option>
           </select>
         </label>
+        <label
+          className={styles.control}
+          title={
+            'Limit enters on a pullback (buy the dip / sell strength). ' +
+            'Stop enters on a breakout in the trade direction (buy higher / sell lower) ' +
+            'for trend continuation. The choice reshapes the historical sweep.'
+          }
+        >
+          Entry
+          <select
+            value={form.draftOrderType}
+            onChange={(e) => form.setDraftOrderType(e.target.value as 'limit' | 'stop')}
+            aria-label="Entry order type"
+          >
+            <option value="limit">Limit (pullback)</option>
+            <option value="stop">Stop (breakout)</option>
+          </select>
+        </label>
         <button type="button" className={styles.redraft} onClick={form.runDraft} disabled={form.draftLoading}>
           {form.draftLoading ? 'Computing…' : 'Redraft'}
         </button>
