@@ -281,6 +281,8 @@ def _resolve_dm(
     )
 
     hashable = {
+        # Bump when the payload shape changes so stale cache rows miss and recompute.
+        "payload_version": 2,
         "engine": "dispersion_momentum",
         "plr": plr,
         "d1": d1,
