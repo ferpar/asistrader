@@ -38,6 +38,7 @@ function result(presets: DraftPreset[], overrides: Partial<DraftResult> = {}): D
     engineLabel: 'Historical Expected Days',
     engineDescription: 'desc',
     presets,
+    candidates: [],
     ...overrides,
   }
 }

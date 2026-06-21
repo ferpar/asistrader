@@ -1,5 +1,7 @@
+import { Fragment } from 'react'
 import { observer } from '@legendapp/state/react'
 import type { UseTradeCreation } from '../hooks/useTradeCreation'
+import type { DraftResult } from '../domain/strategy/types'
 import { orderedPresets } from '../domain/strategy/draftPresets'
 import styles from './StrategyDraftPanel.module.css'
 
@@ -23,6 +25,72 @@ const PRESET_INFO: Record<string, string> = {
     'Best capital efficiency — the horizon with the highest return per holding-day, weighted by how often the order actually fills.',
   conservative:
     'Safest — the horizon whose win-rate most convincingly clears break-even (highest lower bound of its confidence interval).',
+}
+
+/** All swept candidates, grouped by scale, so drift and dispersion are comparable.
+ * The 3 presets are just picks from this landscape; this shows the rest. */
+function CompareTable({ result }: { result: DraftResult }) {
+  const groups = [
+    { key: 'drift' as const, label: 'Momentum (drift)' },
+    { key: 'range' as const, label: 'Dispersion (range)' },
+  ].filter((g) => result.candidates.some((c) => c.scale === g.key))
+
+  return (
+    <details className={styles.compare}>
+      <summary className={styles.compareSummary}>
+        Compare all {result.candidates.length} candidates — drift vs dispersion
+      </summary>
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left' }}>Pick</th>
+              <th>Hold (d)</th>
+              <th>TP frac</th>
+              <th>Trials</th>
+              <th>Win</th>
+              <th>Win CI</th>
+              <th>Eff/day</th>
+              <th>Fill</th>
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map((g) => {
+              const rows = result.candidates
+                .filter((c) => c.scale === g.key)
+                .sort((a, b) => (b.efficiency ?? -Infinity) - (a.efficiency ?? -Infinity))
+              return (
+                <Fragment key={g.key}>
+                  <tr className={styles.scaleHead}>
+                    <td colSpan={8}>{g.label}</td>
+                  </tr>
+                  {rows.map((c, i) => (
+                    <tr key={i} className={c.presetKind ? styles.rowPicked : ''}>
+                      <td className={styles.pick} style={{ textAlign: 'left' }}>
+                        {c.presetKind ?? (c.confident ? <span className={styles.confDot}>●</span> : '')}
+                      </td>
+                      <td>{c.timeBarrier}</td>
+                      <td>{c.scale === 'range' ? c.targetCoef.toFixed(2) : '—'}</td>
+                      <td>{c.nTrials}</td>
+                      <td>{pct(c.winRate)}</td>
+                      <td>{c.winRateCi ? `${pct(c.winRateCi[0])}–${pct(c.winRateCi[1])}` : '—'}</td>
+                      <td>{pctFine(c.expectancyPerDay)}</td>
+                      <td>{pct(c.fillRate)}</td>
+                    </tr>
+                  ))}
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className={styles.legend}>
+        Rows are sorted by efficiency within each scale; <strong>●</strong> = cleared the
+        confidence gate; a named <strong>Pick</strong> is the preset that chose that row.
+        <strong> TP frac</strong> is the dispersion fraction (range only).
+      </p>
+    </details>
+  )
 }
 
 /**
@@ -148,6 +216,8 @@ export const StrategyDraftPanel = observer(function StrategyDraftPanel({
           </p>
         </>
       )}
+
+      {result && result.candidates.length > 0 && <CompareTable result={result} />}
     </div>
   )
 })

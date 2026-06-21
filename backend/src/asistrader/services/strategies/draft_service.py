@@ -382,6 +382,25 @@ def _compute_dm(db, ticker, cfg: CandidateSweepConfig, rec_cfg, side, order_type
             })
             reason = reason or "Low confidence — drafted a deterministic dispersion trade."
 
+    candidates = [
+        {
+            "scale": m.scale,
+            "time_barrier": m.time_barrier,
+            "target_coef": m.target_coef,
+            "entry_coef": m.entry_coef,
+            "n_trials": m.n_trials,
+            "win_rate": m.win_rate,
+            "win_rate_ci": _ci_list(m.win_rate_ci),
+            "expectancy_per_day": m.expectancy_per_day,
+            "efficiency": m.efficiency,
+            "efficiency_ci": _ci_list(m.efficiency_ci),
+            "fill_rate": m.fill_rate,
+            "preset_kind": m.preset_kind,
+            "confident": m.confident,
+        }
+        for m in rec.candidates
+    ]
+
     return {
         **base,
         "confident": rec.confident,
@@ -390,4 +409,5 @@ def _compute_dm(db, ticker, cfg: CandidateSweepConfig, rec_cfg, side, order_type
         "speed": speed,
         "dispersion": disp,
         "presets": presets,
+        "candidates": candidates,
     }

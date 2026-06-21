@@ -1,10 +1,12 @@
 import type {
   StrategyDTO,
+  StrategyDraftCandidateDTO,
   StrategyDraftPresetDTO,
   StrategyDraftResponseDTO,
   StrategyEngineDTO,
 } from '../../types/strategy'
 import type {
+  DraftCandidate,
   DraftPreset,
   DraftPresetKind,
   DraftResult,
@@ -45,6 +47,24 @@ export function mapDraftPreset(dto: StrategyDraftPresetDTO): DraftPreset {
   }
 }
 
+export function mapDraftCandidate(dto: StrategyDraftCandidateDTO): DraftCandidate {
+  return {
+    scale: dto.scale as DraftCandidate['scale'],
+    timeBarrier: dto.time_barrier,
+    targetCoef: dto.target_coef,
+    entryCoef: dto.entry_coef,
+    nTrials: dto.n_trials,
+    winRate: dto.win_rate,
+    winRateCi: dto.win_rate_ci,
+    expectancyPerDay: dto.expectancy_per_day,
+    efficiency: dto.efficiency,
+    efficiencyCi: dto.efficiency_ci,
+    fillRate: dto.fill_rate,
+    presetKind: dto.preset_kind,
+    confident: dto.confident,
+  }
+}
+
 export function mapEngine(dto: StrategyEngineDTO): StrategyEngine {
   return {
     id: dto.id,
@@ -77,5 +97,6 @@ export function mapDraftResult(dto: StrategyDraftResponseDTO): DraftResult {
     engineLabel: dto.engine_label,
     engineDescription: dto.engine_description,
     presets: dto.presets.map(mapDraftPreset),
+    candidates: (dto.candidates ?? []).map(mapDraftCandidate),
   }
 }

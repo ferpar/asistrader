@@ -170,6 +170,24 @@ class StrategyDraftPreset(BaseModel):
     entry_coef: float | None = None
 
 
+class StrategyDraftCandidate(BaseModel):
+    """One swept candidate's result — for comparing drift vs dispersion."""
+
+    scale: str  # "drift" | "range"
+    time_barrier: int
+    target_coef: float
+    entry_coef: float
+    n_trials: int
+    win_rate: float | None = None
+    win_rate_ci: tuple[float, float] | None = None
+    expectancy_per_day: float | None = None
+    efficiency: float | None = None
+    efficiency_ci: tuple[float, float] | None = None
+    fill_rate: float
+    preset_kind: str | None = None  # which preset selected it, if any
+    confident: bool = False
+
+
 class StrategyDraftResponse(BaseModel):
     """Draft recommendation for a ticker, or a low-confidence verdict."""
 
@@ -184,6 +202,7 @@ class StrategyDraftResponse(BaseModel):
     engine_label: str | None = None
     engine_description: str | None = None
     presets: list[StrategyDraftPreset] = []
+    candidates: list[StrategyDraftCandidate] = []  # full landscape (dispersion_momentum)
 
 
 class StrategyEngineParamSchema(BaseModel):

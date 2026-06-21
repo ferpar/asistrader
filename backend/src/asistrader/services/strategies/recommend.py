@@ -68,6 +68,25 @@ class CandidatePreset:
 
 
 @dataclass(frozen=True)
+class CandidateMetric:
+    """One candidate's full result — for the compare-all-candidates view."""
+
+    scale: str
+    time_barrier: int
+    target_coef: float
+    entry_coef: float
+    n_trials: int
+    win_rate: float | None
+    win_rate_ci: tuple[float, float] | None
+    expectancy_per_day: float | None
+    efficiency: float | None
+    efficiency_ci: tuple[float, float] | None
+    fill_rate: float
+    preset_kind: str | None  # which preset (if any) selected this candidate
+    confident: bool  # cleared the confidence gate
+
+
+@dataclass(frozen=True)
 class CandidateRecommendation:
     confident: bool
     breakeven_win_rate: float
@@ -75,6 +94,7 @@ class CandidateRecommendation:
     presets: dict[str, CandidatePreset]
     reason: str | None
     notes: list[str]
+    candidates: list[CandidateMetric]  # every candidate, both scales
 
 
 def _stationary_bootstrap_indices(n: int, rng: np.random.Generator, mean_block: float) -> np.ndarray:
@@ -231,6 +251,31 @@ def recommend_candidates(
         if wr_ci[0] >= breakeven + cfg.min_margin_over_breakeven and eff_ci[0] > 0:
             confident_idx.append(idx)
 
+    confident_set = set(confident_idx)
+
+    def metrics(preset_by_idx: dict[int, str]) -> list[CandidateMetric]:
+        out: list[CandidateMetric] = []
+        for idx in all_idx:
+            st = stats_by_idx[idx]
+            cand = cand_by_idx[idx]
+            ci = cis.get(idx, {})
+            out.append(CandidateMetric(
+                scale=cand.scale,
+                time_barrier=cand.time_barrier,
+                target_coef=cand.target_coef,
+                entry_coef=cand.entry_coef,
+                n_trials=st.n_trials,
+                win_rate=st.win_rate,
+                win_rate_ci=ci.get("win_rate"),
+                expectancy_per_day=st.expectancy_per_day,
+                efficiency=efficiency(idx),
+                efficiency_ci=ci.get("efficiency"),
+                fill_rate=st.fill_rate,
+                preset_kind=preset_by_idx.get(idx),
+                confident=idx in confident_set,
+            ))
+        return out
+
     confident = bool(confident_idx)
     pool = confident_idx
     if not pool:
@@ -247,6 +292,7 @@ def recommend_candidates(
             presets={},
             reason=_low_confidence_reason(core, cfg, breakeven),
             notes=notes,
+            candidates=metrics({}),
         )
 
     def eff_low(i: int) -> float:
@@ -272,6 +318,10 @@ def recommend_candidates(
         "conservative": make_preset("conservative", conservative_idx),
         "aggressive": make_preset("aggressive", aggressive_idx),
     }
+    preset_by_idx: dict[int, str] = {}
+    for kind, pr in presets.items():
+        i = pr.candidate.idx
+        preset_by_idx[i] = f"{preset_by_idx[i]},{kind}" if i in preset_by_idx else kind
     return CandidateRecommendation(
         confident=confident,
         breakeven_win_rate=breakeven,
@@ -279,6 +329,7 @@ def recommend_candidates(
         presets=presets,
         reason=None if confident else _low_confidence_reason(core, cfg, breakeven),
         notes=notes,
+        candidates=metrics(preset_by_idx),
     )
 
 

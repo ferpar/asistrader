@@ -69,6 +69,22 @@ export interface StrategyDraftPresetDTO {
   entry_coef?: number | null
 }
 
+export interface StrategyDraftCandidateDTO {
+  scale: string
+  time_barrier: number
+  target_coef: number
+  entry_coef: number
+  n_trials: number
+  win_rate: number | null
+  win_rate_ci: [number, number] | null
+  expectancy_per_day: number | null
+  efficiency: number | null
+  efficiency_ci: [number, number] | null
+  fill_rate: number
+  preset_kind: string | null
+  confident: boolean
+}
+
 export interface StrategyDraftResponseDTO {
   confident: boolean
   reason: string | null
@@ -81,6 +97,7 @@ export interface StrategyDraftResponseDTO {
   engine_label: string | null
   engine_description: string | null
   presets: StrategyDraftPresetDTO[]
+  candidates?: StrategyDraftCandidateDTO[]
 }
 
 // --- Engine catalog (code-defined automated-strategy engines) ---

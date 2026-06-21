@@ -61,6 +61,13 @@ def test_dm_draft_returns_scale_tagged_presets(client, db_session: Session) -> N
     regular = next(p for p in data["presets"] if p["kind"] == "regular")
     assert regular["scale"] == "drift"
 
+    # The full candidate landscape is returned (both scales), with the chosen
+    # presets tagged on their candidates — so drift vs dispersion is comparable.
+    cands = data["candidates"]
+    assert len(cands) > len(data["presets"])
+    assert {"drift", "range"} <= {c["scale"] for c in cands}
+    assert any(c["preset_kind"] and "regular" in c["preset_kind"] for c in cands)
+
 
 def test_dm_draft_is_cached(client, db_session: Session) -> None:
     from asistrader.models.db import SweepResultCache

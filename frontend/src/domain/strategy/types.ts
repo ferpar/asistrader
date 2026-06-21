@@ -54,6 +54,24 @@ export interface StrategyEngine {
   fields: EngineParamField[]
 }
 
+/** One swept candidate's result — for comparing the drift vs dispersion scales. */
+export interface DraftCandidate {
+  scale: 'drift' | 'range'
+  timeBarrier: number
+  targetCoef: number
+  entryCoef: number
+  nTrials: number
+  winRate: number | null
+  winRateCi: [number, number] | null
+  expectancyPerDay: number | null
+  efficiency: number | null
+  efficiencyCi: [number, number] | null
+  fillRate: number
+  /** Which preset(s) selected this candidate, comma-joined; null if none. */
+  presetKind: string | null
+  confident: boolean
+}
+
 /** Result of asking an automated strategy to draft a trade for a ticker. */
 export interface DraftResult {
   confident: boolean
@@ -67,4 +85,5 @@ export interface DraftResult {
   engineLabel: string | null
   engineDescription: string | null
   presets: DraftPreset[]
+  candidates: DraftCandidate[]
 }
