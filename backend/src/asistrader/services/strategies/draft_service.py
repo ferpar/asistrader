@@ -257,7 +257,14 @@ def _resolve_dm(
     tie = overrides.get("time_in_effect") or p.get("time_in_effect_default", "gtd")
     min_risk_vol_mult = float(p.get("min_risk_vol_mult", 1.0))
 
+    # The single fallback blend from the scalar knobs; used when no swept set given.
     speed_windows = ((slow, w_slow), (fast, 1.0 - w_slow))
+    raw_blends = p.get("drift_speed_blends")
+    drift_speed_blends = (
+        tuple(tuple((int(prd), float(wt)) for prd, wt in blend) for blend in raw_blends)
+        if raw_blends
+        else None
+    )
     cfg = CandidateSweepConfig(
         plr=plr,
         side=side,
@@ -268,6 +275,7 @@ def _resolve_dm(
         vol_period=slow,
         scales=scales,
         speed_windows=speed_windows,
+        drift_speed_blends=drift_speed_blends,
         drift_d1=d1,
         drift_time_barriers=tuple(range(int(d2_range[0]), int(d2_range[1]) + 1)),
         dispersion_window=dispersion_window,
@@ -282,13 +290,17 @@ def _resolve_dm(
 
     hashable = {
         # Bump when the payload shape changes so stale cache rows miss and recompute.
-        "payload_version": 2,
+        "payload_version": 3,
         "engine": "dispersion_momentum",
         "plr": plr,
         "d1": d1,
         "d2": [int(d2_range[0]), int(d2_range[1])],
         "lookback": lookback,
         "speed_windows": [list(w) for w in speed_windows],
+        "drift_speed_blends": (
+            [[list(w) for w in blend] for blend in drift_speed_blends]
+            if drift_speed_blends else None
+        ),
         "dispersion_window": dispersion_window,
         "range_entry_coef": range_entry_coef,
         "scales": list(scales),
@@ -335,12 +347,16 @@ def _compute_dm(db, ticker, cfg: CandidateSweepConfig, rec_cfg, side, order_type
 
     price = float(c[-1])
     last = len(c) - 1
-    speed = blended_speed(c, last, cfg.speed_windows) if "drift" in cfg.scales else None
     disp = dispersion_pct(h, low, c, last, cfg.dispersion_window) if "range" in cfg.scales else None
+
+    def drift_speed(cand) -> float | None:
+        return blended_speed(c, last, cand.speed_windows) if cand.scale == "drift" else None
 
     presets = []
     for pr in rec.presets.values():
-        prices = draft_prices_for_candidate(price, speed, disp, pr.candidate, cfg.plr, side, order_type)
+        prices = draft_prices_for_candidate(
+            price, drift_speed(pr.candidate), disp, pr.candidate, cfg.plr, side, order_type
+        )
         if prices is None:
             continue
         presets.append({
@@ -359,7 +375,19 @@ def _compute_dm(db, ticker, cfg: CandidateSweepConfig, rec_cfg, side, order_type
             "scale": pr.scale,
             "target_coef": pr.candidate.target_coef,
             "entry_coef": pr.candidate.entry_coef,
+            "blend_label": pr.candidate.blend_label,
         })
+
+    # Top-level speed shown to the user: the winning drift blend if there is one.
+    speed = None
+    if "drift" in cfg.scales:
+        reg = rec.presets.get("regular")
+        rep_blend = (
+            reg.candidate.speed_windows
+            if reg is not None and reg.candidate.scale == "drift"
+            else cfg.effective_blends[0]
+        )
+        speed = blended_speed(c, last, rep_blend)
 
     reason = rec.reason
     if "regular" in rec.presets:
@@ -381,6 +409,7 @@ def _compute_dm(db, ticker, cfg: CandidateSweepConfig, rec_cfg, side, order_type
                 "efficiency_ci": None, "n_trials": 0, "entry": prices["entry"],
                 "stop_loss": prices["stop_loss"], "take_profit": prices["take_profit"],
                 "scale": "range", "target_coef": 0.5, "entry_coef": cfg.range_entry_coef,
+                "blend_label": None,
             })
             reason = reason or "Low confidence — drafted a deterministic dispersion trade."
 
@@ -390,6 +419,7 @@ def _compute_dm(db, ticker, cfg: CandidateSweepConfig, rec_cfg, side, order_type
             "time_barrier": m.time_barrier,
             "target_coef": m.target_coef,
             "entry_coef": m.entry_coef,
+            "blend_label": m.blend_label,
             "n_trials": m.n_trials,
             "win_rate": m.win_rate,
             "win_rate_ci": _ci_list(m.win_rate_ci),

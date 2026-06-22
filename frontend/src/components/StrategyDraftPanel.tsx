@@ -45,6 +45,7 @@ function CompareTable({ result }: { result: DraftResult }) {
           <thead>
             <tr>
               <th style={{ textAlign: 'left' }}>Pick</th>
+              <th style={{ textAlign: 'left' }}>Blend</th>
               <th>Hold (d)</th>
               <th>TP frac</th>
               <th>Trials</th>
@@ -62,13 +63,14 @@ function CompareTable({ result }: { result: DraftResult }) {
               return (
                 <Fragment key={g.key}>
                   <tr className={styles.scaleHead}>
-                    <td colSpan={8}>{g.label}</td>
+                    <td colSpan={9}>{g.label}</td>
                   </tr>
                   {rows.map((c, i) => (
                     <tr key={i} className={c.presetKind ? styles.rowPicked : ''}>
                       <td className={styles.pick} style={{ textAlign: 'left' }}>
                         {c.presetKind ?? (c.confident ? <span className={styles.confDot}>●</span> : '')}
                       </td>
+                      <td style={{ textAlign: 'left' }}>{c.blendLabel ?? '—'}</td>
                       <td>{c.timeBarrier}</td>
                       <td>{c.scale === 'range' ? c.targetCoef.toFixed(2) : '—'}</td>
                       <td>{c.nTrials}</td>
@@ -189,7 +191,10 @@ export const StrategyDraftPanel = observer(function StrategyDraftPanel({
                 <span className={styles.row}>Hold ~{p.d2}d · {p.nTrials} trials</span>
                 {p.scale && (
                   <span className={styles.row}>
-                    Basis: {p.scale === 'drift' ? 'momentum' : 'dispersion'}
+                    Basis:{' '}
+                    {p.scale === 'drift'
+                      ? `momentum${p.blendLabel ? ` · ${p.blendLabel}` : ''}`
+                      : 'dispersion'}
                   </span>
                 )}
                 <span className={styles.row}>

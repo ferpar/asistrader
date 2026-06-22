@@ -67,6 +67,7 @@ export interface StrategyDraftPresetDTO {
   scale?: string | null
   target_coef?: number | null
   entry_coef?: number | null
+  blend_label?: string | null
 }
 
 export interface StrategyDraftCandidateDTO {
@@ -83,6 +84,7 @@ export interface StrategyDraftCandidateDTO {
   fill_rate: number
   preset_kind: string | null
   confident: boolean
+  blend_label?: string | null
 }
 
 export interface StrategyDraftResponseDTO {

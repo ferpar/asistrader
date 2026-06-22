@@ -25,6 +25,7 @@ DM_PARAMS = {
     "scales": ["drift", "range"],
     "range_target_coefs": [0.5, 1.0],
     "range_time_barriers": [3, 5, 10],
+    "drift_speed_blends": [[[20, 1.0]], [[20, 0.5], [5, 0.5]], [[20, 0.2], [5, 0.8]]],
     "min_effective_samples": 30,
 }
 
@@ -67,6 +68,14 @@ def test_dm_draft_returns_scale_tagged_presets(client, db_session: Session) -> N
     assert len(cands) > len(data["presets"])
     assert {"drift", "range"} <= {c["scale"] for c in cands}
     assert any(c["preset_kind"] and "regular" in c["preset_kind"] for c in cands)
+
+    # The speed-blend is swept: drift candidates carry a blend label and more than
+    # one distinct blend appears across the landscape.
+    drift_labels = {c["blend_label"] for c in cands if c["scale"] == "drift"}
+    assert None not in drift_labels and len(drift_labels) >= 2
+    drift_preset = next((p for p in data["presets"] if p["scale"] == "drift"), None)
+    if drift_preset is not None:
+        assert drift_preset["blend_label"]
 
 
 def test_dm_draft_is_cached(client, db_session: Session) -> None:

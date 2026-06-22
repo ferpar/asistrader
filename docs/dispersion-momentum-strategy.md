@@ -108,3 +108,78 @@ low-confidence. The guessed fraction is demoted from "the answer" to "the safety
    engine-list.
 8. **Frontend:** render optional `scale`/coef on preset cards for explanation; admin shows
    scalar knobs only.
+
+---
+
+# Addendum: sweep the speed blend (the momentum-persistence axis)
+
+**Status: built (2026-06-21).** Turns the last guessed constant — the fast/slow blend
+weight — into a swept dimension, the same move already applied to the dispersion fraction
+and the holding horizon.
+
+## Motivation
+
+Running HED vs DM-drift on the same ticker is, in effect, asking *"does smoothed trend or
+recent momentum better predict this stock's forward move?"* — HED uses a single 50-day
+speed; DM uses an 80%-fast blend. At fixed PLR the win-rate is ~scale-invariant under a
+random walk, so the edge above break-even reflects **how well the speed estimator predicts
+forward drift**. A fast-weighted blend chases short-term momentum that often mean-reverts,
+so its targets get hit less — observed as uniformly lower drift win-rates on a name whose
+momentum doesn't persist. That makes the blend weight a *predictor-quality* knob, not a
+cosmetic one — exactly the kind of thing history should choose per ticker.
+
+## Design
+
+A drift candidate becomes **(speed-blend variant × horizon)** instead of just a horizon.
+Periods stay fixed at **50 / 5**; only the **slow-window weight** is swept over a small
+discrete set:
+
+| Variant | `speed_windows`        | Meaning                    |
+|---------|------------------------|----------------------------|
+| smooth  | `[[50, 1.0]]`          | pure trend (= HED)         |
+| balanced| `[[50, 0.5], [5, 0.5]]`| half-and-half              |
+| reactive| `[[50, 0.2], [5, 0.8]]`| current DM default         |
+
+Seed set = **{1.0, 0.5, 0.2}** (brackets HED ↔ current DM). 3 variants × 60 horizons = 180
+drift + 24 range = **204 candidates**. `recommend` already picks across all candidates by
+CI-lower-bound, so *which persistence assumption paid off* becomes an output — the manual
+HED-vs-DM comparison becomes automatic candidate selection.
+
+**Weight-only for v1** (periods fixed). Varying periods is a clean follow-on axis, deferred
+to limit candidate count and multiple-comparison risk.
+
+## The one real mechanic: entry geometry
+
+Today every drift candidate shares one speed per entry date → one fill per scale. Different
+blends produce **different speeds → different entries (`price ± speed·d1`) → different
+fills.** So the sweep's fill loop generalizes from "one entry per **scale**" to "one entry
+per **entry geometry**", where a geometry = a blend variant (drift) or the dispersion entry
+(range). **Fill-rate becomes per-geometry**; `recommend` already consumes per-candidate
+fill-rate, so it is unaffected. A candidate carries its blend (`speed_windows` + a
+`blend_label`); geometry grouping keys on it.
+
+Config keeps `speed_windows` as the single-blend default and adds
+`drift_speed_blends: tuple[blend, ...] | None`; effective blends =
+`drift_speed_blends or (speed_windows,)`. **HED's config (one blend) is unchanged → one
+geometry → bit-identical**, guarded by `test_candidate_sweep::test_drift_only_matches_hed`.
+
+## Surfacing & guardrails
+
+- Each drift candidate carries a `blend_label` ("smooth 50d", "50/5 @ 20% slow") → payload,
+  a **Blend column** in the compare table, and the preset card ("Basis: momentum (smooth 50d)").
+- Live `draft_prices` uses **the winning candidate's own blend** to size entry/TP.
+- **Keep the variant set small (3).** Adding an axis multiplies candidates and raises
+  winner's-curse risk; variants are highly correlated (same horizons), so a big set buys
+  little independent information. CI-lower-bound + plateau selection already resists this.
+- `payload_version` bumped (payload shape changes → cache invalidation).
+
+## Steps (each keeps HED's tests green)
+
+1. Candidate + config carry the blend; `effective_blends`; `build_candidates` does
+   `blends × horizons`; `min_warmup` over all blends' periods.
+2. Refactor the fill loop to **per-entry-geometry**; per-geometry fill-rate; keep per-scale
+   aggregates for HED. **Re-run the HED equivalence — must stay bit-identical.**
+3. Live draft + payload + schema carry `blend_label`; `draft_prices` uses the candidate's blend.
+4. Seed `drift_speed_blends = [[[50,1.0]], [[50,0.5],[5,0.5]], [[50,0.2],[5,0.8]]]`; engine schema.
+5. Tests: variants distinct; the `1.0` variant matches HED; winning blend surfaced.
+6. Frontend: Blend column in the compare table + on the preset card.

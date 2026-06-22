@@ -44,6 +44,25 @@ class Candidate:
     entry_coef: float  # offset multiplier on the scale unit (the d1 analogue)
     target_coef: float  # TP-move multiplier on the scale unit
     time_barrier: int  # vertical (time) barrier, in bars
+    # Drift candidates carry the speed-blend variant they use (the swept
+    # momentum-persistence axis); range candidates leave these None.
+    speed_windows: tuple[tuple[int, float], ...] | None = None
+    blend_label: str | None = None
+
+    @property
+    def geometry_key(self) -> tuple:
+        """Distinct entry geometry — drift entries differ per blend, range shares one."""
+        if self.scale == DRIFT:
+            return (DRIFT, self.speed_windows)
+        return (self.scale,)
+
+
+def blend_label(windows: tuple[tuple[int, float], ...]) -> str:
+    """Human label for a speed blend: 'smooth 50d' or '50/5 @ 20% slow'."""
+    if len(windows) == 1:
+        return f"smooth {int(windows[0][0])}d"
+    slow, fast = windows[0], windows[-1]
+    return f"{int(slow[0])}/{int(fast[0])} @ {slow[1]:.0%} slow"
 
 
 @dataclass(frozen=True)
@@ -63,6 +82,9 @@ class CandidateSweepConfig:
     scales: tuple[str, ...] = (DRIFT,)
     # Blended speed: list of (period, weight). One window of weight 1 == HED.
     speed_windows: tuple[tuple[int, float], ...] = ((50, 1.0),)
+    # Optional set of blend variants to *sweep* over (the momentum-persistence
+    # axis). When None, the single `speed_windows` above is the only blend (HED).
+    drift_speed_blends: tuple[tuple[tuple[int, float], ...], ...] | None = None
     drift_d1: int = 1
     drift_time_barriers: tuple[int, ...] = tuple(range(1, 61))
     # Range scale.
@@ -78,6 +100,11 @@ class CandidateSweepConfig:
         return {"day": 1, "gtd": 10, "gtc": 60}.get(self.time_in_effect, 10)
 
     @property
+    def effective_blends(self) -> tuple[tuple[tuple[int, float], ...], ...]:
+        """The drift blend variants to sweep — the explicit set, or the single default."""
+        return self.drift_speed_blends if self.drift_speed_blends else (self.speed_windows,)
+
+    @property
     def min_warmup(self) -> int:
         """First entry-date index with enough history for every *enabled* unit.
 
@@ -86,7 +113,8 @@ class CandidateSweepConfig:
         """
         needs = [self.vol_period]
         if DRIFT in self.scales:
-            needs += [int(p) for p, _ in self.speed_windows]
+            for blend in self.effective_blends:
+                needs += [int(p) for p, _ in blend]
         if RANGE in self.scales:
             needs.append(self.dispersion_window)
         return max(needs)
@@ -115,9 +143,12 @@ class CandidateSweepResult:
     config: CandidateSweepConfig
     candidates: list[Candidate]
     per_candidate: list[CandidateStats]
-    scale_fill_rate: dict[str, float]  # filled / attempts, per scale
+    scale_fill_rate: dict[str, float]  # filled / attempts, per scale (aggregate)
     scale_attempts: dict[str, int] = field(default_factory=dict)
     scale_filled: dict[str, int] = field(default_factory=dict)
+    # Fill-rate per *entry geometry* (a blend variant for drift, dispersion for
+    # range) — the value each candidate's efficiency actually uses.
+    geometry_fill_rate: dict[tuple, float] = field(default_factory=dict)
     # Flat per-trial records (filled & evaluable), one element per trial, tagged by
     # candidate index — for the bootstrap over entry dates in recommend.
     trial_entry_idx: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))
@@ -193,14 +224,29 @@ def draft_prices_for_candidate(
     return {"entry": entry, "take_profit": tp, "stop_loss": sl}
 
 
+def _norm_blend(blend) -> tuple[tuple[int, float], ...]:
+    """Normalize a blend spec (possibly JSON lists) to hashable (period, weight) tuples."""
+    return tuple((int(p), float(w)) for p, w in blend)
+
+
 def build_candidates(cfg: CandidateSweepConfig) -> list[Candidate]:
-    """Enumerate the candidate geometries for the enabled scales (drift first)."""
+    """Enumerate candidate geometries for the enabled scales (drift first).
+
+    Drift sweeps `blend_variants × horizons`; each blend is a distinct entry
+    geometry. Range is `target_coef × horizon` over the dispersion entry.
+    """
     out: list[Candidate] = []
     i = 0
     if DRIFT in cfg.scales:
-        for h in cfg.drift_time_barriers:
-            out.append(Candidate(i, DRIFT, float(cfg.drift_d1), float(h), int(h)))
-            i += 1
+        for blend in cfg.effective_blends:
+            windows = _norm_blend(blend)
+            label = blend_label(windows)
+            for h in cfg.drift_time_barriers:
+                out.append(Candidate(
+                    i, DRIFT, float(cfg.drift_d1), float(h), int(h),
+                    speed_windows=windows, blend_label=label,
+                ))
+                i += 1
     if RANGE in cfg.scales:
         for tc in cfg.range_target_coefs:
             for h in cfg.range_time_barriers:
@@ -227,9 +273,12 @@ def run_candidate_sweep(
     fill_window = config.resolved_fill_window
 
     candidates = build_candidates(config)
-    cands_by_scale: dict[str, list[Candidate]] = {}
+    # Group by *entry geometry*: drift candidates of the same blend share an entry
+    # (and a fill); range shares the dispersion entry. Insertion order preserves
+    # the drift-then-range, blend-major, horizon-minor ordering (keeps HED parity).
+    cands_by_geom: dict[tuple, list[Candidate]] = {}
     for cand in candidates:
-        cands_by_scale.setdefault(cand.scale, []).append(cand)
+        cands_by_geom.setdefault(cand.geometry_key, []).append(cand)
 
     last_idx = n - 1
     last_date = dates[last_idx] if n else date.min
@@ -243,8 +292,8 @@ def run_candidate_sweep(
     t_outcome: list[str] = []
     t_return: list[float] = []
     t_days: list[int] = []
-    scale_attempts: dict[str, int] = {s: 0 for s in config.scales}
-    scale_filled: dict[str, int] = {s: 0 for s in config.scales}
+    geom_attempts: dict[tuple, int] = {k: 0 for k in cands_by_geom}
+    geom_filled: dict[tuple, int] = {k: 0 for k in cands_by_geom}
 
     for t in range(config.min_warmup, n):
         if cutoff is not None and dates[t].toordinal() < cutoff:
@@ -252,20 +301,18 @@ def run_candidate_sweep(
         vol = trailing_daily_vol(c, t, config.vol_period)
         p = c[t]
 
-        units: dict[str, float | None] = {}
-        if DRIFT in cands_by_scale:
-            units[DRIFT] = blended_speed(c, t, config.speed_windows)
-        if RANGE in cands_by_scale:
-            units[RANGE] = dispersion_pct(h, low, c, t, config.dispersion_window)
-
-        for scale, scale_cands in cands_by_scale.items():
-            unit = units.get(scale)
+        for geom_key, geom_cands in cands_by_geom.items():
+            head = geom_cands[0]
+            if head.scale == DRIFT:
+                unit = blended_speed(c, t, head.speed_windows)
+            else:
+                unit = dispersion_pct(h, low, c, t, config.dispersion_window)
             if unit is None or unit == 0:
                 continue
-            entry_coef = scale_cands[0].entry_coef  # fixed per scale
+            entry_coef = head.entry_coef  # fixed within a geometry
             k = abs(unit) * entry_coef
             entry = entry_price(p, k, config.side, config.order_type)
-            scale_attempts[scale] += 1
+            geom_attempts[geom_key] += 1
 
             if config.order_type == "market":
                 fill_idx: int | None = t
@@ -277,9 +324,9 @@ def run_candidate_sweep(
                         break
             if fill_idx is None:
                 continue
-            scale_filled[scale] += 1
+            geom_filled[geom_key] += 1
 
-            for cand in scale_cands:
+            for cand in geom_cands:
                 start = fill_idx + 1
                 end = start + cand.time_barrier
                 if end > n:
@@ -312,12 +359,24 @@ def run_candidate_sweep(
         else np.ones(len(entry_idx_arr), dtype=float)
     )
 
+    geometry_fill_rate = {
+        key: (geom_filled[key] / geom_attempts[key]) if geom_attempts[key] else 0.0
+        for key in cands_by_geom
+    }
+    # Per-scale aggregates (summed across that scale's geometries) — for HED, which
+    # has a single drift geometry, these equal that geometry's counts exactly.
+    scale_attempts: dict[str, int] = {s: 0 for s in config.scales}
+    scale_filled: dict[str, int] = {s: 0 for s in config.scales}
+    for key, cands in cands_by_geom.items():
+        s = cands[0].scale
+        scale_attempts[s] += geom_attempts[key]
+        scale_filled[s] += geom_filled[key]
     scale_fill_rate = {
         s: (scale_filled[s] / scale_attempts[s]) if scale_attempts[s] else 0.0
         for s in config.scales
     }
     per_candidate = _aggregate_per_candidate(
-        candidates, scale_fill_rate, cand_arr, outcome_arr, ret_arr, days_arr, weights
+        candidates, geometry_fill_rate, cand_arr, outcome_arr, ret_arr, days_arr, weights
     )
 
     return CandidateSweepResult(
@@ -329,6 +388,7 @@ def run_candidate_sweep(
         scale_fill_rate=scale_fill_rate,
         scale_attempts=dict(scale_attempts),
         scale_filled=dict(scale_filled),
+        geometry_fill_rate=geometry_fill_rate,
         trial_entry_idx=entry_idx_arr,
         trial_candidate=cand_arr,
         trial_outcome=outcome_arr,
@@ -347,7 +407,7 @@ def _wmean(values: np.ndarray, w: np.ndarray) -> float | None:
 
 def _aggregate_per_candidate(
     candidates: list[Candidate],
-    scale_fill_rate: dict[str, float],
+    geometry_fill_rate: dict[tuple, float],
     cand_arr: np.ndarray,
     outcome: np.ndarray,
     ret: np.ndarray,
@@ -356,7 +416,7 @@ def _aggregate_per_candidate(
 ) -> list[CandidateStats]:
     out: list[CandidateStats] = []
     for cand in candidates:
-        fr = scale_fill_rate.get(cand.scale, 0.0)
+        fr = geometry_fill_rate.get(cand.geometry_key, 0.0)
         m = cand_arr == cand.idx
         n_trials = int(m.sum())
         if n_trials == 0:

@@ -31,6 +31,13 @@ _DM_STRUCTURAL = {
     "scales": ["drift", "range"],
     "range_target_coefs": [0.3, 0.5, 0.8, 1.0],
     "range_time_barriers": [5, 10, 15, 20, 30, 40],
+    # Swept speed-blend variants (slow-window weight along the persistence axis):
+    # smooth 50d (= HED), balanced 50/50, reactive 50/5 @ 20%.
+    "drift_speed_blends": [
+        [[50, 1.0]],
+        [[50, 0.5], [5, 0.5]],
+        [[50, 0.2], [5, 0.8]],
+    ],
 }
 
 DATABASE_URL = os.getenv(

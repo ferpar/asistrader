@@ -168,6 +168,7 @@ class StrategyDraftPreset(BaseModel):
     scale: str | None = None  # "drift" | "range"
     target_coef: float | None = None
     entry_coef: float | None = None
+    blend_label: str | None = None  # speed-blend variant (drift only)
 
 
 class StrategyDraftCandidate(BaseModel):
@@ -177,6 +178,7 @@ class StrategyDraftCandidate(BaseModel):
     time_barrier: int
     target_coef: float
     entry_coef: float
+    blend_label: str | None = None  # speed-blend variant (drift only)
     n_trials: int
     win_rate: float | None = None
     win_rate_ci: tuple[float, float] | None = None

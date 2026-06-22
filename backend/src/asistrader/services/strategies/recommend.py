@@ -75,6 +75,7 @@ class CandidateMetric:
     time_barrier: int
     target_coef: float
     entry_coef: float
+    blend_label: str | None  # speed-blend variant (drift only)
     n_trials: int
     win_rate: float | None
     win_rate_ci: tuple[float, float] | None
@@ -159,7 +160,9 @@ def _bootstrap_cis(
     rng = np.random.default_rng(cfg.seed)
     lo_q = (1 - cfg.ci) / 2 * 100
     hi_q = (1 - (1 - cfg.ci) / 2) * 100
-    fill_by_cand = {c.idx: core.scale_fill_rate.get(c.scale, 0.0) for c in core.candidates}
+    # Each candidate's efficiency uses its own *entry geometry* fill-rate (drift
+    # blends and the range entry fill at different rates).
+    fill_by_cand = {st.candidate.idx: st.fill_rate for st in core.per_candidate}
 
     out: dict[int, dict[str, tuple[float, float]]] = {}
     if n_dates == 0:
@@ -264,6 +267,7 @@ def recommend_candidates(
                 time_barrier=cand.time_barrier,
                 target_coef=cand.target_coef,
                 entry_coef=cand.entry_coef,
+                blend_label=cand.blend_label,
                 n_trials=st.n_trials,
                 win_rate=st.win_rate,
                 win_rate_ci=ci.get("win_rate"),

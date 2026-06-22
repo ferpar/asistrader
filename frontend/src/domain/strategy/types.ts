@@ -31,6 +31,8 @@ export interface DraftPreset {
   scale?: 'drift' | 'range' | null
   targetCoef?: number | null
   entryCoef?: number | null
+  /** Speed-blend variant for drift presets (e.g. "smooth 50d"). */
+  blendLabel?: string | null
 }
 
 /** One configurable param of an engine (for rendering a typed admin input). */
@@ -70,6 +72,8 @@ export interface DraftCandidate {
   /** Which preset(s) selected this candidate, comma-joined; null if none. */
   presetKind: string | null
   confident: boolean
+  /** Speed-blend variant for drift candidates (e.g. "smooth 50d"); null for range. */
+  blendLabel?: string | null
 }
 
 /** Result of asking an automated strategy to draft a trade for a ticker. */

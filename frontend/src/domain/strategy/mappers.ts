@@ -44,6 +44,7 @@ export function mapDraftPreset(dto: StrategyDraftPresetDTO): DraftPreset {
     scale: (dto.scale ?? null) as DraftPreset['scale'],
     targetCoef: dto.target_coef ?? null,
     entryCoef: dto.entry_coef ?? null,
+    blendLabel: dto.blend_label ?? null,
   }
 }
 
@@ -62,6 +63,7 @@ export function mapDraftCandidate(dto: StrategyDraftCandidateDTO): DraftCandidat
     fillRate: dto.fill_rate,
     presetKind: dto.preset_kind,
     confident: dto.confident,
+    blendLabel: dto.blend_label ?? null,
   }
 }
 
