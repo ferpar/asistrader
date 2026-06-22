@@ -24,9 +24,21 @@ import {
   type RadarViewState,
 } from './filterSort'
 
-const STORAGE_KEY = 'asistrader:radar:symbols'
+// Favorites are scoped per account: the user id is appended to these bases (see
+// scopeToUser), so two accounts on the same browser never share a list. Pre-scope
+// (logged out) nothing persists. Benchmarks/view remain per-browser for now.
+const FAVORITES_KEY_BASE = 'asistrader:radar:symbols'
+const FAVORITES_ONLY_KEY_BASE = 'asistrader:radar:favoritesOnly'
 const BENCHMARK_STORAGE_KEY = 'asistrader:radar:benchmarks'
 const VIEW_STORAGE_KEY = 'asistrader:radar:view'
+
+function loadFlagFromStorage(key: string): boolean {
+  try {
+    return localStorage.getItem(key) === 'true'
+  } catch {
+    return false
+  }
+}
 
 function loadFromStorage(key: string): string[] {
   try {
@@ -109,14 +121,20 @@ export function buildBenchmarkIndicators(
 }
 
 /**
- * Radar-specific state: the watchlist (persisted), the display view/filter, saved
- * presets, and benchmarks. Ticker indicators now live in the shared IndicatorStore
- * (loaded from a common ancestor over watchlist ∪ traded), so this store no longer
- * owns or scopes them — the Radar page reads IndicatorStore.indicators$ and filters
- * it for display. Benchmarks stay here because they're radar-only.
+ * Radar-specific state: the favorites set (persisted), the favorites-only flag,
+ * the display view/filter, saved presets, and benchmarks. Ticker indicators live
+ * in the shared IndicatorStore, loaded over *every* DB ticker ∪ traded — so the
+ * favorites set no longer scopes the universe; it only powers a display filter
+ * and the per-card star. Benchmarks stay here because they're radar-only.
  */
 export class RadarStore {
-  readonly symbols$ = observable<string[]>(loadFromStorage(STORAGE_KEY))
+  // The user's favorites (formerly the watchlist). No longer gates what the radar
+  // shows — every DB ticker is loaded — it just powers the optional favorites
+  // filter and the per-card star. Empty until scopeToUser() hydrates it from the
+  // account-scoped key (so it never leaks across accounts on a shared browser).
+  readonly symbols$ = observable<string[]>([])
+  // When true, the radar/screening views show favorites only. Account-scoped too.
+  readonly favoritesOnly$ = observable<boolean>(false)
   readonly benchmarkSymbols$ = observable<string[]>(loadFromStorage(BENCHMARK_STORAGE_KEY))
   readonly benchmarkIndicators$ = observable<BenchmarkIndicators[]>([])
   readonly loading$ = observable(false)
@@ -125,6 +143,8 @@ export class RadarStore {
   readonly presets$ = observable<RadarPreset[]>([])
   readonly presetsError$ = observable<string | null>(null)
   private lastSyncTime = 0
+  // The account the favorites are currently scoped to (null = logged out).
+  private userId: number | null = null
 
   constructor(
     private readonly benchmarkRepo: IBenchmarkRepository,
@@ -160,19 +180,64 @@ export class RadarStore {
     }
   }
 
+  private favoritesKey(): string | null {
+    return this.userId == null ? null : `${FAVORITES_KEY_BASE}:${this.userId}`
+  }
+
+  private favoritesOnlyKey(): string | null {
+    return this.userId == null ? null : `${FAVORITES_ONLY_KEY_BASE}:${this.userId}`
+  }
+
+  /**
+   * Point the favorites at `userId` (call on login/logout). Re-hydrates from that
+   * account's keys, so switching accounts on one browser never shows another
+   * user's list. Logged out (null) clears it and stops persisting.
+   */
+  scopeToUser(userId: number | null): void {
+    if (userId === this.userId) return
+    this.userId = userId
+    const fk = this.favoritesKey()
+    this.symbols$.set(fk ? loadFromStorage(fk) : [])
+    const fok = this.favoritesOnlyKey()
+    this.favoritesOnly$.set(fok ? loadFlagFromStorage(fok) : false)
+  }
+
   addSymbol(symbol: string): void {
     const symbols = this.symbols$.get()
     const upper = symbol.toUpperCase()
     if (symbols.includes(upper)) return
     const updated = [...symbols, upper]
     this.symbols$.set(updated)
-    saveToStorage(STORAGE_KEY, updated)
+    const key = this.favoritesKey()
+    if (key) saveToStorage(key, updated)
   }
 
   removeSymbol(symbol: string): void {
     const updated = this.symbols$.get().filter((s) => s !== symbol)
     this.symbols$.set(updated)
-    saveToStorage(STORAGE_KEY, updated)
+    const key = this.favoritesKey()
+    if (key) saveToStorage(key, updated)
+  }
+
+  /** Favorite/unfavorite a symbol (the per-card star). */
+  toggleSymbol(symbol: string): void {
+    const upper = symbol.toUpperCase()
+    if (this.symbols$.get().includes(upper)) {
+      this.removeSymbol(upper)
+    } else {
+      this.addSymbol(upper)
+    }
+  }
+
+  setFavoritesOnly(on: boolean): void {
+    this.favoritesOnly$.set(on)
+    const key = this.favoritesOnlyKey()
+    if (!key) return
+    try {
+      localStorage.setItem(key, String(on))
+    } catch {
+      // non-fatal
+    }
   }
 
   addBenchmark(symbol: string): void {

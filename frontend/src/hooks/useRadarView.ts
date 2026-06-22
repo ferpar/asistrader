@@ -28,6 +28,7 @@ export function useRadarView() {
   const loading = indicatorStore.loading$.get() || radarStore.loading$.get()
   const error = indicatorStore.error$.get() || radarStore.error$.get()
   const watchlist = radarStore.symbols$.get()
+  const favoritesOnly = radarStore.favoritesOnly$.get()
   const trades = tradeStore.trades$.get()
   const liveMetrics = metricsStore.metrics$.get()
   const view = radarStore.view$.get()
@@ -77,6 +78,14 @@ export function useRadarView() {
 
   const watchlistSet = useMemo(() => new Set(watchlist), [watchlist])
 
+  // The universe now spans every DB ticker; the favorites filter narrows the
+  // *display* to starred symbols without affecting what's loaded. `indicators`
+  // stays the full set (it's the "of N" denominator); only grouped/flat narrow.
+  const displayIndicators = useMemo(
+    () => (favoritesOnly ? indicators.filter((i) => watchlistSet.has(i.symbol)) : indicators),
+    [favoritesOnly, indicators, watchlistSet],
+  )
+
   const totalActiveTrades = useMemo(() => {
     let n = 0
     for (const list of Object.values(tradesBySymbol)) {
@@ -88,17 +97,19 @@ export function useRadarView() {
   }, [tradesBySymbol])
 
   const grouped = useMemo(
-    () => applyGroupedView(indicators, tradesBySymbol, liveMetrics, view),
-    [indicators, tradesBySymbol, liveMetrics, view],
+    () => applyGroupedView(displayIndicators, tradesBySymbol, liveMetrics, view),
+    [displayIndicators, tradesBySymbol, liveMetrics, view],
   )
 
   const flat = useMemo(
-    () => applyFlatView(indicators, tradesBySymbol, liveMetrics, view),
-    [indicators, tradesBySymbol, liveMetrics, view],
+    () => applyFlatView(displayIndicators, tradesBySymbol, liveMetrics, view),
+    [displayIndicators, tradesBySymbol, liveMetrics, view],
   )
 
   const addTickerSymbol = (symbol: string) => radarStore.addSymbol(symbol)
   const removeTickerSymbol = (symbol: string) => radarStore.removeSymbol(symbol)
+  const toggleFavorite = (symbol: string) => radarStore.toggleSymbol(symbol)
+  const setFavoritesOnly = (on: boolean) => radarStore.setFavoritesOnly(on)
   const registerCreatedTicker = (ticker: Ticker) => {
     setTickers((prev) => [...prev, ticker].sort((a, b) => a.symbol.localeCompare(b.symbol)))
     radarStore.addSymbol(ticker.symbol)
@@ -130,6 +141,9 @@ export function useRadarView() {
     tradesBySymbol,
     liveMetrics,
     watchlistSet,
+    favoritesOnly,
+    toggleFavorite,
+    setFavoritesOnly,
     totalActiveTrades,
     loading,
     error,

@@ -4,7 +4,7 @@ import { Layout } from './components/Layout'
 import { AuthForm } from './components/AuthForm'
 import { IndicatorBootstrap } from './components/IndicatorBootstrap'
 import { TradeDashboard, FundDashboard, RadarDashboard, DriversDashboard, ScreeningDashboard, DetectionSandbox, StrategyAdmin } from './pages'
-import { useAuthStore, useFundStore, useRouterStore } from './container/ContainerContext'
+import { useAuthStore, useFundStore, useRouterStore, useRadarStore } from './container/ContainerContext'
 import { DEFAULT_ROUTE, LOGIN_ROUTE, type AppPage } from './domain/router/RouterStore'
 import './styles/global.css'
 import layoutStyles from './components/Layout.module.css'
@@ -29,14 +29,22 @@ const App = observer(function App() {
   const authStore = useAuthStore()
   const routerStore = useRouterStore()
   const fundStore = useFundStore()
+  const radarStore = useRadarStore()
 
   const bootstrapping = authStore.bootstrapping$.get()
   const isAuthenticated = authStore.isAuthenticated()
+  const userId = authStore.user$.get()?.id ?? null
   const route = routerStore.route$.get()
 
   useEffect(() => {
     authStore.init()
   }, [authStore])
+
+  // Scope the radar favorites to the signed-in account so they never leak across
+  // accounts on a shared browser (clears on logout).
+  useEffect(() => {
+    radarStore.scopeToUser(userId)
+  }, [userId, radarStore])
 
   useEffect(() => {
     if (isAuthenticated) {

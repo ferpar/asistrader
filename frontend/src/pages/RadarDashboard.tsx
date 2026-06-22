@@ -75,8 +75,8 @@ export const RadarDashboard = observer(function RadarDashboard() {
                 ticker={radar.tickerMap[ind.symbol] ?? null}
                 trades={radar.grouped.tradesBySymbol[ind.symbol] ?? []}
                 liveMetrics={radar.liveMetrics}
-                removable={radar.watchlistSet.has(ind.symbol)}
-                onRemove={radar.removeTickerSymbol}
+                isFavorite={radar.watchlistSet.has(ind.symbol)}
+                onToggleFavorite={radar.toggleFavorite}
                 onNewTrade={setNewTradeTicker}
               />
             ))}
@@ -92,7 +92,7 @@ export const RadarDashboard = observer(function RadarDashboard() {
 
       <div className={styles.controls}>
         <div className={styles.addTicker}>
-          <label className={styles.addLabel}>Add Ticker</label>
+          <label className={styles.addLabel}>Find or add ticker</label>
           <TickerSearchInput
             existingTickers={radar.tickers}
             selectedTicker={selectedTicker}
@@ -140,6 +140,14 @@ export const RadarDashboard = observer(function RadarDashboard() {
       <div className={styles.section}>
         <RadarPresetMenu />
         <RadarFilterBar value={radar.view} onChange={radar.setView} onReset={radar.resetView} />
+        <label className={styles.favoritesToggle}>
+          <input
+            type="checkbox"
+            checked={radar.favoritesOnly}
+            onChange={(e) => radar.setFavoritesOnly(e.target.checked)}
+          />
+          ★ Favorites only
+        </label>
         {renderTickersSection()}
       </div>
 

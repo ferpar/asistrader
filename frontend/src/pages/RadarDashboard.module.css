@@ -88,6 +88,17 @@
   font-weight: 400;
 }
 
+.favoritesToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  margin: 0 0 12px 0;
+  user-select: none;
+}
+
 .flatList {
   display: flex;
   flex-direction: column;

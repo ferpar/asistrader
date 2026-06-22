@@ -1,3 +1,25 @@
+- highlight hold and win-rate
+
+- DATABASE BACKUP SYSTEM: 1day, 3day, 1week, 2week, 1month -or whatever is best => dbdumps?
+
+- automate main strategy
+	- speed as weighted average 50 and 5 days average (weight for 50 days should be an input, then the other is derived)
+		- 20% to 50days
+		- 80% to 5 days
+	- given the current price
+		- both a limit trade and a limit stop are calculated in the excel (we probably dont need to do that in the method)
+			- two calculations
+				- first one is deriving PE and TP from to ratio inputs, and the deriving SL from the PLR	 
+				- how we decide on those two inputs is the crux
+					- we have a dispersion measurement based on the maximum and minimum of the last 30 days
+						- based on this dispersion we assume that the price will move from the point of entry a fraction of this dispersion, it should be safe to assume 50%, but appartently the user often goes for 80%, although often he confesseses he often needs to correct, which would make sense.
+				- when speeds are considerable he uses speed instead of dispersion. He calculates how many days it would take to achive a price increase of 10% at the same average rate.The users criterion for the speed method to be acceptable is when the 10% of price increase is attained in 15 or less days.
+
+					- in such case, the PE coefficient used is 1day and the TP used is 10days, by the user.
+						 
+
+
+
 - check trend aligned not being right at ordered summary, as well as on pace. Seems to be inverted for positive position trades.
 
 - fix step 4 of trade creation wizard

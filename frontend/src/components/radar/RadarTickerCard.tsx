@@ -15,8 +15,8 @@ interface RadarTickerCardProps {
   ticker?: Ticker | null
   trades: TradeWithMetrics[]
   liveMetrics: Record<number, LiveMetrics>
-  removable: boolean
-  onRemove: (symbol: string) => void
+  isFavorite: boolean
+  onToggleFavorite: (symbol: string) => void
   onNewTrade: (symbol: string) => void
 }
 
@@ -39,8 +39,8 @@ export const RadarTickerCard = observer(function RadarTickerCard({
   ticker,
   trades,
   liveMetrics,
-  removable,
-  onRemove,
+  isFavorite,
+  onToggleFavorite,
   onNewTrade,
 }: RadarTickerCardProps) {
   const { symbol, currentPrice, sma, priceChanges, linearRegression, rsi, datedCloses, error } = indicators
@@ -77,9 +77,15 @@ export const RadarTickerCard = observer(function RadarTickerCard({
             <span className={styles.countValue}>{counts.closed}</span>
           </span>
         </div>
-        {removable && (
-          <button className={styles.removeBtn} onClick={() => onRemove(symbol)}>&times;</button>
-        )}
+        <button
+          className={`${styles.favoriteBtn} ${isFavorite ? styles.favoriteActive : ''}`}
+          onClick={() => onToggleFavorite(symbol)}
+          title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          aria-pressed={isFavorite}
+          aria-label={isFavorite ? `Unfavorite ${symbol}` : `Favorite ${symbol}`}
+        >
+          {isFavorite ? '★' : '☆'}
+        </button>
       </div>
     </div>
   )
