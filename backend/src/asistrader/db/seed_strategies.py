@@ -5,7 +5,8 @@ This is intentionally separate from the demo-data seed (`scripts/seed_data.py`,
 which also creates sample tickers/trades and is *not* run on startup). It only
 ensures a small set of strategies exist, **upserting by name** — so it is safe to
 run on every `docker-compose up`: it creates a strategy only if one with that
-name is missing, and never duplicates or touches existing rows.
+name is missing, and otherwise reconciles code-defined *structural* params onto
+the existing row (see `seed_strategies`).
 
     python -m asistrader.db.seed_strategies
 
@@ -15,6 +16,7 @@ Honors DATABASE_URL.
 from __future__ import annotations
 
 import os
+from typing import NamedTuple
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -57,6 +59,7 @@ def _default_strategies() -> list[dict]:
             tp_method="historical_expected_days",
             description="Automated: triple-barrier sweep recommending a holding horizon.",
             params=HISTORICAL_EXPECTED_DAYS.default_params(),
+            structural={},
         ),
         dict(
             name="Dispersion and Momentum",
@@ -69,21 +72,47 @@ def _default_strategies() -> list[dict]:
                 "30-day dispersion) recommending whichever scale historically paid better."
             ),
             params={**DISPERSION_MOMENTUM.default_params(), **_DM_STRUCTURAL},
+            structural=_DM_STRUCTURAL,
         ),
     ]
 
 
-def seed_strategies(session: Session) -> int:
-    """Create any missing default strategies (by name). Returns the count created."""
+class SeedResult(NamedTuple):
+    created: int  # strategies inserted because no row with that name existed
+    reconciled: int  # existing strategies whose structural params were backfilled
+
+
+def seed_strategies(session: Session) -> SeedResult:
+    """Create missing default strategies and backfill *structural* params on existing ones.
+
+    Structural params (e.g. `drift_speed_blends`) are code-defined and have no
+    admin widget, so the only way they change is in this file. A strategy seeded
+    before such a param was added would otherwise keep a stale/missing value
+    forever — the by-name guard skips existing rows. Reconciling them here is
+    what keeps the engine config from silently drifting out of sync.
+
+    Only the keys in a spec's `structural` dict are touched; admin-editable scalar
+    params (PLR, windows, gates, …) are never overwritten.
+    """
     created = 0
+    reconciled = 0
     for spec in _default_strategies():
-        if session.query(Strategy).filter_by(name=spec["name"]).first():
+        structural = spec.pop("structural", {})
+        existing = session.query(Strategy).filter_by(name=spec["name"]).first()
+        if existing is None:
+            session.add(Strategy(**spec))
+            created += 1
             continue
-        session.add(Strategy(**spec))
-        created += 1
-    if created:
+        if not structural:
+            continue
+        current = dict(existing.params or {})
+        if any(current.get(k) != v for k, v in structural.items()):
+            # Reassign (not in-place mutate) so SQLAlchemy flags the JSON column dirty.
+            existing.params = {**current, **structural}
+            reconciled += 1
+    if created or reconciled:
         session.commit()
-    return created
+    return SeedResult(created, reconciled)
 
 
 def main() -> None:
@@ -91,9 +120,13 @@ def main() -> None:
     Base.metadata.create_all(bind=engine)  # no-op when alembic already built the schema
     session = sessionmaker(bind=engine)()
     try:
-        created = seed_strategies(session)
+        result = seed_strategies(session)
         total = len(_default_strategies())
-        print(f"Strategy seed: {created} created, {total - created} already present.")
+        print(
+            f"Strategy seed: {result.created} created, "
+            f"{total - result.created} already present, "
+            f"{result.reconciled} reconciled."
+        )
     finally:
         session.close()
 

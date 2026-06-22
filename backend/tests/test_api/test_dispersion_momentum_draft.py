@@ -101,8 +101,8 @@ def test_dm_engine_listed_with_blend_weight_field(client) -> None:
 
 
 def test_seed_creates_both_strategies_idempotently(db_session: Session) -> None:
-    created = seed_strategies(db_session)
-    assert created == 2
+    result = seed_strategies(db_session)
+    assert result == (2, 0)
     names = {s.name for s in db_session.query(Strategy).all()}
     assert {"Historical Expected Days", "Dispersion and Momentum"} <= names
 
@@ -111,4 +111,27 @@ def test_seed_creates_both_strategies_idempotently(db_session: Session) -> None:
     assert dm.params["scales"] == ["drift", "range"]
     assert dm.params["range_target_coefs"]  # structural params merged in
 
-    assert seed_strategies(db_session) == 0  # idempotent
+    assert seed_strategies(db_session) == (0, 0)  # idempotent, nothing to reconcile
+
+
+def test_seed_backfills_missing_structural_params(db_session: Session) -> None:
+    """A row seeded before a structural param existed gets it backfilled on re-seed,
+    rather than silently keeping the stale config (the drift_speed_blends bug)."""
+    seed_strategies(db_session)
+    dm = db_session.query(Strategy).filter_by(name="Dispersion and Momentum").first()
+
+    # Simulate a stale row: drop the blends (and corrupt a structural value) the way
+    # a pre-blends seed would have left it. Reassign params so the change is tracked.
+    stale = {k: v for k, v in dm.params.items() if k != "drift_speed_blends"}
+    stale["range_target_coefs"] = [0.5]
+    dm.params = stale
+    db_session.commit()
+
+    result = seed_strategies(db_session)
+    assert result == (0, 1)  # nothing created, one row reconciled
+
+    db_session.refresh(dm)
+    assert dm.params["drift_speed_blends"] == [[[50, 1.0]], [[50, 0.5], [5, 0.5]], [[50, 0.2], [5, 0.8]]]
+    assert dm.params["range_target_coefs"] == [0.3, 0.5, 0.8, 1.0]  # restored to canonical
+
+    assert seed_strategies(db_session) == (0, 0)  # converged — idempotent again

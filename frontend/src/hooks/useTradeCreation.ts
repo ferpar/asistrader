@@ -48,6 +48,11 @@ export function useTradeCreation(initialTicker?: string) {
   // ticker change and form reset (a new instrument is a fresh context).
   const [orderTypeTouched, setOrderTypeTouched] = useState(false)
 
+  // Same pattern for units: while false, units track the recommended size (once
+  // entry price + balance + FX are known). Set on manual edit; reset on ticker
+  // change, form reset, and when the user clicks the "Suggested" chip.
+  const [unitsTouched, setUnitsTouched] = useState(false)
+
   // --- Automated-strategy draft state ---
   const [draftResult, setDraftResult] = useState<DraftResult | null>(null)
   const [draftLoading, setDraftLoading] = useState(false)
@@ -291,8 +296,22 @@ export function useTradeCreation(initialTicker?: string) {
     return units > 0 ? units : null
   }, [formData.entry_price, formData.ticker, tickers, fundStore, fxStore, fxLoaded, fxLoading])
 
+  // Prefill units with the recommended size as soon as it's known, so the user
+  // doesn't have to click the suggestion. Stops once they edit units by hand
+  // (unitsTouched); keeps re-syncing while untouched as the entry price — and
+  // thus the recommendation — changes (e.g. after applying a strategy preset).
+  useEffect(() => {
+    if (unitsTouched || suggestedUnits === null) return
+    const next = String(suggestedUnits)
+    if (formData.units !== next) {
+      setFormData(prev => ({ ...prev, units: next }))
+    }
+  }, [unitsTouched, suggestedUnits, formData.units])
+
   const applySuggestedUnits = () => {
     if (suggestedUnits !== null) {
+      // Re-arm auto-sync: clicking the chip means "follow the recommendation".
+      setUnitsTouched(false)
       setFormData(prev => ({ ...prev, units: String(suggestedUnits) }))
     }
   }
@@ -388,6 +407,7 @@ export function useTradeCreation(initialTicker?: string) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     if (name === 'order_type') setOrderTypeTouched(true)
+    if (name === 'units') setUnitsTouched(true)
     setFormData(prev => ({ ...prev, [name]: value }))
     setError(null)
   }
@@ -407,6 +427,7 @@ export function useTradeCreation(initialTicker?: string) {
       gtd_date: '',
     })
     setOrderTypeTouched(false)
+    setUnitsTouched(false)
     setLayeredMode(false)
     setTpLevels([
       { price: '', units_pct: '50', move_sl_to_breakeven: true },
@@ -492,8 +513,10 @@ export function useTradeCreation(initialTicker?: string) {
   }
 
   const selectTicker = (symbol: string) => {
-    // New instrument = fresh context: resume auto-deriving the order type.
+    // New instrument = fresh context: resume auto-deriving the order type and
+    // re-deriving the recommended units.
     setOrderTypeTouched(false)
+    setUnitsTouched(false)
     setFormData(prev => ({ ...prev, ticker: symbol }))
   }
 

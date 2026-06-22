@@ -23,7 +23,7 @@ type Mode = 'guided' | 'advanced'
  */
 export const TradeCreationModal = observer(function TradeCreationModal({ onClose, initialTicker }: TradeCreationModalProps) {
   const form = useTradeCreation(initialTicker)
-  const [mode, setMode] = useState<Mode>('guided')
+  const [mode, setMode] = useState<Mode>('advanced')
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -54,18 +54,18 @@ export const TradeCreationModal = observer(function TradeCreationModal({ onClose
           <h3>New Trade</h3>
           <div className={styles.modeToggle} role="tablist" aria-label="Form mode">
             <button
-              type="button" role="tab" aria-selected={mode === 'guided'}
-              className={`${styles.modeBtn} ${mode === 'guided' ? styles.modeBtnActive : ''}`}
-              onClick={() => setMode('guided')}
-            >
-              Guided
-            </button>
-            <button
               type="button" role="tab" aria-selected={mode === 'advanced'}
               className={`${styles.modeBtn} ${mode === 'advanced' ? styles.modeBtnActive : ''}`}
               onClick={() => setMode('advanced')}
             >
               Advanced
+            </button>
+            <button
+              type="button" role="tab" aria-selected={mode === 'guided'}
+              className={`${styles.modeBtn} ${mode === 'guided' ? styles.modeBtnActive : ''}`}
+              onClick={() => setMode('guided')}
+            >
+              Guided
             </button>
           </div>
           <button className={styles.modalClose} onClick={onClose}>&times;</button>
