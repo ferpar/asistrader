@@ -202,6 +202,24 @@ export const StrategyDraftPanel = observer(function StrategyDraftPanel({
               >
                 <span className={styles.kind}>{p.kind}</span>
                 <span className={styles.criterion}>{PRESET_INFO[p.kind]}</span>
+                {/* The three numbers users scan first, pulled out big and labeled
+                    so they don't get lost among the rest of the detail below. */}
+                <span className={styles.keyStats}>
+                  <span className={styles.keyStat}>
+                    <span className={styles.keyLabel}>Hold</span>
+                    <span className={styles.keyValue}>~{p.d2}d</span>
+                  </span>
+                  <span className={styles.keyStat}>
+                    <span className={styles.keyLabel}>Win rate</span>
+                    <span className={styles.keyValue}>{pct(p.winRate)}</span>
+                  </span>
+                  <span className={styles.keyStat}>
+                    <span className={styles.keyLabel}>CI (90%)</span>
+                    <span className={styles.keyValue}>
+                      {p.winRateCi ? `${pct(p.winRateCi[0])}–${pct(p.winRateCi[1])}` : '—'}
+                    </span>
+                  </span>
+                </span>
                 <span className={styles.row}>Hold ~{p.d2}d · {p.nTrials} trials</span>
                 {p.scale && (
                   <span className={styles.row}>
