@@ -84,6 +84,10 @@ export interface DraftResult {
   fillRate: number
   ticker: string
   lastBarDate: string | null
+  /** Price the preset levels are anchored on; live quote when referencePriceLive. */
+  referencePrice: number | null
+  /** True when referencePrice is the live quote (matches the trade dialog). */
+  referencePriceLive: boolean
   speed: number | null
   dispersion?: number | null
   engineLabel: string | null

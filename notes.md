@@ -1,3 +1,5 @@
+- check price difference between current when opening a trade and radar cards stated price at the top
+
 - highlight hold and win-rate
 
 - DATABASE BACKUP SYSTEM: 1day, 3day, 1week, 2week, 1month -or whatever is best => dbdumps?

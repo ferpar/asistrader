@@ -175,6 +175,20 @@ export const StrategyDraftPanel = observer(function StrategyDraftPanel({
         </p>
       )}
 
+      {result && result.presets.length > 0 && result.referencePrice != null && (
+        <p className={styles.anchor}>
+          Levels anchored on{' '}
+          {result.referencePriceLive ? (
+            <>live price <strong>{price(result.referencePrice)}</strong></>
+          ) : (
+            <>
+              last close <strong>{price(result.referencePrice)}</strong>{' '}
+              <span className={styles.anchorWarn}>(live quote unavailable — may differ from current price)</span>
+            </>
+          )}
+        </p>
+      )}
+
       {result && result.presets.length > 0 && (
         <>
           <div className={styles.cards}>

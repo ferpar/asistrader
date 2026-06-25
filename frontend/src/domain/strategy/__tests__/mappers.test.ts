@@ -84,6 +84,9 @@ describe('mapDraftResult', () => {
     const r = mapDraftResult(dto)
     expect(r.confident).toBe(true)
     expect(r.breakevenWinRate).toBe(0.4)
+    // Absent reference-price fields default to a non-live null anchor.
+    expect(r.referencePrice).toBeNull()
+    expect(r.referencePriceLive).toBe(false)
     expect(r.engineLabel).toBe('Historical Expected Days')
     expect(r.engineDescription).toBe('desc')
     expect(r.presets).toHaveLength(1)

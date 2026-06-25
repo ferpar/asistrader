@@ -199,6 +199,12 @@ class StrategyDraftResponse(BaseModel):
     fill_rate: float
     ticker: str
     last_bar_date: date | None = None
+    # The price the preset entry/SL/TP are anchored on. When a live quote is
+    # available it matches the trade dialog's current price (so a stop-limit's
+    # entry stays on the correct side of the market); otherwise it's the last
+    # daily close and reference_price_live is False.
+    reference_price: float | None = None
+    reference_price_live: bool = False
     speed: float | None = None
     dispersion: float | None = None  # range scale unit (dispersion_momentum)
     engine_label: str | None = None

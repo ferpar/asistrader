@@ -49,7 +49,7 @@ export function createAppContainer(): AppContainer {
   const benchmarkStore = new BenchmarkStore(benchmarkRepo)
   const radarRepo = new HttpRadarRepository(baseUrl, getAccessToken)
   const radarPresetRepo = new HttpRadarPresetRepository(baseUrl, getAccessToken)
-  const indicatorStore = new IndicatorStore(radarRepo)
+  const indicatorStore = new IndicatorStore(radarRepo, priceProvider)
   const radarStore = new RadarStore(benchmarkRepo, radarPresetRepo)
   const irrRepo = new HttpIrrRepository(baseUrl, getAccessToken)
   const irrStore = new IrrStore(irrRepo)

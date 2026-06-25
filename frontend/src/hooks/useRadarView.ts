@@ -23,6 +23,7 @@ export function useRadarView() {
   const [tickers, setTickers] = useState<Ticker[]>([])
 
   const indicators = indicatorStore.indicators$.get()
+  const livePrices = indicatorStore.livePrices$.get()
   const benchmarkIndicators = radarStore.benchmarkIndicators$.get()
   const benchmarks = benchmarkStore.benchmarks$.get()
   const loading = indicatorStore.loading$.get() || radarStore.loading$.get()
@@ -132,6 +133,7 @@ export function useRadarView() {
 
   return {
     indicators,
+    livePrices,
     benchmarkIndicators,
     tickers,
     tickerMap,

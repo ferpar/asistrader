@@ -94,6 +94,8 @@ export interface StrategyDraftResponseDTO {
   fill_rate: number
   ticker: string
   last_bar_date: string | null
+  reference_price?: number | null
+  reference_price_live?: boolean
   speed: number | null
   dispersion?: number | null
   engine_label: string | null

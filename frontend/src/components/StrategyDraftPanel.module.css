@@ -65,6 +65,16 @@
   color: var(--color-warning-dark);
 }
 
+.anchor {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  margin: 0 0 0.5rem;
+}
+
+.anchorWarn {
+  color: var(--color-warning-dark);
+}
+
 .err {
   font-size: 0.85rem;
   color: var(--color-error);

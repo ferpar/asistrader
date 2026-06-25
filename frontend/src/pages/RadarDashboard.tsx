@@ -72,6 +72,7 @@ export const RadarDashboard = observer(function RadarDashboard() {
               <RadarTickerCard
                 key={ind.symbol}
                 indicators={ind}
+                livePrice={radar.livePrices[ind.symbol] ?? null}
                 ticker={radar.tickerMap[ind.symbol] ?? null}
                 trades={radar.grouped.tradesBySymbol[ind.symbol] ?? []}
                 liveMetrics={radar.liveMetrics}

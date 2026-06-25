@@ -34,6 +34,8 @@ function result(presets: DraftPreset[], overrides: Partial<DraftResult> = {}): D
     fillRate: 0.8,
     ticker: 'AAA',
     lastBarDate: '2026-06-16',
+    referencePrice: 100,
+    referencePriceLive: true,
     speed: 0.01,
     engineLabel: 'Historical Expected Days',
     engineDescription: 'desc',

@@ -12,6 +12,8 @@ import styles from './RadarTickerCard.module.css'
 
 interface RadarTickerCardProps {
   indicators: TickerIndicators
+  /** Live quote overlaid on the headline price; falls back to the last close. */
+  livePrice?: number | null
   ticker?: Ticker | null
   trades: TradeWithMetrics[]
   liveMetrics: Record<number, LiveMetrics>
@@ -36,6 +38,7 @@ function countByStatus(trades: TradeWithMetrics[]) {
 
 export const RadarTickerCard = observer(function RadarTickerCard({
   indicators,
+  livePrice,
   ticker,
   trades,
   liveMetrics,
@@ -44,6 +47,9 @@ export const RadarTickerCard = observer(function RadarTickerCard({
   onNewTrade,
 }: RadarTickerCardProps) {
   const { symbol, currentPrice, sma, priceChanges, linearRegression, rsi, datedCloses, error } = indicators
+  // Prefer the live quote for "current price" displays (headline + SMA position),
+  // matching the trade dialog; indicators below stay computed from daily closes.
+  const displayPrice = livePrice ?? currentPrice
   const fmt = (value: number) => formatPrice(value, ticker?.currency, ticker?.priceHint)
   const tickerName = ticker?.name ?? null
   const counts = countByStatus(trades)
@@ -54,8 +60,8 @@ export const RadarTickerCard = observer(function RadarTickerCard({
       <div className={styles.symbolGroup}>
         <span className={styles.symbol}>{symbol}</span>
         {tickerName && <span className={styles.tickerName}>{tickerName}</span>}
-        {!error && currentPrice !== null && (
-          <span className={styles.price}>{fmt(currentPrice)}</span>
+        {!error && displayPrice !== null && (
+          <span className={styles.price}>{fmt(displayPrice)}</span>
         )}
       </div>
       <div className={styles.headerRight}>
@@ -116,7 +122,7 @@ export const RadarTickerCard = observer(function RadarTickerCard({
       {header}
 
       <div className={styles.sections}>
-        <SmaStructureSection sma={sma} price={currentPrice} fmt={fmt} />
+        <SmaStructureSection sma={sma} price={displayPrice} fmt={fmt} />
 
         <div className={styles.section}>
           <div className={styles.sectionLabel}>Avg Daily Change</div>

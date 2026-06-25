@@ -6,7 +6,10 @@ from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
+import pytest
+
 from asistrader.models.db import MarketData, SweepResultCache, Ticker
+from asistrader.services.strategies import draft_service
 from asistrader.services.strategy_service import create_strategy
 
 AUTO_PARAMS = {
@@ -67,6 +70,51 @@ def test_draft_is_cached(client, db_session: Session) -> None:
     second = client.post(f"/api/strategies/{strat.id}/draft", json={"ticker": "UP"}).json()
     assert second == first  # served from cache
     assert db_session.query(SweepResultCache).filter_by(ticker="UP").count() == 1
+
+
+def test_draft_anchored_on_last_close_when_no_live_quote(client, db_session: Session) -> None:
+    _add_ticker_with_bars(db_session, "UP", 90)
+    strat = create_strategy(db_session, name="HED", automated=True, params=AUTO_PARAMS)
+
+    data = client.post(f"/api/strategies/{strat.id}/draft", json={"ticker": "UP"}).json()
+    # Offline default (see conftest): falls back to the last stored close.
+    assert data["reference_price_live"] is False
+    last_close = db_session.query(MarketData).filter_by(ticker="UP").order_by(
+        MarketData.date.desc()
+    ).first().close
+    assert data["reference_price"] == pytest.approx(last_close)
+
+
+def test_draft_reanchors_on_live_price(client, db_session: Session, monkeypatch) -> None:
+    _add_ticker_with_bars(db_session, "UP", 90)
+    strat = create_strategy(db_session, name="HED", automated=True, params=AUTO_PARAMS)
+
+    # First draft with no live quote → levels anchored on the last close.
+    base = client.post(f"/api/strategies/{strat.id}/draft", json={"ticker": "UP"}).json()
+    assert base["reference_price_live"] is False
+    close = base["reference_price"]
+    assert close is not None and len(base["presets"]) >= 1
+    p0 = base["presets"][0]
+
+    # A live quote 10% above the close. The sweep is served from cache, but the
+    # levels must re-anchor proportionally (every price is anchor * factor).
+    live = close * 1.10
+    monkeypatch.setattr(
+        draft_service,
+        "get_current_price",
+        lambda symbol: {"price": live, "currency": "USD", "valid": True},
+    )
+    out = client.post(f"/api/strategies/{strat.id}/draft", json={"ticker": "UP"}).json()
+
+    assert db_session.query(SweepResultCache).filter_by(ticker="UP").count() == 1  # cache reused
+    assert out["reference_price_live"] is True
+    assert out["reference_price"] == pytest.approx(live)
+    q0 = out["presets"][0]
+    assert q0["entry"] == pytest.approx(p0["entry"] * 1.10)
+    assert q0["stop_loss"] == pytest.approx(p0["stop_loss"] * 1.10)
+    assert q0["take_profit"] == pytest.approx(p0["take_profit"] * 1.10)
+    # The re-anchored levels stay coherent for a long.
+    assert q0["stop_loss"] < q0["entry"] < q0["take_profit"]
 
 
 def test_draft_thin_history_is_low_confidence(client, db_session: Session) -> None:

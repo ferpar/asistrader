@@ -94,6 +94,8 @@ export function mapDraftResult(dto: StrategyDraftResponseDTO): DraftResult {
     fillRate: dto.fill_rate,
     ticker: dto.ticker,
     lastBarDate: dto.last_bar_date,
+    referencePrice: dto.reference_price ?? null,
+    referencePriceLive: dto.reference_price_live ?? false,
     speed: dto.speed,
     dispersion: dto.dispersion ?? null,
     engineLabel: dto.engine_label,

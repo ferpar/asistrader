@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from asistrader.models.db import Strategy, SweepResultCache
 from asistrader.services.market_data_service import get_data_bounds, get_market_data
+from asistrader.services.ticker_service import get_current_price
 
 from .candidate_sweep import (
     Candidate,
@@ -70,6 +71,8 @@ def _resolve(strategy: Strategy, overrides: dict) -> tuple[SweepConfig, Recommen
 
     # Stable hash over everything that affects the result.
     hashable = {
+        # Bump when the cached payload shape changes so stale rows miss and recompute.
+        "payload_version": 1,
         "engine": p.get("engine", "historical_expected_days"),
         "plr": sweep_cfg.plr,
         "d1": sweep_cfg.d1,
@@ -155,7 +158,7 @@ def draft_trade(db: Session, strategy: Strategy, overrides: dict) -> dict:
     )
     if cached is not None:
         # Merge meta so older cache rows (pre-meta) still carry the description.
-        return {**meta, **cached.payload}
+        return _apply_live_price({**meta, **cached.payload})
 
     payload = {**meta, **compute()}
 
@@ -168,6 +171,46 @@ def draft_trade(db: Session, strategy: Strategy, overrides: dict) -> dict:
         )
     )
     db.commit()
+    return _apply_live_price(payload)
+
+
+def _apply_live_price(payload: dict) -> dict:
+    """Re-anchor preset entry/SL/TP on the live quote before returning.
+
+    The sweep is cached against the last *daily close*, but the trade dialog
+    shows the live `fast_info` price — anchoring the draft on the stale close
+    pushes the levels off the current market (e.g. a long stop-limit's entry
+    can land below price and degrade to a plain limit). The price geometry is
+    purely multiplicative in the anchor (every level is ``price * factor``), so
+    re-anchoring is an exact proportional rescale of the cached close-based
+    levels — no need to recompute the sweep.
+
+    Falls back to the cached close-based levels (and flags them non-live) when
+    no valid quote is available, so drafts never break when markets are closed.
+    """
+    presets = payload.get("presets") or []
+    ref = payload.get("reference_price")
+    if not presets or not ref or ref <= 0:
+        payload["reference_price_live"] = False
+        return payload
+
+    quote = get_current_price(payload["ticker"])
+    live = quote.get("price") if quote.get("valid") else None
+    if not live or live <= 0:
+        payload["reference_price_live"] = False
+        return payload
+
+    scale = live / ref
+    rescaled = []
+    for preset in presets:
+        out = dict(preset)  # don't mutate the cached payload's nested dicts
+        for key in ("entry", "stop_loss", "take_profit"):
+            if out.get(key) is not None:
+                out[key] = out[key] * scale
+        rescaled.append(out)
+    payload["presets"] = rescaled
+    payload["reference_price"] = live
+    payload["reference_price_live"] = True
     return payload
 
 
@@ -181,6 +224,7 @@ def _compute(db, ticker, sweep_cfg, rec_cfg, side, order_type, breakeven, last_b
         "breakeven_win_rate": breakeven,
         "ticker": ticker,
         "last_bar_date": last_bar.isoformat(),
+        "reference_price": None,
         "speed": None,
         "presets": [],
     }
@@ -226,6 +270,7 @@ def _compute(db, ticker, sweep_cfg, rec_cfg, side, order_type, breakeven, last_b
         "confident": rec.confident,
         "reason": rec.reason,
         "fill_rate": rec.fill_rate,
+        "reference_price": price,
         "speed": speed,
         "presets": presets,
     }
@@ -290,7 +335,7 @@ def _resolve_dm(
 
     hashable = {
         # Bump when the payload shape changes so stale cache rows miss and recompute.
-        "payload_version": 3,
+        "payload_version": 4,
         "engine": "dispersion_momentum",
         "plr": plr,
         "d1": d1,
@@ -328,6 +373,7 @@ def _compute_dm(db, ticker, cfg: CandidateSweepConfig, rec_cfg, side, order_type
         "breakeven_win_rate": breakeven,
         "ticker": ticker,
         "last_bar_date": last_bar.isoformat(),
+        "reference_price": None,
         "speed": None,
         "dispersion": None,
         "presets": [],
@@ -438,6 +484,7 @@ def _compute_dm(db, ticker, cfg: CandidateSweepConfig, rec_cfg, side, order_type
         "confident": rec.confident,
         "reason": reason,
         "fill_rate": fill_rate,
+        "reference_price": price,
         "speed": speed,
         "dispersion": disp,
         "presets": presets,
