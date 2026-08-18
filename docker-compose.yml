@@ -22,6 +22,10 @@ services:
       # See backend/Dockerfile for why this defaults to 1, and
       # asistrader/db/database.py for the pool sizing these interact with.
       WEB_CONCURRENCY: "${WEB_CONCURRENCY:-1}"
+      # See backend/Dockerfile — caps glibc heap arenas. Set here too so a
+      # compose-only run gets the same memory behaviour as the built image.
+      MALLOC_ARENA_MAX: "${MALLOC_ARENA_MAX:-2}"
+      WEB_THREADPOOL_SIZE: "${WEB_THREADPOOL_SIZE:-24}"
       DB_POOL_SIZE: "${DB_POOL_SIZE:-20}"
       DB_MAX_OVERFLOW: "${DB_MAX_OVERFLOW:-10}"
     ports:

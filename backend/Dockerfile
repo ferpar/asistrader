@@ -27,6 +27,17 @@ RUN uv pip install --system -e .
 # Expose port
 EXPOSE 8005
 
+# ── Heap fragmentation ──
+#
+# glibc creates up to 8 × CPU-count malloc arenas, each reserving up to 64MB of
+# heap. Freed memory returns to the arena's free list, not to the kernel, so a
+# long-running threaded pandas workload ratchets its footprint up to its
+# high-water mark and stays there — production showed a 140MB-at-import process
+# holding 2.7GB of mappings after seven weeks, almost all of it swapped out.
+# Capping arenas trades a little allocator contention for a far smaller,
+# stabler resident set.
+ENV MALLOC_ARENA_MAX=2
+
 # Worker count. Left at 1 by default because each worker is a full copy of the
 # process and this app carries pandas + yfinance (~500MB resident); on a 2GB
 # host, raising this without also raising the memory will OOM. Bump WEB_CONCURRENCY
