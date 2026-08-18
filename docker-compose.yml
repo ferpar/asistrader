@@ -19,13 +19,18 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: postgresql://asistrader:asistrader@db:5432/asistrader
+      # See backend/Dockerfile for why this defaults to 1, and
+      # asistrader/db/database.py for the pool sizing these interact with.
+      WEB_CONCURRENCY: "${WEB_CONCURRENCY:-1}"
+      DB_POOL_SIZE: "${DB_POOL_SIZE:-20}"
+      DB_MAX_OVERFLOW: "${DB_MAX_OVERFLOW:-10}"
     ports:
       - "8005:8005"
     depends_on:
       db:
         condition: service_healthy
     command: >
-      sh -c "alembic upgrade head && python -m asistrader.db.seed_strategies && uvicorn asistrader.main:app --host 0.0.0.0 --port 8005"
+      sh -c "alembic upgrade head && python -m asistrader.db.seed_strategies && uvicorn asistrader.main:app --host 0.0.0.0 --port 8005 --workers $${WEB_CONCURRENCY}"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
       interval: 10s

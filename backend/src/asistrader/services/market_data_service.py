@@ -1,7 +1,7 @@
 """Market data service for fetching and managing OHLCV data."""
 
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
 import yfinance as yf
@@ -22,6 +22,49 @@ from asistrader.services.ticker_service import backfill_ticker_metadata
 # the next chunk so we stay well below the rate limit.
 BULK_HISTORY_CHUNK_SIZE = 20
 BULK_HISTORY_CHUNK_DELAY_SECONDS = 2.0
+# A chunk covers BULK_HISTORY_CHUNK_SIZE symbols of full history, so allow more
+# headroom than a spot-price fetch — but still bound it.
+BULK_HISTORY_TIMEOUT_SECONDS = 60
+
+
+# ── Un-fillable backward gaps ──
+#
+# Yahoo simply has no history before a given date for some listings (recent
+# IPOs, re-listings, venue-specific tickers). Gap detection asks for that
+# missing range, gets nothing, stores nothing — and asks again on the very next
+# sync. Production logs showed ~6.3k such fetches from nine symbols, every one
+# of them guaranteed to return empty, each holding a worker thread and a pooled
+# DB connection while it waited on the network.
+#
+# So we remember the dead end. A backfill that returns zero rows stamps
+# `Ticker.backfill_exhausted_at`; later syncs skip the backward fetch until the
+# stamp ages past BACKFILL_RETRY_DAYS, which bounds the cost of a genuinely
+# extended history to one probe a month instead of one per sync.
+BACKFILL_RETRY_DAYS = 30
+
+
+def _backfill_is_exhausted(ticker: Ticker | None, now: datetime | None = None) -> bool:
+    """True when a recent backward fetch for this ticker came back empty."""
+    if ticker is None or ticker.backfill_exhausted_at is None:
+        return False
+    now = now or datetime.now(timezone.utc)
+    stamp = ticker.backfill_exhausted_at
+    # Column is naive; treat a naive stamp as UTC so the comparison is valid
+    # regardless of how it was written.
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    return now - stamp < timedelta(days=BACKFILL_RETRY_DAYS)
+
+
+def _record_backfill_result(db: Session, symbol: str, fetched: int) -> None:
+    """Stamp (or clear) the exhausted marker after a backward fetch attempt."""
+    ticker = db.query(Ticker).filter(Ticker.symbol == symbol).first()
+    if ticker is None:
+        return
+    ticker.backfill_exhausted_at = (
+        None if fetched > 0 else datetime.now(timezone.utc).replace(tzinfo=None)
+    )
+    db.commit()
 
 
 def get_last_trading_day(reference_date: date) -> date:
@@ -360,6 +403,7 @@ def fetch_bulk_from_yfinance(
         progress=False,
         group_by="ticker",
         threads=True,
+        timeout=BULK_HISTORY_TIMEOUT_SECONDS,
     )
 
     if df is None or df.empty:
@@ -445,6 +489,11 @@ def sync_ticker(
 
     if force_refresh:
         db.query(MarketData).filter(MarketData.ticker == symbol).delete()
+        # A forced re-fetch re-establishes the bounds from scratch, so whatever
+        # we previously learned about the backward limit no longer applies.
+        db.query(Ticker).filter(Ticker.symbol == symbol).update(
+            {Ticker.backfill_exhausted_at: None}
+        )
         db.commit()
         fetched = fetch_and_store(db, symbol, start_date, today)
         return {"fetched": fetched, "skipped": fetched == 0}
@@ -460,10 +509,15 @@ def sync_ticker(
         # Check for backward gap (need older data)
         # Use next trading day from start_date to avoid fetching holidays/weekends
         first_expected_trading_day = get_next_trading_day(start_date)
-        if earliest > first_expected_trading_day:
+        ticker = db.query(Ticker).filter(Ticker.symbol == symbol).first()
+        if earliest > first_expected_trading_day and not _backfill_is_exhausted(ticker):
             backward_end = earliest - pd.Timedelta(days=1)
             backward_end_date = backward_end.date() if hasattr(backward_end, "date") else backward_end
-            fetched += fetch_and_store(db, symbol, start_date, backward_end_date)
+            backfilled = fetch_and_store(db, symbol, start_date, backward_end_date)
+            fetched += backfilled
+            # An empty result means the history doesn't go back that far —
+            # remember it so the next sync doesn't ask all over again.
+            _record_backfill_result(db, symbol, backfilled)
 
         # Check for forward gap (need newer data)
         # Use last_trading_day to avoid refetching on weekends

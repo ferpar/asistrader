@@ -181,6 +181,13 @@ class Ticker(Base):
         Enum(Beta, values_callable=lambda x: [e.value for e in x]), nullable=True
     )
     strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True)
+    # When a backward backfill returns zero rows we've learned that no history
+    # exists before our earliest stored bar. Without recording that, gap
+    # detection asks for the same missing range on every single sync and never
+    # converges — one guaranteed-useless yfinance round-trip per symbol, per
+    # sync, forever. Cleared whenever a backfill does land rows; re-probed
+    # after BACKFILL_RETRY_DAYS in case the upstream history is extended.
+    backfill_exhausted_at = Column(DateTime, nullable=True)
 
     trades = relationship("Trade", back_populates="ticker_rel")
     strategy_rel = relationship("Strategy", back_populates="tickers")

@@ -19,6 +19,9 @@ from asistrader.models.db import Ticker
 # we chunk the request and cache results briefly to keep navigation snappy.
 PRICE_CHUNK_SIZE = 30
 PRICE_CACHE_TTL_SECONDS = 60
+# Cap how long a single chunk may block. These calls run on a worker thread, so
+# an unbounded one holds that thread until Yahoo answers or the socket dies.
+PRICE_FETCH_TIMEOUT_SECONDS = 20
 
 _PRICE_CACHE: dict[str, tuple[float, dict]] = {}  # symbol → (expires_at, result)
 _PRICE_CACHE_LOCK = threading.Lock()
@@ -219,6 +222,7 @@ def _fetch_chunk(
             group_by="ticker",
             auto_adjust=False,
             threads=True,
+            timeout=PRICE_FETCH_TIMEOUT_SECONDS,
         )
     except Exception:
         logger.exception("Batch yfinance download failed for %s", symbols)
@@ -305,6 +309,15 @@ def get_batch_prices(
             .all()
         )
         currencies = {sym: ccy for sym, ccy in rows}
+        # Hand the pooled connection back before touching the network. The
+        # yfinance calls below can run for tens of seconds, and holding a
+        # connection across them is what exhausts the pool: enough concurrent
+        # price requests and every other endpoint — including the auth
+        # dependency behind /me and /login — blocks waiting for a connection
+        # that is doing nothing but sitting on an HTTP round-trip.
+        # `currencies` is already materialised into plain values, so nothing
+        # below needs the session.
+        db.commit()
 
     # Chunked fetches keep concurrent yfinance requests bounded.
     for start in range(0, len(to_fetch), PRICE_CHUNK_SIZE):
