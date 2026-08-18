@@ -103,6 +103,29 @@
   color: var(--color-text-muted);
 }
 
+/* Session restore failed because the server didn't answer — not because the
+   user is signed out. Deliberately not the sign-in form. */
+.authUnreachable {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 100vh;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.authUnreachableTitle {
+  font-size: 1.25rem;
+  color: var(--color-text);
+}
+
+.authUnreachableDetail {
+  font-size: 0.875rem;
+  max-width: 28rem;
+}
+
 @media (max-width: 768px) {
   .navbar {
     grid-template-columns: 1fr auto;

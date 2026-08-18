@@ -32,6 +32,7 @@ const App = observer(function App() {
   const radarStore = useRadarStore()
 
   const bootstrapping = authStore.bootstrapping$.get()
+  const bootstrapError = authStore.bootstrapError$.get()
   const isAuthenticated = authStore.isAuthenticated()
   const userId = authStore.user$.get()?.id ?? null
   const route = routerStore.route$.get()
@@ -70,6 +71,24 @@ const App = observer(function App() {
     return (
       <div className={layoutStyles.app}>
         <div className={layoutStyles.authLoading}>Loading...</div>
+      </div>
+    )
+  }
+
+  // Restore failed, but not because the credentials were rejected — the stored
+  // tokens are still there and probably still good. Showing the sign-in form
+  // here would read as "you've been logged out" for what is really a server
+  // that didn't answer, so offer a retry instead.
+  if (!isAuthenticated && bootstrapError) {
+    return (
+      <div className={layoutStyles.app}>
+        <div className={layoutStyles.authUnreachable}>
+          <p className={layoutStyles.authUnreachableTitle}>Can't reach the server</p>
+          <p className={layoutStyles.authUnreachableDetail}>{bootstrapError}</p>
+          <button type="button" onClick={() => void authStore.retry()}>
+            Retry
+          </button>
+        </div>
       </div>
     )
   }

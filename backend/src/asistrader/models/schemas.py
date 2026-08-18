@@ -808,6 +808,17 @@ class MessageResponse(BaseModel):
     message: str
 
 
+class BootstrapSyncResponse(BaseModel):
+    """Result of the post-login data sync.
+
+    Best-effort by design: `errors` carries per-stage failures (fx, tickers,
+    benchmarks) while the request itself still succeeds, so a yfinance outage
+    never blocks the caller.
+    """
+
+    errors: dict[str, str] = {}
+
+
 # --- Trade Detection Schemas ---
 
 

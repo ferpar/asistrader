@@ -8,9 +8,11 @@ vi.mock('../../../api/auth', () => ({
   logout: vi.fn(),
   refreshToken: vi.fn(),
   getCurrentUser: vi.fn(),
+  bootstrapSync: vi.fn(),
 }))
 
 import * as authApi from '../../../api/auth'
+import { ApiError } from '../../../api/http'
 
 const api = vi.mocked(authApi)
 
@@ -30,6 +32,7 @@ const tokens = (access: string, refresh = 'refresh-token') => ({
 beforeEach(() => {
   localStorage.clear()
   vi.clearAllMocks()
+  api.bootstrapSync.mockResolvedValue({ errors: {} })
 })
 
 describe('AuthStore login / register', () => {
@@ -132,10 +135,10 @@ describe('AuthStore init (bootstrap)', () => {
     expect(store.user$.get()).toEqual(USER)
   })
 
-  it('ends anonymous when a refresh fails', async () => {
+  it('discards the session when the refresh token is rejected with a 401', async () => {
     localStorage.setItem('access_token', fakeJwt(-10))
     localStorage.setItem('refresh_token', 'refresh-token')
-    api.refreshToken.mockRejectedValue(new Error('refresh failed'))
+    api.refreshToken.mockRejectedValue(new ApiError('Invalid refresh token', 401))
     const store = new AuthStore()
 
     await store.init()
@@ -144,6 +147,7 @@ describe('AuthStore init (bootstrap)', () => {
     expect(store.bootstrapping$.get()).toBe(false)
     expect(api.getCurrentUser).not.toHaveBeenCalled()
     expect(localStorage.getItem('access_token')).toBeNull()
+    expect(store.bootstrapError$.get()).toBeNull()
   })
 
   it('runs the bootstrap only once', async () => {
@@ -156,5 +160,121 @@ describe('AuthStore init (bootstrap)', () => {
     await store.init()
 
     expect(api.getCurrentUser).toHaveBeenCalledOnce()
+  })
+})
+
+
+describe('AuthStore does not sign out on server trouble', () => {
+  const UNREACHABLE: [string, ApiError][] = [
+    ['a timeout', new ApiError('Request timed out after 15000ms', null, true)],
+    ['a 500', new ApiError('Internal Server Error', 500)],
+    ['a 504 from a proxy', new ApiError('Gateway Timeout', 504)],
+  ]
+
+  it.each(UNREACHABLE)('keeps the tokens when /me fails with %s', async (_label, err) => {
+    localStorage.setItem('access_token', fakeJwt(3600))
+    localStorage.setItem('refresh_token', 'refresh-token')
+    api.getCurrentUser.mockRejectedValue(err)
+    const store = new AuthStore()
+
+    await store.init()
+
+    expect(localStorage.getItem('access_token')).not.toBeNull()
+    expect(localStorage.getItem('refresh_token')).toBe('refresh-token')
+    expect(store.bootstrapError$.get()).toBe(err.message)
+    expect(store.isAuthenticated()).toBe(false)
+    expect(store.bootstrapping$.get()).toBe(false)
+  })
+
+  it('clears the tokens when /me returns a real 401', async () => {
+    localStorage.setItem('access_token', fakeJwt(3600))
+    localStorage.setItem('refresh_token', 'refresh-token')
+    api.getCurrentUser.mockRejectedValue(new ApiError('Token has expired', 401))
+    const store = new AuthStore()
+
+    await store.init()
+
+    expect(localStorage.getItem('access_token')).toBeNull()
+    expect(store.bootstrapError$.get()).toBeNull()
+    expect(store.isAuthenticated()).toBe(false)
+  })
+
+  it('treats an unrecognised error as unreachable rather than as a rejection', async () => {
+    localStorage.setItem('access_token', fakeJwt(3600))
+    localStorage.setItem('refresh_token', 'refresh-token')
+    api.getCurrentUser.mockRejectedValue(new TypeError('Failed to fetch'))
+    const store = new AuthStore()
+
+    await store.init()
+
+    expect(localStorage.getItem('access_token')).not.toBeNull()
+    expect(store.bootstrapError$.get()).toBe('Failed to fetch')
+  })
+
+  it('retry() recovers the session once the server comes back', async () => {
+    localStorage.setItem('access_token', fakeJwt(3600))
+    localStorage.setItem('refresh_token', 'refresh-token')
+    api.getCurrentUser.mockRejectedValueOnce(new ApiError('Gateway Timeout', 504))
+    const store = new AuthStore()
+
+    await store.init()
+    expect(store.isAuthenticated()).toBe(false)
+
+    api.getCurrentUser.mockResolvedValue(USER)
+    await store.retry()
+
+    expect(store.user$.get()).toEqual(USER)
+    expect(store.bootstrapError$.get()).toBeNull()
+    expect(store.bootstrapping$.get()).toBe(false)
+  })
+
+  it('retry() is a no-op once a session is established', async () => {
+    localStorage.setItem('access_token', fakeJwt(3600))
+    localStorage.setItem('refresh_token', 'refresh-token')
+    api.getCurrentUser.mockResolvedValue(USER)
+    const store = new AuthStore()
+    await store.init()
+
+    await store.retry()
+
+    expect(api.getCurrentUser).toHaveBeenCalledOnce()
+  })
+})
+
+describe('AuthStore bootstrap sync', () => {
+  it('fires the data sync after a successful restore, without blocking it', async () => {
+    localStorage.setItem('access_token', fakeJwt(3600))
+    localStorage.setItem('refresh_token', 'refresh-token')
+    api.getCurrentUser.mockResolvedValue(USER)
+    const store = new AuthStore()
+
+    await store.init()
+
+    expect(store.user$.get()).toEqual(USER)
+    expect(api.bootstrapSync).toHaveBeenCalledWith(localStorage.getItem('access_token'))
+  })
+
+  it('fires the data sync after login', async () => {
+    api.login.mockResolvedValue({ user: USER, tokens: tokens('access-token') })
+    const store = new AuthStore()
+
+    await store.login({ email: USER.email, password: 'pw' })
+
+    expect(api.bootstrapSync).toHaveBeenCalledWith('access-token')
+  })
+
+  it('a failing data sync never disturbs the session', async () => {
+    localStorage.setItem('access_token', fakeJwt(3600))
+    localStorage.setItem('refresh_token', 'refresh-token')
+    api.getCurrentUser.mockResolvedValue(USER)
+    api.bootstrapSync.mockRejectedValue(new ApiError('Request timed out', null, true))
+    const store = new AuthStore()
+
+    await store.init()
+    await Promise.resolve()
+
+    expect(store.isAuthenticated()).toBe(true)
+    expect(store.bootstrapError$.get()).toBeNull()
+    expect(localStorage.getItem('access_token')).not.toBeNull()
   })
 })

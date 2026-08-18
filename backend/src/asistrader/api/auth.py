@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 from asistrader.models.schemas import (
     AccessTokenResponse,
     AuthResponse,
+    BootstrapSyncResponse,
     LogoutRequest,
     MessageResponse,
     RefreshTokenRequest,
@@ -121,24 +122,41 @@ def logout(request: LogoutRequest, db: Session = Depends(get_db)) -> MessageResp
 
 
 @router.get("/me", response_model=UserSchema)
-def get_me(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> UserSchema:
+def get_me(current_user: User = Depends(get_current_user)) -> UserSchema:
     """
     Get the current authenticated user's info.
 
     Requires a valid access token in the Authorization header.
 
-    Side effect: triggers a best-effort sync of the user's FX rates, ticker
-    market data, and benchmark market data. Each downstream sync uses gap
-    detection — yfinance is only called when there's a real gap, so calling
-    /me on every session start is essentially free.
+    Deliberately does no external I/O. This is the endpoint the frontend calls
+    to restore a session on every page load, so it must stay fast even when
+    Yahoo is slow — a hung /me reads to the client as a failed session and logs
+    the user out. The data sync it used to trigger now lives in
+    POST /bootstrap-sync, which the frontend fires separately once the session
+    is established.
+    """
+    return UserSchema.model_validate(current_user)
+
+
+@router.post("/bootstrap-sync", response_model=BootstrapSyncResponse)
+def bootstrap_sync(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> BootstrapSyncResponse:
+    """
+    Best-effort refresh of the user's FX rates, ticker and benchmark market data.
+
+    Split out of /me so session restore never waits on yfinance. Slow by nature
+    (external HTTP, gap-dependent) and safe to call on every session start —
+    gap detection short-circuits to a few DB bounds queries when data is current.
+
+    Always returns 200; per-stage failures surface in `errors`.
     """
     try:
-        auto_sync_service.ensure_user_data_fresh(db, current_user.id)
+        summary = auto_sync_service.ensure_user_data_fresh(db, current_user.id)
     except Exception as e:
         # Top-level safety net: even if auto_sync_service somehow leaks an
-        # exception, /me must still return the user.
+        # exception, this endpoint must not fail the caller.
         logger.warning("Auto-sync wrapper failed for user %s: %s", current_user.id, e)
-    return UserSchema.model_validate(current_user)
+        return BootstrapSyncResponse(errors={"__wrapper__": str(e)})
+    return BootstrapSyncResponse(errors=summary.get("errors", {}))

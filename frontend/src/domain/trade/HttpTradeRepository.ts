@@ -4,6 +4,7 @@ import type { TradeWithMetrics, PriceData, AlertSignature, DetectionTraceOverrid
 import { mapTrade, mapPriceData, mapDetectionResponse, mapDetectionTraceResponse } from './mappers'
 import type { TradeDetectionResponseDTO, DetectionTraceResponseDTO } from '../../types/trade'
 import { buildHeaders } from '../shared/httpHelpers'
+import { fetchWithTimeout, MARKET_DATA_TIMEOUT_MS } from '../../api/http'
 
 export class HttpTradeRepository implements ITradeRepository {
   constructor(
@@ -173,11 +174,15 @@ export class HttpPriceProvider implements IPriceProvider {
   ) {}
 
   async fetchBatchPrices(symbols: string[]): Promise<Record<string, PriceData>> {
-    const response = await fetch(`${this.baseUrl}/api/tickers/prices`, {
-      method: 'POST',
-      headers: buildHeaders(this.getToken, true),
-      body: JSON.stringify({ symbols }),
-    })
+    const response = await fetchWithTimeout(
+      `${this.baseUrl}/api/tickers/prices`,
+      {
+        method: 'POST',
+        headers: buildHeaders(this.getToken, true),
+        body: JSON.stringify({ symbols }),
+      },
+      MARKET_DATA_TIMEOUT_MS,
+    )
     if (!response.ok) {
       throw new Error(`Failed to fetch batch prices: ${response.statusText}`)
     }

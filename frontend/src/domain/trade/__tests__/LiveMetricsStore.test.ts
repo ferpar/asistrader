@@ -103,3 +103,72 @@ describe('LiveMetricsStore', () => {
     expect(metricsStore.loading$.get()).toBe(false)
   })
 })
+
+describe('LiveMetricsStore in-flight dedup', () => {
+  it('collapses concurrent refreshes for the same symbols into one request', async () => {
+    const trades = [
+      buildTrade({ id: 1, status: 'open', ticker: 'AAPL' }),
+      buildTrade({ id: 2, status: 'open', ticker: 'MSFT' }),
+    ]
+    let resolveFetch: (v: Record<string, PriceData>) => void = () => {}
+    const fetchBatchPrices = vi.fn().mockImplementation(
+      () => new Promise<Record<string, PriceData>>((resolve) => { resolveFetch = resolve }),
+    )
+    const repo = createStubTradeRepository({ fetchTrades: async () => trades })
+    const tradeStore = new TradeStore(repo)
+    const metricsStore = new LiveMetricsStore(tradeStore, createStubPriceProvider({ fetchBatchPrices }))
+    await tradeStore.loadTrades()
+
+    // Four components mounting at once, exactly as the dashboard does.
+    const all = Promise.all([
+      metricsStore.refreshPrices(),
+      metricsStore.refreshPrices(),
+      metricsStore.refreshPrices(),
+      metricsStore.refreshPrices(),
+    ])
+
+    expect(fetchBatchPrices).toHaveBeenCalledOnce()
+
+    resolveFetch({ AAPL: buildPriceData({ price: Decimal.from(155) }) })
+    await all
+
+    expect(fetchBatchPrices).toHaveBeenCalledOnce()
+    expect(metricsStore.prices$.get().AAPL).toBeDefined()
+  })
+
+  it('allows a fresh request once the in-flight one settles', async () => {
+    const trades = [buildTrade({ id: 1, status: 'open', ticker: 'AAPL' })]
+    const fetchBatchPrices = vi.fn().mockResolvedValue({
+      AAPL: buildPriceData({ price: Decimal.from(155) }),
+    })
+    const repo = createStubTradeRepository({ fetchTrades: async () => trades })
+    const tradeStore = new TradeStore(repo)
+    const metricsStore = new LiveMetricsStore(tradeStore, createStubPriceProvider({ fetchBatchPrices }))
+    await tradeStore.loadTrades()
+
+    await metricsStore.refreshPrices()
+    await metricsStore.refreshPrices()
+
+    expect(fetchBatchPrices).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not wedge the store when the shared request fails', async () => {
+    const trades = [buildTrade({ id: 1, status: 'open', ticker: 'AAPL' })]
+    const fetchBatchPrices = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('API down'))
+      .mockResolvedValue({ AAPL: buildPriceData({ price: Decimal.from(155) }) })
+    const repo = createStubTradeRepository({ fetchTrades: async () => trades })
+    const tradeStore = new TradeStore(repo)
+    const metricsStore = new LiveMetricsStore(tradeStore, createStubPriceProvider({ fetchBatchPrices }))
+    await tradeStore.loadTrades()
+
+    await Promise.all([metricsStore.refreshPrices(), metricsStore.refreshPrices()])
+    expect(fetchBatchPrices).toHaveBeenCalledOnce()
+    expect(metricsStore.error$.get()).toBe('API down')
+
+    await metricsStore.refreshPrices()
+    expect(fetchBatchPrices).toHaveBeenCalledTimes(2)
+    expect(metricsStore.error$.get()).toBeNull()
+  })
+})
