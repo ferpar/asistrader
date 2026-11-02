@@ -19,6 +19,7 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: postgresql://asistrader:asistrader@db:5432/asistrader
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY:-dev-secret-key-change-in-production}"
       # See backend/Dockerfile for why this defaults to 1, and
       # asistrader/db/database.py for the pool sizing these interact with.
       WEB_CONCURRENCY: "${WEB_CONCURRENCY:-1}"

@@ -166,6 +166,17 @@ def revoke_refresh_token(db: Session, refresh_token: str) -> bool:
     return False
 
 
+def set_user_password(db: Session, user: User, password: str) -> int:
+    """
+    Replace a user's password and sign them out of every device.
+
+    Both changes land in one commit, inside revoke_all_user_tokens.
+    Returns the number of refresh tokens revoked.
+    """
+    user.hashed_password = hash_password(password)
+    return revoke_all_user_tokens(db, user.id)
+
+
 def revoke_all_user_tokens(db: Session, user_id: int) -> int:
     """
     Revoke all refresh tokens for a user.
