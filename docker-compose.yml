@@ -20,6 +20,8 @@ services:
     environment:
       DATABASE_URL: postgresql://asistrader:asistrader@db:5432/asistrader
       JWT_SECRET_KEY: "${JWT_SECRET_KEY:-dev-secret-key-change-in-production}"
+      # Base URL for the password reset links printed by cli/reset_password.py.
+      APP_URL: "${APP_URL:-http://localhost:3001}"
       # See backend/Dockerfile for why this defaults to 1, and
       # asistrader/db/database.py for the pool sizing these interact with.
       WEB_CONCURRENCY: "${WEB_CONCURRENCY:-1}"

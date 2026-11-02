@@ -121,6 +121,7 @@ class User(Base):
     fund_settings = relationship("UserFundSettings", back_populates="user_rel", uselist=False)
     alert_dismissals = relationship("AlertDismissal", back_populates="user_rel")
     radar_presets = relationship("RadarPreset", back_populates="user_rel")
+    password_reset_tokens = relationship("PasswordResetToken", back_populates="user_rel")
 
 
 class RefreshToken(Base):
@@ -136,6 +137,21 @@ class RefreshToken(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     user_rel = relationship("User", back_populates="refresh_tokens")
+
+
+class PasswordResetToken(Base):
+    """One-time password reset token. Only its SHA-256 hash is stored."""
+
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    user_rel = relationship("User", back_populates="password_reset_tokens")
 
 
 class Strategy(Base):

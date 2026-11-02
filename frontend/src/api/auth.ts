@@ -54,6 +54,17 @@ export async function logout(accessToken: string, refreshToken: string): Promise
   }
 }
 
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/reset-password`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ token, new_password: newPassword }),
+  })
+  if (!response.ok) {
+    throw await apiErrorFrom(response, 'Could not reset your password')
+  }
+}
+
 export async function getCurrentUser(accessToken: string): Promise<User> {
   const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/me`, {
     method: 'GET',

@@ -3,13 +3,14 @@ import { observable } from '@legendapp/state'
 /** The authenticated pages. */
 export type AppPage = 'trades' | 'fund' | 'radar' | 'drivers' | 'screening' | 'detection-sandbox' | 'strategies'
 
-/** Every addressable route, including the auth page. */
-export type RouteKey = AppPage | 'login'
+/** Every addressable route, including the auth pages. */
+export type RouteKey = AppPage | 'login' | 'reset-password'
 
-export const ROUTES: readonly RouteKey[] = ['trades', 'fund', 'radar', 'drivers', 'screening', 'detection-sandbox', 'strategies', 'login']
-// Declared as literal types so `route !== LOGIN_ROUTE` narrows RouteKey to AppPage.
+export const ROUTES: readonly RouteKey[] = ['trades', 'fund', 'radar', 'drivers', 'screening', 'detection-sandbox', 'strategies', 'login', 'reset-password']
+// Declared as literal types so comparing against them narrows RouteKey to AppPage.
 export const DEFAULT_ROUTE = 'trades' as const
 export const LOGIN_ROUTE = 'login' as const
+export const RESET_PASSWORD_ROUTE = 'reset-password' as const
 
 /** Resolve a URL pathname to a known route, falling back to the default. */
 export function routeFromPath(pathname: string): RouteKey {

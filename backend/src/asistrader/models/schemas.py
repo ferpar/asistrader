@@ -768,6 +768,14 @@ class UserLoginRequest(BaseModel):
     password: str
 
 
+class PasswordResetRequest(BaseModel):
+    """Request schema for setting a new password with a reset token."""
+
+    token: str
+    # bcrypt rejects anything longer than 72 bytes.
+    new_password: str = Field(min_length=8, max_length=72)
+
+
 class TokenResponse(BaseModel):
     """Response schema for authentication tokens."""
 

@@ -17,6 +17,7 @@ from asistrader.models.schemas import (
     BootstrapSyncResponse,
     LogoutRequest,
     MessageResponse,
+    PasswordResetRequest,
     RefreshTokenRequest,
     TokenResponse,
     UserLoginRequest,
@@ -26,8 +27,10 @@ from asistrader.models.schemas import (
 from asistrader.services.auth_service import (
     InvalidCredentialsError,
     InvalidRefreshTokenError,
+    InvalidResetTokenError,
     UserExistsError,
     authenticate_user,
+    consume_password_reset_token,
     create_tokens,
     refresh_access_token,
     register_user,
@@ -119,6 +122,24 @@ def logout(request: LogoutRequest, db: Session = Depends(get_db)) -> MessageResp
         return MessageResponse(message="Successfully logged out")
     else:
         return MessageResponse(message="Token not found or already revoked")
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+def reset_password(
+    request: PasswordResetRequest, db: Session = Depends(get_db)
+) -> MessageResponse:
+    """
+    Set a new password using a one-time reset token.
+
+    Every token failure returns the same 400, so the response reveals nothing
+    about why a token was rejected.
+    """
+    try:
+        consume_password_reset_token(db, request.token, request.new_password)
+    except InvalidResetTokenError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    return MessageResponse(message="Password updated")
 
 
 @router.get("/me", response_model=UserSchema)

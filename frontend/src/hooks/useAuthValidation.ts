@@ -13,7 +13,7 @@ interface AuthValidationResult {
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const MIN_PASSWORD_LENGTH = 8
+export const MIN_PASSWORD_LENGTH = 8
 
 export function useAuthValidation(
   values: AuthFormValues,

@@ -1,6 +1,8 @@
 """Authentication business logic service."""
 
-from datetime import datetime, timezone
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
@@ -11,7 +13,10 @@ from asistrader.auth.jwt import (
     decode_refresh_token,
 )
 from asistrader.auth.password import hash_password, verify_password
-from asistrader.models.db import RefreshToken, User
+from asistrader.models.db import PasswordResetToken, RefreshToken, User
+
+
+DEFAULT_RESET_TOKEN_HOURS = 24
 
 
 class UserExistsError(Exception):
@@ -28,6 +33,12 @@ class InvalidCredentialsError(Exception):
 
 class InvalidRefreshTokenError(Exception):
     """Raised when refresh token is invalid, expired, or revoked."""
+
+    pass
+
+
+class InvalidResetTokenError(Exception):
+    """Raised when a password reset token is unknown, expired, used, or its user is inactive."""
 
     pass
 
@@ -175,6 +186,71 @@ def set_user_password(db: Session, user: User, password: str) -> int:
     """
     user.hashed_password = hash_password(password)
     return revoke_all_user_tokens(db, user.id)
+
+
+def _hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def create_password_reset_token(
+    db: Session, user: User, hours: int = DEFAULT_RESET_TOKEN_HOURS
+) -> str:
+    """
+    Create a one-time password reset token, cancelling any earlier unused one.
+
+    Returns the raw token. Only its hash is stored, so this is the one chance
+    to read it. A fast hash is safe here because the token is 256 random bits.
+    """
+    now = datetime.now(timezone.utc)
+    db.query(PasswordResetToken).filter(
+        PasswordResetToken.user_id == user.id,
+        PasswordResetToken.used_at.is_(None),
+    ).update({"used_at": now})
+
+    token = secrets.token_urlsafe(32)
+    db.add(
+        PasswordResetToken(
+            user_id=user.id,
+            token_hash=_hash_reset_token(token),
+            expires_at=now + timedelta(hours=hours),
+        )
+    )
+    db.commit()
+    return token
+
+
+def consume_password_reset_token(db: Session, token: str, new_password: str) -> None:
+    """
+    Spend a reset token to set a new password, signing the user out everywhere.
+
+    Raises InvalidResetTokenError if the token can't be used.
+    """
+    token_hash = _hash_reset_token(token)
+    # A conditional update, so two simultaneous requests can't both claim it.
+    claimed = (
+        db.query(PasswordResetToken)
+        .filter(
+            PasswordResetToken.token_hash == token_hash,
+            PasswordResetToken.used_at.is_(None),
+            PasswordResetToken.expires_at > datetime.now(timezone.utc),
+        )
+        .update({"used_at": datetime.now(timezone.utc)})
+    )
+    if not claimed:
+        db.rollback()
+        raise InvalidResetTokenError("This reset link is invalid or has expired")
+
+    reset_token = (
+        db.query(PasswordResetToken)
+        .filter(PasswordResetToken.token_hash == token_hash)
+        .one()
+    )
+    user = get_user_by_id(db, reset_token.user_id)
+    if not user or not user.is_active:
+        db.rollback()
+        raise InvalidResetTokenError("This reset link is invalid or has expired")
+
+    set_user_password(db, user, new_password)
 
 
 def revoke_all_user_tokens(db: Session, user_id: int) -> int:

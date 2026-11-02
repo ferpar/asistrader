@@ -2,10 +2,11 @@ import { useEffect } from 'react'
 import { observer } from '@legendapp/state/react'
 import { Layout } from './components/Layout'
 import { AuthForm } from './components/AuthForm'
+import { ResetPasswordForm } from './components/ResetPasswordForm'
 import { IndicatorBootstrap } from './components/IndicatorBootstrap'
 import { TradeDashboard, FundDashboard, RadarDashboard, DriversDashboard, ScreeningDashboard, DetectionSandbox, StrategyAdmin } from './pages'
 import { useAuthStore, useFundStore, useRouterStore, useRadarStore } from './container/ContainerContext'
-import { DEFAULT_ROUTE, LOGIN_ROUTE, type AppPage } from './domain/router/RouterStore'
+import { DEFAULT_ROUTE, LOGIN_ROUTE, RESET_PASSWORD_ROUTE, type AppPage } from './domain/router/RouterStore'
 import './styles/global.css'
 import layoutStyles from './components/Layout.module.css'
 
@@ -56,7 +57,7 @@ const App = observer(function App() {
   // Keep the URL in step with the auth state. Rendering below never depends on
   // this having run — it only corrects the address bar.
   useEffect(() => {
-    if (bootstrapping) return
+    if (bootstrapping || route === RESET_PASSWORD_ROUTE) return
     if (!isAuthenticated && route !== LOGIN_ROUTE) {
       routerStore.intendedRoute = route
       routerStore.navigate(LOGIN_ROUTE)
@@ -66,6 +67,17 @@ const App = observer(function App() {
       routerStore.navigate(target)
     }
   }, [bootstrapping, isAuthenticated, route, routerStore])
+
+  // Reset links work the same for anonymous visitors, a browser signed in to
+  // another account, or a failed session restore, so this comes before all of
+  // the auth states below.
+  if (route === RESET_PASSWORD_ROUTE) {
+    return (
+      <div className={layoutStyles.app}>
+        <ResetPasswordForm />
+      </div>
+    )
+  }
 
   if (bootstrapping) {
     return (

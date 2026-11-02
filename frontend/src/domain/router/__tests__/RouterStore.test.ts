@@ -11,6 +11,10 @@ describe('routeFromPath', () => {
     expect(routeFromPath('/login')).toBe('login')
   })
 
+  it('resolves the reset password route', () => {
+    expect(routeFromPath('/reset-password')).toBe('reset-password')
+  })
+
   it('falls back to the default route for unknown or empty paths', () => {
     expect(routeFromPath('/nonsense')).toBe('trades')
     expect(routeFromPath('/')).toBe('trades')
@@ -34,6 +38,13 @@ describe('RouterStore', () => {
     const router = new RouterStore()
     expect(router.route$.get()).toBe('trades')
     expect(window.location.pathname).toBe('/trades')
+  })
+
+  it('keeps the reset token in the URL on startup', () => {
+    window.history.replaceState({}, '', '/reset-password#token=abc123')
+    const router = new RouterStore()
+    expect(router.route$.get()).toBe('reset-password')
+    expect(window.location.hash).toBe('#token=abc123')
   })
 
   it('navigate updates both the route and the URL', () => {
