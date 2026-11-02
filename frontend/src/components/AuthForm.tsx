@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react'
 import { useAuthStore } from '../container/ContainerContext'
 import { useAuthValidation } from '../hooks/useAuthValidation'
 import { AuthValidationError } from '../types/auth'
+import { PasswordInput } from './PasswordInput'
 import formStyles from '../styles/forms.module.css'
 import styles from './AuthForm.module.css'
 
@@ -86,9 +87,8 @@ export function AuthForm() {
 
           <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
             <label htmlFor="password">Password</label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, password: true }))}
@@ -102,9 +102,8 @@ export function AuthForm() {
           {isRegister && (
             <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
               <label htmlFor="confirmPassword">Confirm Password</label>
-              <input
+              <PasswordInput
                 id="confirmPassword"
-                type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 onBlur={() => setTouched((t) => ({ ...t, confirmPassword: true }))}

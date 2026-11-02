@@ -3,6 +3,7 @@ import { resetPassword } from '../api/auth'
 import { useAuthStore, useRouterStore } from '../container/ContainerContext'
 import { LOGIN_ROUTE } from '../domain/router/RouterStore'
 import { MIN_PASSWORD_LENGTH } from '../hooks/useAuthValidation'
+import { PasswordInput } from './PasswordInput'
 import formStyles from '../styles/forms.module.css'
 import styles from './AuthForm.module.css'
 
@@ -94,9 +95,8 @@ export function ResetPasswordForm() {
 
             <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
               <label htmlFor="newPassword">New Password</label>
-              <input
+              <PasswordInput
                 id="newPassword"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isSubmitting}
@@ -106,9 +106,8 @@ export function ResetPasswordForm() {
 
             <div className={`${formStyles.formGroup} ${styles.formGroupOverride}`}>
               <label htmlFor="confirmPassword">Confirm Password</label>
-              <input
+              <PasswordInput
                 id="confirmPassword"
-                type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={isSubmitting}

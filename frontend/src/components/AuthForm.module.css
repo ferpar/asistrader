@@ -126,3 +126,30 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.passwordInput {
+  position: relative;
+}
+
+.passwordInput input {
+  padding-right: 60px;
+}
+
+.passwordToggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0 12px;
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.passwordToggle:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
