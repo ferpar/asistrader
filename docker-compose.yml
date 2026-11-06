@@ -7,8 +7,9 @@ services:
       POSTGRES_DB: asistrader
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # No published ports: the backend reaches the database over the compose
+    # network, and Docker-published ports bypass the host firewall (ufw).
+    # For manual access, use `docker exec -it <db container> psql -U asistrader`.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U asistrader"]
       interval: 5s
@@ -31,8 +32,8 @@ services:
       WEB_THREADPOOL_SIZE: "${WEB_THREADPOOL_SIZE:-24}"
       DB_POOL_SIZE: "${DB_POOL_SIZE:-20}"
       DB_MAX_OVERFLOW: "${DB_MAX_OVERFLOW:-10}"
-    ports:
-      - "8005:8005"
+    # Not published: the frontend's nginx proxies /api and /health to
+    # backend:8005 over the compose network.
     depends_on:
       db:
         condition: service_healthy
