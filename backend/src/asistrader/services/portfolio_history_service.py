@@ -31,6 +31,7 @@ from asistrader.services.portfolio_computation_service import (
     Ledger,
     PortfolioFxUnavailableError,
     replay,
+    weighted_days_open,
 )
 
 
@@ -73,22 +74,6 @@ class _HoldingState:
     currency: str
     units: float
     fallback_price: float
-
-
-def _cost_weighted_mean_lot_ordinal(ledger: Ledger) -> float | None:
-    """Σ(Lot date ordinal × Lot cost) / Σ Lot cost over the remaining Lots.
-
-    Weighted Days Open on a day is `day.toordinal()` minus this, since
-    Σ((day − Lot date) × cost) / Σ cost = day − Σ(Lot date × cost) / Σ cost.
-    Computing it once per Ledger keeps each daily row O(1).
-    TODO(#8): unify with the Weighted Days Open function over remaining Lots
-    and an as-of date once it lands.
-    """
-    lots = [lot for lots in ledger.lots.values() for lot in lots]
-    total_cost = sum(lot.cost for lot in lots)
-    if not lots or not total_cost:
-        return None
-    return sum(lot.date.toordinal() * lot.cost for lot in lots) / total_cost
 
 
 def _business_days(start: date, end: date) -> Iterator[date]:
@@ -178,7 +163,7 @@ class _HistoryBuilder:
                 )
             )
         realized = ledger.realized_gain
-        mean_lot_ordinal = _cost_weighted_mean_lot_ordinal(ledger)
+        lots = [lot for symbol in ledger.open_tickers() for lot in ledger.lots[symbol]]
 
         for day in _business_days(self.next_day, stop):
             if self.start is not None and day < self.start:
@@ -198,9 +183,7 @@ class _HistoryBuilder:
             )
             self.history.realized_gain.append(realized)
             self.history.total_gain.append(unrealized + realized)
-            self.history.weighted_days_open.append(
-                day.toordinal() - mean_lot_ordinal if mean_lot_ordinal is not None else None
-            )
+            self.history.weighted_days_open.append(weighted_days_open(lots, day))
         self.next_day = stop + timedelta(days=1)
 
 
