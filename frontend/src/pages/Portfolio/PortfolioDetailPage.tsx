@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { observer } from '@legendapp/state/react'
 import { usePortfolioStore, useRouterStore, useTickerStore } from '../../container/ContainerContext'
-import { fmtMoney } from '../../components/portfolio/format'
+import { fmtMoney, fmtXirr } from '../../components/portfolio/format'
 import { signClass } from '../../components/portfolio/signClass'
 import type { PortfolioSummary, PortfolioTransaction } from '../../domain/portfolio/types'
 import { CsvImport } from './CsvImport'
@@ -218,6 +218,24 @@ function SummaryKpis({ summary }: { summary: PortfolioSummary }) {
       <div className={styles.kpi}>
         <span className={styles.kpiLabel}>Total Gain</span>
         <span className={`${styles.kpiValue} ${signClass(total)}`}>{fmtMoney(total, ccy)}</span>
+      </div>
+      <div className={styles.kpi}>
+        <span className={styles.kpiLabel}>Weighted Days Open</span>
+        <span className={styles.kpiValue}>
+          {summary.weightedDaysOpen === null ? '—' : summary.weightedDaysOpen.toFixed(0)}
+        </span>
+      </div>
+      <div className={styles.kpi}>
+        <span className={styles.kpiLabel}>Simple TIR</span>
+        <span className={`${styles.kpiValue} ${signClass(summary.simpleTir ?? 0)}`}>
+          {fmtOptionalPct(summary.simpleTir)}
+        </span>
+      </div>
+      <div className={styles.kpi}>
+        <span className={styles.kpiLabel}>XIRR</span>
+        <span className={`${styles.kpiValue} ${signClass(summary.xirr ?? 0)}`}>
+          {fmtXirr(summary.xirr)}
+        </span>
       </div>
     </div>
   )

@@ -75,4 +75,10 @@ export interface PortfolioSummary {
   /** Unrealized Gain plus Realized Gain. */
   totalGain: Decimal
   holdings: Holding[]
+  /** Calendar-day age of the remaining Lots, weighted by cost; null without Lots. */
+  weightedDaysOpen: number | null
+  /** Relative Unrealized Gain annualised linearly over Weighted Days Open (fraction). */
+  simpleTir: number | null
+  /** Annualised money-weighted return over Transaction cash flows (fraction). */
+  xirr: number | null
 }
