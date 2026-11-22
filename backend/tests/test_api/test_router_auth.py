@@ -20,6 +20,7 @@ GUARDED_PREFIXES = (
     "/api/tickers",
     "/api/benchmarks",
     "/api/baskets",
+    "/api/portfolios",
 )
 
 

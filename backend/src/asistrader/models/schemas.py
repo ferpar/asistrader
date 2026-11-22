@@ -1,6 +1,7 @@
 """Pydantic schemas for API request/response validation."""
 
 from datetime import date, datetime
+from decimal import Decimal
 from enum import Enum
 from typing import Any, Literal
 
@@ -1158,3 +1159,116 @@ class DetectionTraceResponse(BaseModel):
     trace: ScanTraceSchema
     detector_kind: str  # "sltp" | "entry" | "layered" | "none"
     what_if: dict[str, Any] = {}
+
+
+# ── Portfolios ──
+
+
+class PortfolioSchema(BaseModel):
+    """A Portfolio: a named collection of long-term Holdings (ADR 0001)."""
+
+    id: int
+    name: str
+    currency: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PortfolioCreateRequest(BaseModel):
+    """Create a Portfolio. `currency` defaults to the user's base currency."""
+
+    name: str = Field(min_length=1)
+    currency: str | None = Field(default=None, pattern=r"^[A-Za-z]{3}$")
+
+
+class PortfolioUpdateRequest(BaseModel):
+    """Rename a Portfolio. The currency is immutable, so it is not accepted."""
+
+    name: str = Field(min_length=1)
+
+    model_config = {"extra": "forbid"}
+
+
+class PortfolioListResponse(BaseModel):
+    portfolios: list[PortfolioSchema]
+    count: int
+
+
+class PortfolioResponse(BaseModel):
+    portfolio: PortfolioSchema
+    message: str
+
+
+class PortfolioTransactionSchema(BaseModel):
+    """A dated Buy/Sell/Split in a Portfolio. Price and fees are in the
+    instrument's currency; `fx_rate` converts it into the Portfolio's."""
+
+    id: int
+    kind: str
+    date: date
+    ticker: str
+    units: float | None
+    price: float | None
+    fees: float
+    fx_rate: float | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PortfolioTransactionCreateRequest(BaseModel):
+    """Record a Buy. Units may be fractional; `fx_rate` is optional and
+    overrides the stored rate for the date (instrument → Portfolio currency)."""
+
+    kind: Literal["buy"]
+    date: date
+    ticker: str = Field(min_length=1)
+    units: Decimal = Field(gt=0)
+    price: Decimal = Field(gt=0)
+    fees: Decimal = Field(default=Decimal(0), ge=0)
+    fx_rate: Decimal | None = Field(default=None, gt=0)
+
+
+class PortfolioTransactionListResponse(BaseModel):
+    transactions: list[PortfolioTransactionSchema]
+    count: int
+
+
+class PortfolioTransactionResponse(BaseModel):
+    transaction: PortfolioTransactionSchema
+    message: str
+
+
+class PortfolioHoldingSchema(BaseModel):
+    """The units of one instrument a Portfolio owns, with cost and value in
+    Portfolio currency. `last_price` is in the instrument's currency."""
+
+    ticker: str
+    name: str | None
+    currency: str
+    units: float
+    cost: float
+    value: float
+    weight: float | None
+    unrealized_gain: float
+    unrealized_gain_pct: float | None
+    last_price: float
+    last_price_date: date
+
+    model_config = {"from_attributes": True}
+
+
+class PortfolioSummarySchema(BaseModel):
+    """Portfolio KPIs as of a day, in the Portfolio's currency."""
+
+    currency: str
+    as_of: date
+    invested: float
+    portfolio_value: float
+    unrealized_gain: float
+    unrealized_gain_pct: float | None
+    holdings: list[PortfolioHoldingSchema]
+
+    model_config = {"from_attributes": True}

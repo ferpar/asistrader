@@ -23,6 +23,8 @@ import { AuthStore } from '../domain/auth/AuthStore'
 import { RouterStore } from '../domain/router/RouterStore'
 import { HttpBasketRepository } from '../domain/basket/HttpBasketRepository'
 import { BasketStore } from '../domain/basket/BasketStore'
+import { HttpPortfolioRepository } from '../domain/portfolio/HttpPortfolioRepository'
+import { PortfolioStore } from '../domain/portfolio/PortfolioStore'
 import { AppContainer } from './types'
 
 export function createAppContainer(): AppContainer {
@@ -56,6 +58,8 @@ export function createAppContainer(): AppContainer {
   const irrRepo = new HttpIrrRepository(baseUrl, getAccessToken)
   const irrStore = new IrrStore(irrRepo)
   const basketStore = new BasketStore(new HttpBasketRepository(baseUrl, getAccessToken), benchmarkRepo)
+  const portfolioRepo = new HttpPortfolioRepository(baseUrl, getAccessToken)
+  const portfolioStore = new PortfolioStore(portfolioRepo)
   return {
     authStore,
     routerStore,
@@ -73,5 +77,6 @@ export function createAppContainer(): AppContainer {
     benchmarkStore,
     irrStore,
     basketStore,
+    portfolioStore,
   }
 }
