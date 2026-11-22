@@ -4,13 +4,22 @@ import { Layout } from './components/Layout'
 import { AuthForm } from './components/AuthForm'
 import { ResetPasswordForm } from './components/ResetPasswordForm'
 import { IndicatorBootstrap } from './components/IndicatorBootstrap'
-import { TradeDashboard, FundDashboard, RadarDashboard, DriversDashboard, ScreeningDashboard, DetectionSandbox, StrategyAdmin } from './pages'
+import { TradeDashboard, FundDashboard, RadarDashboard, DriversDashboard, ScreeningDashboard, DetectionSandbox, StrategyAdmin, PortfoliosPage, BasketsPage } from './pages'
 import { useAuthStore, useFundStore, useRouterStore, useRadarStore } from './container/ContainerContext'
-import { DEFAULT_ROUTE, LOGIN_ROUTE, RESET_PASSWORD_ROUTE, type AppPage } from './domain/router/RouterStore'
+import {
+  DEFAULT_ROUTE,
+  LOGIN_ROUTE,
+  PORTFOLIO_ROUTE,
+  RESET_PASSWORD_ROUTE,
+  resolveRoute,
+  type NavTarget,
+  type PortfolioView,
+  type TradingPage,
+} from './domain/router/RouterStore'
 import './styles/global.css'
 import layoutStyles from './components/Layout.module.css'
 
-const PAGES: Record<AppPage, JSX.Element> = {
+const TRADING_PAGES: Record<TradingPage, JSX.Element> = {
   trades: <TradeDashboard />,
   fund: <FundDashboard />,
   radar: <RadarDashboard />,
@@ -18,6 +27,10 @@ const PAGES: Record<AppPage, JSX.Element> = {
   screening: <ScreeningDashboard />,
   'detection-sandbox': <DetectionSandbox />,
   strategies: <StrategyAdmin />,
+}
+
+function PortfolioAreaPage({ view }: { view: PortfolioView }) {
+  return view.page === 'baskets' ? <BasketsPage basketId={view.id} /> : <PortfoliosPage portfolioId={view.id} />
 }
 
 /**
@@ -37,6 +50,7 @@ const App = observer(function App() {
   const isAuthenticated = authStore.isAuthenticated()
   const userId = authStore.user$.get()?.id ?? null
   const route = routerStore.route$.get()
+  const path = routerStore.path$.get()
 
   useEffect(() => {
     authStore.init()
@@ -59,14 +73,15 @@ const App = observer(function App() {
   useEffect(() => {
     if (bootstrapping || route === RESET_PASSWORD_ROUTE) return
     if (!isAuthenticated && route !== LOGIN_ROUTE) {
-      routerStore.intendedRoute = route
+      // Stash the full path, so deep links such as a Basket detail page survive sign-in.
+      routerStore.intendedPath = path
       routerStore.navigate(LOGIN_ROUTE)
     } else if (isAuthenticated && route === LOGIN_ROUTE) {
-      const target = routerStore.intendedRoute ?? DEFAULT_ROUTE
-      routerStore.intendedRoute = null
+      const target = routerStore.intendedPath ?? DEFAULT_ROUTE
+      routerStore.intendedPath = null
       routerStore.navigate(target)
     }
-  }, [bootstrapping, isAuthenticated, route, routerStore])
+  }, [bootstrapping, isAuthenticated, route, path, routerStore])
 
   // Reset links work the same for anonymous visitors, a browser signed in to
   // another account, or a failed session restore, so this comes before all of
@@ -115,12 +130,27 @@ const App = observer(function App() {
 
   // Authenticated. While `route` is briefly `login` (just after sign-in, before
   // the effect above redirects) fall back to the intended page or the default.
-  const page: AppPage = route === LOGIN_ROUTE ? routerStore.intendedRoute ?? DEFAULT_ROUTE : route
+  const current = resolveRoute(route === LOGIN_ROUTE ? routerStore.intendedPath ?? DEFAULT_ROUTE : path)
+  const navigate = (next: NavTarget) => routerStore.navigate(next)
+
+  // IndicatorBootstrap stays mounted in both areas: portfolio pages need the
+  // tickers and indicators too.
+  if (current.key === PORTFOLIO_ROUTE) {
+    return (
+      <Layout area="portfolio" activeTab={current.portfolio.page} onNavigate={navigate}>
+        <IndicatorBootstrap />
+        <PortfolioAreaPage view={current.portfolio} />
+      </Layout>
+    )
+  }
+
+  const page: TradingPage =
+    current.key === LOGIN_ROUTE || current.key === RESET_PASSWORD_ROUTE ? DEFAULT_ROUTE : current.key
 
   return (
-    <Layout currentPage={page} onNavigate={(next) => routerStore.navigate(next)}>
+    <Layout area="trading" activeTab={page} onNavigate={navigate}>
       <IndicatorBootstrap />
-      {PAGES[page]}
+      {TRADING_PAGES[page]}
     </Layout>
   )
 })

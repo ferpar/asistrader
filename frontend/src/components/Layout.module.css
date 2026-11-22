@@ -78,6 +78,37 @@
   gap: 16px;
 }
 
+/* Trading | Portfolio segmented control (ADR 0003). */
+.areaSwitcher {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.areaOption {
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.areaOption + .areaOption {
+  border-left: 1px solid var(--color-border);
+}
+
+.areaOption:hover {
+  color: var(--color-text);
+}
+
+.areaOptionActive {
+  background-color: var(--color-surface);
+  color: var(--color-primary);
+}
+
 .hamburger {
   display: none;
   border: none;

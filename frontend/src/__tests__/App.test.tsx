@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { observable } from '@legendapp/state'
 import App from '../App'
 import { RouterStore } from '../domain/router/RouterStore'
@@ -7,6 +7,7 @@ import { RouterStore } from '../domain/router/RouterStore'
 const stores = vi.hoisted(() => ({
   auth: null as unknown as Record<string, unknown>,
   router: null as unknown,
+  signIn: (() => {}) as () => void,
 }))
 
 vi.mock('../container/ContainerContext', async (importOriginal) => ({
@@ -17,13 +18,24 @@ vi.mock('../container/ContainerContext', async (importOriginal) => ({
   useRadarStore: () => ({ scopeToUser: vi.fn() }),
 }))
 
+// The authenticated tree is stubbed down to the shell: these tests are about
+// which route App lands on, not about the pages themselves.
+vi.mock('../components/IndicatorBootstrap', () => ({ IndicatorBootstrap: () => null }))
+vi.mock('../components/ThemeToggle', () => ({ ThemeToggle: () => null }))
+vi.mock('../pages', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../pages')>()),
+  TradeDashboard: () => <div>Trades page</div>,
+}))
+
 function setUp(path: string, auth: { bootstrapping?: boolean; bootstrapError?: string | null } = {}) {
   window.history.replaceState({}, '', path)
+  const user$ = observable<{ id: number } | null>(null)
+  stores.signIn = () => user$.set({ id: 1 })
   stores.auth = {
     bootstrapping$: observable(auth.bootstrapping ?? false),
     bootstrapError$: observable(auth.bootstrapError ?? null),
-    user$: observable(null),
-    isAuthenticated: () => false,
+    user$,
+    isAuthenticated: () => user$.get() !== null,
     init: vi.fn(),
     logout: vi.fn(),
   }
@@ -62,5 +74,28 @@ describe('App reset password route', () => {
     render(<App />)
 
     await waitFor(() => expect(window.location.pathname).toBe('/login'))
+  })
+})
+
+describe('App auth redirects', () => {
+  it('returns to the nested page asked for once the visitor signs in', async () => {
+    setUp('/portfolio/baskets/12')
+    render(<App />)
+    await waitFor(() => expect(window.location.pathname).toBe('/login'))
+
+    act(() => stores.signIn())
+
+    await waitFor(() => expect(window.location.pathname).toBe('/portfolio/baskets/12'))
+    expect(screen.getByRole('heading', { name: 'Basket 12' })).toBeInTheDocument()
+  })
+
+  it('lands on the default page after sign-in when nothing was asked for', async () => {
+    setUp('/login')
+    render(<App />)
+
+    act(() => stores.signIn())
+
+    await waitFor(() => expect(window.location.pathname).toBe('/trades'))
+    expect(screen.getByText('Trades page')).toBeInTheDocument()
   })
 })
