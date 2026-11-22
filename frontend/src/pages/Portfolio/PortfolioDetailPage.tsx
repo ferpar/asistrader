@@ -1,22 +1,13 @@
 import { useEffect, useState } from 'react'
 import { observer } from '@legendapp/state/react'
 import { usePortfolioStore, useRouterStore } from '../../container/ContainerContext'
-import { fmtMoney, fmtPct } from '../../components/portfolio/format'
+import { fmtMoney } from '../../components/portfolio/format'
 import { signClass } from '../../components/portfolio/signClass'
-import type { Decimal } from '../../domain/shared/Decimal'
-import type { Holding, PortfolioSummary, PortfolioTransaction } from '../../domain/portfolio/types'
+import type { PortfolioSummary, PortfolioTransaction } from '../../domain/portfolio/types'
 import { BuyForm } from './BuyForm'
+import { HoldingsTable } from './HoldingsTable'
+import { fmtDate, fmtOptionalPct, fmtPrice, fmtUnits } from './format'
 import styles from './Portfolio.module.css'
-
-const fmtUnits = (units: Decimal | null) =>
-  units === null ? '—' : units.toNumber().toLocaleString('en-US', { maximumFractionDigits: 6 })
-
-const fmtPrice = (price: Decimal | null) =>
-  price === null ? '—' : price.toNumber().toLocaleString('en-US', { maximumFractionDigits: 4 })
-
-const fmtDate = (d: Date) => d.toLocaleDateString('en-CA')
-
-const fmtOptionalPct = (value: number | null) => (value === null ? '—' : fmtPct(value))
 
 /** Portfolio detail: KPI header, Holdings table and Buy Transactions. */
 export const PortfolioDetailPage = observer(function PortfolioDetailPage({
@@ -174,49 +165,6 @@ function SummaryKpis({ summary }: { summary: PortfolioSummary }) {
           {fmtMoney(gain, ccy)} <small>({fmtOptionalPct(summary.unrealizedGainPct)})</small>
         </span>
       </div>
-    </div>
-  )
-}
-
-function HoldingsTable({ holdings, currency }: { holdings: Holding[]; currency: string }) {
-  return (
-    <div className={styles.tableWrap}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>Ticker</th>
-            <th className={styles.num}>Units</th>
-            <th className={styles.num}>Last close</th>
-            <th className={styles.num}>Cost</th>
-            <th className={styles.num}>Value</th>
-            <th className={styles.num}>Weight</th>
-            <th className={styles.num}>Unrealized Gain</th>
-          </tr>
-        </thead>
-        <tbody>
-          {holdings.map((h) => {
-            const gain = h.unrealizedGain.toNumber()
-            return (
-              <tr key={h.ticker}>
-                <td>
-                  <strong>{h.ticker}</strong>
-                  {h.name && <div className={styles.muted}>{h.name}</div>}
-                </td>
-                <td className={styles.num}>{fmtUnits(h.units)}</td>
-                <td className={styles.num} title={fmtDate(h.lastPriceDate)}>
-                  {fmtPrice(h.lastPrice)} <span className={styles.muted}>{h.currency}</span>
-                </td>
-                <td className={styles.num}>{fmtMoney(h.cost.toNumber(), currency)}</td>
-                <td className={styles.num}>{fmtMoney(h.value.toNumber(), currency)}</td>
-                <td className={styles.num}>{fmtOptionalPct(h.weight)}</td>
-                <td className={`${styles.num} ${signClass(gain)}`}>
-                  {fmtMoney(gain, currency)} <small>({fmtOptionalPct(h.unrealizedGainPct)})</small>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
     </div>
   )
 }
