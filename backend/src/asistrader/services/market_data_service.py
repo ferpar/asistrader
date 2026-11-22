@@ -1,5 +1,6 @@
 """Market data service for fetching and managing OHLCV data."""
 
+import logging
 import time
 from datetime import date, datetime, timedelta, timezone
 
@@ -10,7 +11,13 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from asistrader.models.db import MarketData, Ticker
-from asistrader.services.ticker_service import backfill_ticker_metadata
+from asistrader.services.ticker_service import (
+    TickerValidationError,
+    backfill_ticker_metadata,
+    validate_ticker_with_yfinance,
+)
+
+logger = logging.getLogger(__name__)
 
 
 # ── Force-refresh bulk path ──
@@ -621,6 +628,41 @@ def sync_ticker(
 
     skipped = fetched == 0
     return {"fetched": fetched, "skipped": skipped}
+
+
+def ensure_ticker_with_history(db: Session, symbol: str, since: date) -> Ticker:
+    """Return the ticker, creating it and loading its history if it's unknown.
+
+    An unknown symbol is validated against yfinance (raising
+    `TickerValidationError` when Yahoo doesn't know it either), stored with
+    its name/currency/price hint, and its market data synced from `since`.
+    A failed history load doesn't undo the creation: the regular syncs fill
+    the gap later. A known ticker missing its currency gets its metadata
+    backfilled, since prices can't be converted without it.
+    """
+    ticker = db.query(Ticker).filter(Ticker.symbol == symbol).first()
+    if ticker is not None:
+        if ticker.currency is None:
+            backfill_ticker_metadata(db, ticker)
+        return ticker
+
+    validation = validate_ticker_with_yfinance(symbol)
+    if not validation["valid"]:
+        raise TickerValidationError(f"Unknown ticker symbol: {symbol}")
+    ticker = Ticker(
+        symbol=symbol,
+        name=validation["name"],
+        currency=validation["currency"],
+        price_hint=validation["price_hint"],
+    )
+    db.add(ticker)
+    db.commit()
+    db.refresh(ticker)
+    try:
+        sync_ticker(db, symbol, since)
+    except Exception:
+        logger.exception("Failed to load history for new ticker %s", symbol)
+    return ticker
 
 
 def sync_all(

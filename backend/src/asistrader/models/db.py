@@ -3,7 +3,7 @@
 from datetime import date, datetime, timezone
 from enum import Enum as PyEnum
 
-from sqlalchemy import JSON, Boolean, Column, Date, DateTime, Enum, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Column, Date, DateTime, Enum, Float, ForeignKey, Index, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -122,6 +122,7 @@ class User(Base):
     alert_dismissals = relationship("AlertDismissal", back_populates="user_rel")
     radar_presets = relationship("RadarPreset", back_populates="user_rel")
     password_reset_tokens = relationship("PasswordResetToken", back_populates="user_rel")
+    portfolios = relationship("Portfolio", back_populates="user_rel")
 
 
 class RefreshToken(Base):
@@ -595,3 +596,82 @@ class SweepResultCache(Base):
         ),
         Index("ix_sweep_results_ticker", "ticker"),
     )
+
+
+class TransactionKind(str, PyEnum):
+    """Kind of a Portfolio Transaction."""
+
+    BUY = "buy"
+    SELL = "sell"
+    SPLIT = "split"
+
+
+class Portfolio(Base):
+    """A named collection of the user's long-term Holdings.
+
+    Separate from Trades (ADR 0001): a Portfolio records its own Transactions
+    and its Holdings are derived by replaying them. `currency` is fixed at
+    creation so recorded FX rates and history never change meaning.
+    """
+
+    __tablename__ = "portfolios"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String, nullable=False)
+    currency = Column(String(3), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_portfolios_user_name"),
+        Index("ix_portfolios_user_id", "user_id"),
+    )
+
+    user_rel = relationship("User", back_populates="portfolios")
+    transactions = relationship(
+        "PortfolioTransaction",
+        back_populates="portfolio_rel",
+        cascade="all, delete-orphan",
+        order_by="(PortfolioTransaction.date, PortfolioTransaction.id)",
+    )
+
+
+class PortfolioTransaction(Base):
+    """A dated Buy, Sell or Split of an instrument within a Portfolio.
+
+    `units` is fractional (Numeric, not Integer). `price` and `fees` are in the
+    instrument's currency; `fx_rate` (optional) converts one unit of the
+    instrument's currency into the Portfolio's currency — when absent, the
+    stored FX rate for `date` is used. `split_ratio` is only set on Splits.
+    """
+
+    __tablename__ = "portfolio_transactions"
+
+    id = Column(Integer, primary_key=True)
+    portfolio_id = Column(
+        Integer, ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=False
+    )
+    kind = Column(String(10), nullable=False)
+    date = Column(Date, nullable=False)
+    ticker = Column(String, ForeignKey("tickers.symbol"), nullable=False)
+    units = Column(Numeric(28, 10), nullable=True)
+    price = Column(Numeric(28, 10), nullable=True)
+    fees = Column(Numeric(28, 10), nullable=False, default=0)
+    fx_rate = Column(Numeric(28, 10), nullable=True)
+    split_ratio = Column(Numeric(28, 10), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    __table_args__ = (
+        Index("ix_portfolio_transactions_portfolio_date", "portfolio_id", "date"),
+    )
+
+    portfolio_rel = relationship("Portfolio", back_populates="transactions")
