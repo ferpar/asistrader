@@ -111,6 +111,32 @@ def test_a_member_lists_every_portfolio_of_the_user_that_holds_it(
     assert members["AMD"]["held_in"] == []
 
 
+def test_only_current_holdings_count_so_a_sold_out_member_is_not_held(
+    client: TestClient, db_session: Session, sample_user: User, auth_headers: dict[str, str]
+) -> None:
+    basket = _basket(db_session, "Tech & AI", ["NVDA", "MSFT"])
+    broker = _portfolio(db_session, sample_user, "Broker A", ["NVDA", "MSFT"])
+    for symbol, units in (("NVDA", 10), ("MSFT", 4)):  # NVDA sold out, MSFT partly sold
+        db_session.add(
+            PortfolioTransaction(
+                portfolio_id=broker.id,
+                kind="sell",
+                date=date(2025, 2, 3),
+                ticker=symbol,
+                units=units,
+                price=120,
+                fees=0,
+                fx_rate=1,
+            )
+        )
+    db_session.commit()
+
+    members = _members(client, auth_headers, basket.id)
+
+    assert members["NVDA"]["held_in"] == []
+    assert members["MSFT"]["held_in"] == [{"id": broker.id, "name": "Broker A"}]
+
+
 def test_another_users_portfolios_never_show_as_held_in(
     client: TestClient,
     db_session: Session,
