@@ -1301,7 +1301,8 @@ class PortfolioSummarySchema(BaseModel):
 
 class PortfolioImportRequest(BaseModel):
     """A CSV of Transactions, sent as text. A header row is required, with
-    columns `date, ticker, units, price, fees` and optional `fx_rate`."""
+    columns `date, ticker, units, price, fees` and optional `fx_rate` and
+    `kind` (`buy`, the default, or `sell`)."""
 
     csv: str
 

@@ -220,8 +220,9 @@ def import_transactions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PortfolioImportResponse:
-    """Import Buys from CSV text. Each row succeeds or fails on its own: valid
-    rows are recorded, failing rows are reported with a reason."""
+    """Import Buys and Sells from CSV text. Each row succeeds or fails on its
+    own: valid rows are recorded, failing rows (e.g. a Sell exceeding the
+    units held) are reported with a reason."""
     try:
         results = portfolio_import_service.import_csv(
             db, current_user.id, portfolio_id, request.csv
