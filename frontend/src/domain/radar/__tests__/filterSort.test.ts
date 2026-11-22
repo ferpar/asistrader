@@ -151,6 +151,32 @@ describe('filterTicker', () => {
     })
   })
 
+  describe('momentum', () => {
+    const withScore = (score: number | null) =>
+      buildTickerIndicators({
+        momentum: { r1m: null, r3m: null, r6m: null, r1y: null, score },
+      })
+    it('positive passes a Momentum Score above zero', () => {
+      const scope = { ...DEFAULT_VIEW_STATE.ticker, momentum: 'positive' as const }
+      expect(filterTicker(withScore(0.12), [], scope)).toBe(true)
+      expect(filterTicker(withScore(-0.05), [], scope)).toBe(false)
+    })
+    it('negative passes a Momentum Score below zero', () => {
+      const scope = { ...DEFAULT_VIEW_STATE.ticker, momentum: 'negative' as const }
+      expect(filterTicker(withScore(-0.05), [], scope)).toBe(true)
+      expect(filterTicker(withScore(0.12), [], scope)).toBe(false)
+    })
+    it('rejects an empty Momentum Score (not enough history) unless any', () => {
+      expect(
+        filterTicker(withScore(null), [], { ...DEFAULT_VIEW_STATE.ticker, momentum: 'positive' }),
+      ).toBe(false)
+      expect(
+        filterTicker(withScore(null), [], { ...DEFAULT_VIEW_STATE.ticker, momentum: 'negative' }),
+      ).toBe(false)
+      expect(filterTicker(withScore(null), [], DEFAULT_VIEW_STATE.ticker)).toBe(true)
+    })
+  })
+
   describe('rsiZone', () => {
     it('overbought passes RSI at or above 70', () => {
       const ind = buildTickerIndicators({ rsi: buildRsiIndicator({ latest: 78 }) })

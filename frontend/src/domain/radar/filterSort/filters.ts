@@ -9,6 +9,7 @@ import { computePriceChangesAsOf, RSI_OVERBOUGHT, RSI_OVERSOLD } from '../indica
 import type {
   StructureCategory,
   TrendSignFilter,
+  MomentumFilter,
   RsiZoneFilter,
   DivergenceFilter,
   ActivityFilter,
@@ -36,6 +37,13 @@ function matchesTrend(indicator: TickerIndicators, filter: TrendSignFilter): boo
   const slope = indicator.linearRegression.lr50.slope
   if (slope === null) return false
   return filter === 'up' ? slope > 0 : slope < 0
+}
+
+function matchesMomentum(indicator: TickerIndicators, filter: MomentumFilter): boolean {
+  if (filter === 'any') return true
+  const score = indicator.momentum.score
+  if (score === null) return false
+  return filter === 'positive' ? score > 0 : score < 0
 }
 
 export function classifyRsiZone(
@@ -89,6 +97,7 @@ export function filterTicker(
   if (!matchesSearch(indicator, scope.search)) return false
   if (!matchesStructure(indicator, scope.structure)) return false
   if (!matchesTrend(indicator, scope.trendSign)) return false
+  if (!matchesMomentum(indicator, scope.momentum)) return false
   if (!matchesRsiZone(indicator, scope.rsiZone)) return false
   if (!matchesDivergence(indicator, scope.divergence)) return false
   if (!matchesActivity(trades, scope.activity)) return false

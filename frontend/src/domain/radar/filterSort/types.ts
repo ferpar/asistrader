@@ -3,6 +3,8 @@ import type { TradeWithMetrics } from '../../trade/types'
 
 export type StructureCategory = 'any' | 'bullish' | 'bearish' | 'mixed'
 export type TrendSignFilter = 'any' | 'up' | 'down'
+/** Sign of the Momentum Score; an empty score (too little history) matches only 'any'. */
+export type MomentumFilter = 'any' | 'positive' | 'negative'
 export type RsiZoneFilter = 'any' | 'overbought' | 'oversold' | 'neutral'
 export type DivergenceFilter = 'any' | 'present' | 'bullish' | 'bearish' | 'none'
 export type ActivityFilter = 'any' | 'hasOpen' | 'hasPlan' | 'hasActive' | 'hasNone'
@@ -15,6 +17,7 @@ export type ProximityFilter = null | { target: ProximityTarget; withinPct: numbe
 export interface TickerScope {
   structure: StructureCategory
   trendSign: TrendSignFilter
+  momentum: MomentumFilter
   rsiZone: RsiZoneFilter
   divergence: DivergenceFilter
   activity: ActivityFilter
@@ -64,6 +67,7 @@ export const DEFAULT_VIEW_STATE: RadarViewState = {
   ticker: {
     structure: 'any',
     trendSign: 'any',
+    momentum: 'any',
     rsiZone: 'any',
     divergence: 'any',
     activity: 'any',
