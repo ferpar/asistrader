@@ -51,6 +51,7 @@ function mapImportRow(dto: PortfolioImportRowResultDTO): ImportRowResult {
   if (dto.status === 'created' && dto.transaction) {
     return { row: dto.row, status: 'created', transaction: mapTransaction(dto.transaction) }
   }
+  if (dto.status === 'valid') return { row: dto.row, status: 'valid' }
   return { row: dto.row, status: 'error', error: dto.error ?? 'Not imported' }
 }
 

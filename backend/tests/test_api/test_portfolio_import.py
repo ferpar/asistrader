@@ -1,9 +1,10 @@
 """CSV import of Transactions into a Portfolio.
 
-The CSV is sent as text in a JSON body. Each data row is imported on its own:
-valid rows are recorded as Buys or Sells through the same validation as a
-manual Transaction (so an oversell fails its row); failing rows are reported
-with a reason and leave nothing behind.
+The CSV is sent as text in a JSON body. Every row is parsed first, then the
+file is validated as a whole by replaying the existing Transactions plus all
+parsed rows in date order (file order within a date), through the same rules
+as a manual Transaction. The import is all-or-nothing: if any row fails,
+nothing is created and every failing row is reported with a reason.
 Tests stay at the HTTP seam and seed tickers, market data and FX directly.
 """
 
@@ -123,7 +124,49 @@ class TestImportSuccess:
         # FIFO: the Sell consumes 1 of the Lot bought at 400; 420 - 400 - 1 fee.
         assert summary["realized_gain"] == pytest.approx(19.0)
 
-    def test_an_unsupported_kind_fails_its_row(
+    def test_a_sell_listed_before_its_buy_but_dated_later_imports(
+        self, client: TestClient, spy_and_qqq: None
+    ) -> None:
+        pid = _create_portfolio(client)
+        csv = (
+            "date,kind,ticker,units,price,fees\n"
+            "2024-01-05,sell,SPY,1,420,0\n"
+            "2024-01-02,buy,SPY,2,400,0\n"
+        )
+
+        body = _import(client, pid, csv).json()
+
+        assert (body["created"], body["failed"]) == (2, 0), body
+        assert [r["row"] for r in body["results"]] == [2, 3]
+        assert body["results"][0]["transaction"]["kind"] == "sell"
+        assert [(t["kind"], t["date"]) for t in _transactions(client, pid)] == [
+            ("buy", "2024-01-02"),
+            ("sell", "2024-01-05"),
+        ]
+
+    def test_rows_are_validated_with_the_existing_transactions(
+        self, client: TestClient, spy_and_qqq: None
+    ) -> None:
+        pid = _create_portfolio(client)
+        client.post(
+            f"/api/portfolios/{pid}/transactions",
+            json={"kind": "buy", "date": "2024-01-02", "ticker": "SPY", "units": 1, "price": 400},
+        )
+
+        body = _import(
+            client, pid, "date,kind,ticker,units,price,fees\n2024-01-03,sell,SPY,1,410,0\n"
+        ).json()
+
+        assert body["created"] == 1, body
+        assert [t["kind"] for t in _transactions(client, pid)] == ["buy", "sell"]
+
+
+def _errors(body: dict) -> dict[int, str]:
+    return {r["row"]: r["error"] for r in body["results"] if r["status"] == "error"}
+
+
+class TestAllOrNothing:
+    def test_one_bad_row_creates_nothing(
         self, client: TestClient, spy_and_qqq: None
     ) -> None:
         pid = _create_portfolio(client)
@@ -131,21 +174,58 @@ class TestImportSuccess:
             "date,kind,ticker,units,price,fees\n"
             "2024-01-02,buy,SPY,1,400,0\n"
             "2024-01-03,split,SPY,1,410,0\n"
+            "2024-01-04,buy,QQQ,1,99,0\n"
         )
 
         body = _import(client, pid, csv).json()
 
-        assert body["created"] == 1
+        assert (body["created"], body["failed"]) == (0, 1)
         assert "split" in _errors(body)[3].lower()
-        assert [t["kind"] for t in _transactions(client, pid)] == ["buy"]
+        assert [(r["row"], r["status"]) for r in body["results"]] == [
+            (2, "valid"),
+            (3, "error"),
+            (4, "valid"),
+        ]
+        assert all(r["transaction"] is None for r in body["results"])
+        assert _transactions(client, pid) == []
 
+    def test_an_oversell_creates_nothing(
+        self, client: TestClient, spy_and_qqq: None
+    ) -> None:
+        pid = _create_portfolio(client)
+        csv = (
+            "date,kind,ticker,units,price,fees\n"
+            "2024-01-02,buy,SPY,1,400,0\n"
+            "2024-01-05,sell,SPY,2,420,0\n"
+        )
 
-def _errors(body: dict) -> dict[int, str]:
-    return {r["row"]: r["error"] for r in body["results"] if r["status"] == "error"}
+        body = _import(client, pid, csv).json()
+
+        assert (body["created"], body["failed"]) == (0, 1)
+        assert "exceeds" in _errors(body)[3]
+        assert _transactions(client, pid) == []
+
+    def test_a_row_that_breaks_an_existing_sell_is_reported(
+        self, client: TestClient, spy_and_qqq: None
+    ) -> None:
+        pid = _create_portfolio(client)
+        for kind, day in (("buy", "2024-01-02"), ("sell", "2024-01-05")):
+            client.post(
+                f"/api/portfolios/{pid}/transactions",
+                json={"kind": kind, "date": day, "ticker": "SPY", "units": 1, "price": 400},
+            )
+
+        body = _import(
+            client, pid, "date,kind,ticker,units,price,fees\n2024-01-03,sell,SPY,1,410,0\n"
+        ).json()
+
+        assert (body["created"], body["failed"]) == (0, 1)
+        assert "exceeds" in _errors(body)[2]
+        assert [t["kind"] for t in _transactions(client, pid)] == ["buy", "sell"]
 
 
 class TestRowErrors:
-    def test_a_failing_row_is_reported_and_the_valid_rows_are_still_recorded(
+    def test_every_failing_row_is_reported(
         self, client: TestClient, spy_and_qqq: None
     ) -> None:
         pid = _create_portfolio(client)
@@ -158,15 +238,15 @@ class TestRowErrors:
 
         body = _import(client, pid, csv).json()
 
-        assert body["created"] == 1
+        assert body["created"] == 0
         assert body["failed"] == 2
         errors = _errors(body)
         assert set(errors) == {2, 3}
         assert "date" in errors[2].lower()
         assert "units" in errors[3].lower()
-        assert [t["ticker"] for t in _transactions(client, pid)] == ["QQQ"]
+        assert _transactions(client, pid) == []
 
-    def test_an_oversell_row_fails_and_the_other_rows_are_still_recorded(
+    def test_every_oversell_row_is_reported(
         self, client: TestClient, spy_and_qqq: None
     ) -> None:
         pid = _create_portfolio(client)
@@ -180,16 +260,13 @@ class TestRowErrors:
 
         body = _import(client, pid, csv).json()
 
-        assert body["created"] == 2
+        assert body["created"] == 0
         assert body["failed"] == 2
         errors = _errors(body)
         assert set(errors) == {3, 4}
         assert "exceeds" in errors[3] and "held" in errors[3]
         assert "QQQ" in errors[4] and "held" in errors[4]
-        assert [(t["kind"], t["units"]) for t in _transactions(client, pid)] == [
-            ("buy", 1.0),
-            ("sell", 1.0),
-        ]
+        assert _transactions(client, pid) == []
 
     @pytest.mark.parametrize(
         ("row", "mentions"),
@@ -225,9 +302,9 @@ class TestRowErrors:
 
         body = _import(client, pid, csv).json()
 
-        assert body["created"] == 1
+        assert body["created"] == 0
         assert "NOPE" in _errors(body)[2]
-        assert [t["ticker"] for t in _transactions(client, pid)] == ["SPY"]
+        assert _transactions(client, pid) == []
 
     @patch("asistrader.services.fx_service.fetch_from_yfinance")
     def test_a_row_without_any_fx_rate_fails_its_row(
@@ -243,10 +320,10 @@ class TestRowErrors:
 
         body = _import(client, pid, csv).json()
 
-        assert body["created"] == 1
+        assert body["created"] == 0
+        assert set(_errors(body)) == {2}
         assert "FX rate" in _errors(body)[2]
-        listed = _transactions(client, pid)
-        assert [t["fx_rate"] for t in listed] == [0.9]
+        assert _transactions(client, pid) == []
 
 
 class TestFileErrors:

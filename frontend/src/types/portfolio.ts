@@ -78,7 +78,7 @@ export interface PortfolioImportRequest {
 
 export interface PortfolioImportRowResultDTO {
   row: number
-  status: 'created' | 'error'
+  status: 'created' | 'error' | 'valid'
   transaction: PortfolioTransactionDTO | null
   error: string | null
 }

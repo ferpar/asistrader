@@ -1448,10 +1448,12 @@ class PortfolioImportRequest(BaseModel):
 
 class PortfolioImportRowResult(BaseModel):
     """What happened to one data row. `row` is its line number in the file,
-    the header being line 1."""
+    the header being line 1. The import is all-or-nothing: either every row
+    is "created", or nothing is and each row is "error" (with its reason) or
+    "valid" (it would have been recorded)."""
 
     row: int
-    status: Literal["created", "error"]
+    status: Literal["created", "error", "valid"]
     transaction: PortfolioTransactionSchema | None = None
     error: str | None = None
 

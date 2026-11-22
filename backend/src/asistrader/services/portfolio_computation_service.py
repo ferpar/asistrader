@@ -55,7 +55,12 @@ from asistrader.services.irr_service import _simple_tir, _xirr
 
 
 class PortfolioReplayError(Exception):
-    """A Transaction list that can't be replayed into a valid Portfolio state."""
+    """A Transaction list that can't be replayed into a valid Portfolio state.
+
+    `transaction`, once raised by `replay`, is the Transaction that failed.
+    """
+
+    transaction: PortfolioTransaction | None = None
 
 
 class PortfolioFxUnavailableError(PortfolioReplayError):
@@ -240,6 +245,38 @@ class _SplitFactors:
         return factor
 
 
+def _apply(
+    db: Session,
+    ledger: Ledger,
+    tx: PortfolioTransaction,
+    ccy: str | None,
+    factors: _SplitFactors,
+) -> None:
+    """Apply one Buy or Sell to the Ledger, in the split-adjusted basis."""
+    if ccy is None:
+        raise InstrumentCurrencyUnknownError(f"The currency of {tx.ticker} is unknown")
+    ledger.instrument_currency[tx.ticker] = ccy
+
+    factor = factors.at(tx.ticker, tx.date)
+    units = Decimal(tx.units) * factor
+    if tx.kind == TransactionKind.BUY.value:
+        native_cost = float(Decimal(tx.units) * Decimal(tx.price) + Decimal(tx.fees or 0))
+        cost = _transaction_amount(db, tx, native_cost, ccy, ledger.currency)
+        ledger.lots[tx.ticker].append(
+            Lot(ticker=tx.ticker, date=tx.date, units=units, cost=cost)
+        )
+        ledger.cash_flows.append((tx.date, -cost))
+    elif tx.kind == TransactionKind.SELL.value:
+        consumed_cost = _consume_fifo(ledger.lots[tx.ticker], units, factor, tx)
+        native_proceeds = float(Decimal(tx.units) * Decimal(tx.price) - Decimal(tx.fees or 0))
+        proceeds = _transaction_amount(db, tx, native_proceeds, ccy, ledger.currency)
+        ledger.realized_gain += proceeds - consumed_cost
+        ledger.cash_flows.append((tx.date, proceeds))
+    else:
+        raise PortfolioReplayError(f"Unsupported Transaction kind: {tx.kind}")
+    ledger.last_price[tx.ticker] = (tx.date, float(Decimal(tx.price) / factor))
+
+
 def transactions_of(db: Session, portfolio_id: int) -> list[PortfolioTransaction]:
     """A Portfolio's Transactions in replay order (date, then entry order)."""
     return (
@@ -277,36 +314,11 @@ def replay(
         if on_new_date is not None and tx.date != replayed_date:
             on_new_date(tx.date, ledger)
             replayed_date = tx.date
-        ccy = currencies.get(tx.ticker)
-        if ccy is None:
-            raise InstrumentCurrencyUnknownError(
-                f"The currency of {tx.ticker} is unknown"
-            )
-        ledger.instrument_currency[tx.ticker] = ccy
-
-        factor = factors.at(tx.ticker, tx.date)
-        units = Decimal(tx.units) * factor
-        adjusted_price = float(Decimal(tx.price) / factor)
-        if tx.kind == TransactionKind.BUY.value:
-            native_cost = float(Decimal(tx.units) * Decimal(tx.price) + Decimal(tx.fees or 0))
-            cost = _transaction_amount(db, tx, native_cost, ccy, portfolio.currency)
-            ledger.lots[tx.ticker].append(
-                Lot(ticker=tx.ticker, date=tx.date, units=units, cost=cost)
-            )
-            ledger.cash_flows.append((tx.date, -cost))
-        elif tx.kind == TransactionKind.SELL.value:
-            consumed_cost = _consume_fifo(ledger.lots[tx.ticker], units, factor, tx)
-            native_proceeds = float(
-                Decimal(tx.units) * Decimal(tx.price) - Decimal(tx.fees or 0)
-            )
-            proceeds = _transaction_amount(
-                db, tx, native_proceeds, ccy, portfolio.currency
-            )
-            ledger.realized_gain += proceeds - consumed_cost
-            ledger.cash_flows.append((tx.date, proceeds))
-        else:
-            raise PortfolioReplayError(f"Unsupported Transaction kind: {tx.kind}")
-        ledger.last_price[tx.ticker] = (tx.date, adjusted_price)
+        try:
+            _apply(db, ledger, tx, currencies.get(tx.ticker), factors)
+        except PortfolioReplayError as e:
+            e.transaction = tx
+            raise
 
     return ledger
 

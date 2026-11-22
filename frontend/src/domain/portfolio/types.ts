@@ -43,8 +43,11 @@ export interface TransactionInput {
 export type ImportRowResult =
   | { row: number; status: 'created'; transaction: PortfolioTransaction }
   | { row: number; status: 'error'; error: string }
+  /** Would have been recorded, but another row failed, so nothing was. */
+  | { row: number; status: 'valid' }
 
-/** Outcome of a CSV import: each row is created or fails on its own. */
+/** Outcome of a CSV import, all or nothing: every row is created, or none is
+ * and `failed` rows carry their reason. */
 export interface ImportResult {
   rows: ImportRowResult[]
   created: number

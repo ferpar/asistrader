@@ -6,6 +6,7 @@ not found, so its existence never leaks.
 """
 
 import logging
+from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -26,6 +27,7 @@ from asistrader.services.portfolio_computation_service import (
     transactions_of,
 )
 from asistrader.services.portfolio_history_service import HistoryFigures, compute_history
+from asistrader.services.ticker_service import TickerValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,30 @@ class TransactionNotFoundError(Exception):
 
 class PortfolioNameExistsError(Exception):
     """Raised when the user already has a Portfolio with that name."""
+
+
+@dataclass
+class TransactionFields:
+    """A Buy or Sell as entered, before it is recorded."""
+
+    kind: TransactionKind
+    on_date: date
+    ticker: str
+    units: Decimal
+    price: Decimal
+    fees: Decimal = Decimal(0)
+    fx_rate: Decimal | None = None
+
+
+class TransactionBatchError(Exception):
+    """Some Transactions of a batch can't be recorded, so none was.
+
+    `errors` maps the index of each failing Transaction to its reason.
+    """
+
+    def __init__(self, errors: dict[int, str]) -> None:
+        super().__init__(f"{len(errors)} Transaction(s) can't be recorded")
+        self.errors = errors
 
 
 def list_portfolios(db: Session, user_id: int) -> list[Portfolio]:
@@ -232,6 +258,109 @@ def create_transaction(
     db.commit()
     db.refresh(transaction)
     return transaction
+
+
+def create_transactions(
+    db: Session,
+    user_id: int,
+    portfolio_id: int,
+    batch: list[TransactionFields],
+    record: bool = True,
+) -> list[PortfolioTransaction]:
+    """Record a batch of Buys and Sells all together, or none of them.
+
+    With `record=False` the batch is only validated (nothing is recorded and
+    an empty list is returned), so a caller can report every error.
+
+    The batch is validated as a whole: the existing Transactions plus the
+    whole batch are replayed in date order (batch order within a date, after
+    the existing ones), so a Sell may come before its Buy in the batch as
+    long as it is dated later. Every failing Transaction is reported: when
+    one fails it is set aside and the rest replayed again, so later errors
+    don't hide behind the first. A failure caused in an existing Transaction
+    (e.g. an earlier Sell making a later existing Sell oversell) is blamed on
+    the latest batch Transaction of that ticker dated on or before it.
+
+    Raises:
+        PortfolioNotFoundError: the Portfolio isn't the user's.
+        TransactionBatchError: at least one Transaction fails; nothing is
+            recorded (a ticker created for a Buy stays, like a manual Buy's).
+    """
+    portfolio = get_portfolio(db, user_id, portfolio_id)
+    errors: dict[int, str] = {}
+    # Buys first, so a Sell of a ticker the batch itself creates finds it.
+    for i in sorted(range(len(batch)), key=lambda i: batch[i].kind != TransactionKind.BUY):
+        fields = batch[i]
+        fields.ticker = fields.ticker.strip().upper()
+        try:
+            _prepare_instrument(
+                db, portfolio, fields.kind, fields.ticker, fields.on_date, fields.fx_rate
+            )
+        except (TickerValidationError, PortfolioReplayError) as e:
+            errors[i] = str(e)
+
+    order = sorted(
+        (i for i in range(len(batch)) if i not in errors),
+        key=lambda i: (batch[i].on_date, i),
+    )
+    pending: dict[int, PortfolioTransaction] = {}
+    for i in order:
+        f = batch[i]
+        pending[i] = PortfolioTransaction(
+            portfolio_id=portfolio.id,
+            kind=f.kind.value,
+            date=f.on_date,
+            ticker=f.ticker,
+            units=f.units,
+            price=f.price,
+            fees=f.fees,
+            fx_rate=f.fx_rate,
+        )
+        db.add(pending[i])
+    db.flush()
+
+    while True:
+        try:
+            replay(db, portfolio)
+            break
+        except PortfolioReplayError as e:
+            culprit = _culprit(e, pending)
+            if culprit is None:
+                db.rollback()
+                raise
+            errors[culprit] = str(e)
+            db.delete(pending.pop(culprit))
+            db.flush()
+
+    if errors:
+        db.rollback()
+        raise TransactionBatchError(errors)
+    if not record:
+        db.rollback()
+        return []
+    db.commit()
+    for transaction in pending.values():
+        db.refresh(transaction)
+    return [pending[i] for i in range(len(batch))]
+
+
+def _culprit(
+    error: PortfolioReplayError, pending: dict[int, PortfolioTransaction]
+) -> int | None:
+    """The batch index to blame for a replay failure, or None if no batch
+    Transaction can be blamed."""
+    failed = error.transaction
+    for i, tx in pending.items():
+        if tx is failed:
+            return i
+    if failed is None:
+        return None
+    earlier = [
+        i
+        for i, tx in pending.items()
+        if tx.ticker == failed.ticker and tx.date <= failed.date
+    ]
+    return max(earlier, key=lambda i: (pending[i].date, i)) if earlier else None
 
 
 def _get_transaction(

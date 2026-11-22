@@ -9,12 +9,13 @@ interface CsvImportProps {
 const FORMAT_HINT =
   'Header row with date, ticker, units, price, fees and optional fx_rate and kind ' +
   '(buy, the default, or sell). Separator , or ; — dates YYYY-MM-DD or DD/MM/YYYY — ' +
-  'decimal point or comma. Rows are recorded in file order, so list a Sell after its Buys.'
+  'decimal point or comma. Rows may be in any order: they are checked in date order.'
 
 /**
  * Import Buys and Sells from a CSV file. The file is read in the browser and
- * sent as text; each row is recorded or reported on its own (an oversell
- * included), so a failing row never blocks the valid ones. Fix the failing rows and import just those again.
+ * sent as text. The import is all or nothing: if any row fails (an oversell
+ * included), nothing is recorded and every failing row is listed, so fix them
+ * and import the whole file again.
  */
 export function CsvImport({ onImport }: CsvImportProps) {
   const input = useRef<HTMLInputElement>(null)
@@ -60,7 +61,10 @@ export function CsvImport({ onImport }: CsvImportProps) {
       {result && (
         <div className={styles.importResult} role="status">
           <p>
-            {result.created} imported, {result.failed} failed.
+            {result.failed === 0
+              ? `${result.created} imported.`
+              : `Nothing imported: ${result.failed} row${result.failed === 1 ? '' : 's'} failed. ` +
+                'Fix them and import the whole file again.'}
             <button type="button" className={styles.link} onClick={() => setResult(null)}>
               Dismiss
             </button>
