@@ -1,16 +1,83 @@
 {
   "baskets": [
     {
-      "slug": "defence-security",
-      "name": "Defence & security",
-      "description": "European defence contractors.",
-      "members": ["RHM.DE", "LDO.MI", "BA.L", "HO.PA", "SAAB-B.ST", "IDR.MC"]
+      "slug": "energy-green-transition",
+      "name": "Energy & green transition",
+      "description": "Spanish energy engineering and renewables plays on the energy transition.",
+      "members": ["TRE.MC", "GRE.MC", "LAB.MC"]
+    },
+    {
+      "slug": "cyclical-financials",
+      "name": "Cyclical financials",
+      "description": "Spanish banks and brokers that move with the rate and credit cycle.",
+      "members": ["BBVA.MC", "SAN.MC", "R4.MC"]
+    },
+    {
+      "slug": "industrial-recovery",
+      "name": "Industrial recovery",
+      "description": "Industrials positioned for a recovery in aerospace and capital spending.",
+      "members": ["RR.L"]
+    },
+    {
+      "slug": "defensive-safe-haven",
+      "name": "Defensive / safe haven",
+      "description": "Holdings expected to hold up in risk-off markets: defence and gold miners.",
+      "members": ["IDR.MC", "G2X.DE"]
     },
     {
       "slug": "tech-ai",
       "name": "Tech & AI",
-      "description": "AI chips, semiconductor equipment and hyperscalers.",
-      "members": ["NVDA", "AMD", "AVGO", "ASML", "MSFT", "GOOGL"]
+      "description": "AI chips, semiconductor equipment, hyperscalers and a global technology ETF.",
+      "members": ["NVDA", "AMD", "AVGO", "ASML.AS", "MSFT", "GOOGL", "INTC", "SPFT.DE"]
+    },
+    {
+      "slug": "defence-security",
+      "name": "Defence & security",
+      "description": "European defence contractors and security suppliers.",
+      "members": ["RHM.DE", "HAG.DE", "LDO.MI", "BA.L", "HO.PA", "SAAB-B.ST", "IDR.MC", "ART.MC"]
+    },
+    {
+      "slug": "ibex",
+      "name": "IBEX",
+      "description": "Madrid-listed Spanish stocks, mostly IBEX 35 constituents.",
+      "members": [
+        "ACS.MC", "SAN.MC", "IBE.MC", "CABK.MC", "UNI.MC", "BBVA.MC", "IAG.MC",
+        "REP.MC", "IDR.MC", "SAB.MC", "ELE.MC", "A3M.MC", "BKT.MC", "BKY.MC"
+      ]
+    },
+    {
+      "slug": "sp500-semis-ai",
+      "name": "S&P 500 semis & AI",
+      "description": "US semiconductors, AI networking and the power and cooling behind data centres.",
+      "members": ["AMD", "MU", "AMAT", "LRCX", "KLAC", "ANET", "NVDA", "AVGO", "GEV", "VRT"]
+    },
+    {
+      "slug": "nasdaq",
+      "name": "NASDAQ",
+      "description": "NASDAQ-listed cybersecurity and data-platform software.",
+      "members": ["PANW", "CRWD", "PLTR"]
+    },
+    {
+      "slug": "eurostoxx",
+      "name": "EUROSTOXX",
+      "description": "Euro Stoxx 50 heavyweights on their primary European listings.",
+      "members": ["TTE.PA", "UCG.MI", "SIE.DE", "ALV.DE", "SAF.PA", "ASML.AS", "ENR.DE"]
+    },
+    {
+      "slug": "european-banks",
+      "name": "European banks",
+      "description": "Large European banks outside Spain.",
+      "members": ["DBK.DE", "BARC.L", "UBSG.SW", "GLE.PA"]
+    },
+    {
+      "slug": "etf-themes",
+      "name": "ETF themes",
+      "description": "Broad-market, sector, commodity and crypto ETFs on euro listings.",
+      "members": [
+        "SXR8.DE", "EUNL.DE", "IUSQ.DE", "XESC.DE", "EXSA.DE", "IS3N.DE", "QDVE.DE",
+        "QDVH.DE", "QDVF.DE", "PPFB.DE", "SXRV.DE", "RSPS.DE", "XRS2.DE", "VVSM.DE",
+        "AMIBX.MC", "WTIC.DE", "BITC.AS"
+      ]
     }
   ]
 }
