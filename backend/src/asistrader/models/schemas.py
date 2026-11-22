@@ -579,10 +579,15 @@ class BulkMarketDataRequest(BaseModel):
 
 
 class CloseSeriesSchema(BaseModel):
-    """A ticker's closes as parallel arrays: close[i] is the close on dates[i]."""
+    """A ticker's closes as parallel arrays: close[i] is the close on dates[i].
+
+    adj_close[i] is the split/dividend-adjusted close on dates[i], or null
+    where it has not been filled yet.
+    """
 
     dates: list[date]
     close: list[float]
+    adj_close: list[float | None]
 
 
 class BulkMarketDataResponse(BaseModel):
@@ -598,6 +603,20 @@ class SyncRequest(BaseModel):
     start_date: date
     symbols: list[str] | None = None  # None = all tickers
     force_refresh: bool = False  # If True, wipe existing rows and re-fetch.
+
+
+class BackfillAdjustedClosesRequest(BaseModel):
+    """Request schema for the adjusted-close backfill. No symbols = every ticker."""
+
+    symbols: list[str] | None = None
+
+
+class BackfillAdjustedClosesResponse(BaseModel):
+    """Rows upserted per symbol, plus per-symbol fetch errors."""
+
+    results: dict[str, int]
+    total_rows: int
+    errors: dict[str, str]
 
 
 class SyncResponse(BaseModel):

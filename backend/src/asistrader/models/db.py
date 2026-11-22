@@ -344,6 +344,9 @@ class MarketData(Base):
     high = Column(Float, nullable=True)
     low = Column(Float, nullable=True)
     close = Column(Float, nullable=True)
+    # Split/dividend-adjusted close, for measurement only (Momentum Score,
+    # Basket Indexes). SL/TP detection keeps using the raw OHLC (ADR 0002).
+    adj_close = Column(Float, nullable=True)
     volume = Column(Float, nullable=True)
 
     __table_args__ = (

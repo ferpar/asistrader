@@ -263,7 +263,7 @@ def test_bulk_market_data_empty(
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["data"][sample_ticker.symbol] == {"dates": [], "close": []}
+    assert data["data"][sample_ticker.symbol] == {"dates": [], "close": [], "adj_close": []}
 
 
 def test_bulk_market_data_unknown_symbol(
@@ -276,7 +276,7 @@ def test_bulk_market_data_unknown_symbol(
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["data"]["ZZZZZ"] == {"dates": [], "close": []}
+    assert data["data"]["ZZZZZ"] == {"dates": [], "close": [], "adj_close": []}
 
 
 def test_bulk_market_data_with_date_filter(
@@ -312,8 +312,8 @@ def test_bulk_market_data_multiple_symbols(
     assert response.status_code == 200
     data = response.json()["data"]
     assert data[sample_ticker.symbol]["dates"] == ["2024-01-02", "2024-01-03", "2024-01-04"]
-    assert data["NVDA"] == {"dates": ["2024-01-03", "2024-01-04"], "close": [1.5, 2.0]}
-    assert data["ZZZZZ"] == {"dates": [], "close": []}
+    assert data["NVDA"] == {"dates": ["2024-01-03", "2024-01-04"], "close": [1.5, 2.0], "adj_close": [None, None]}
+    assert data["ZZZZZ"] == {"dates": [], "close": [], "adj_close": []}
 
 
 def test_bulk_market_data_skips_missing_closes(
@@ -330,3 +330,173 @@ def test_bulk_market_data_skips_missing_closes(
     series = response.json()["data"][sample_ticker.symbol]
     assert series["dates"] == ["2024-01-02", "2024-01-03", "2024-01-04"]
     assert len(series["close"]) == 3
+
+
+def test_bulk_market_data_returns_adjusted_closes(
+    client: TestClient, db_session: Session, sample_ticker: Ticker
+) -> None:
+    """Each series carries an adj_close array aligned with dates; null where not filled."""
+    db_session.add_all(
+        [
+            MarketData(ticker=sample_ticker.symbol, date=date(2024, 1, 2), close=104.0, adj_close=101.5),
+            MarketData(ticker=sample_ticker.symbol, date=date(2024, 1, 3), close=106.0, adj_close=None),
+        ]
+    )
+    db_session.commit()
+
+    response = client.post(
+        "/api/market-data/bulk",
+        json={"symbols": [sample_ticker.symbol], "start_date": "2024-01-01"},
+    )
+    assert response.status_code == 200
+    assert response.json()["data"][sample_ticker.symbol] == {
+        "dates": ["2024-01-02", "2024-01-03"],
+        "close": [104.0, 106.0],
+        "adj_close": [101.5, None],
+    }
+
+
+def _frame_with_adj_close(days: list[date], closes: list[float], adj: list[float]) -> pd.DataFrame:
+    """A yfinance-shaped history frame (auto_adjust=False) including Adj Close."""
+    return pd.DataFrame(
+        {
+            "Open": closes,
+            "High": closes,
+            "Low": closes,
+            "Close": closes,
+            "Adj Close": adj,
+            "Volume": [1000] * len(days),
+        },
+        index=pd.DatetimeIndex(days),
+    )
+
+
+@patch("asistrader.services.market_data_service.fetch_from_yfinance")
+def test_sync_all_stores_adjusted_close_next_to_raw_close(
+    mock_fetch: MagicMock, client: TestClient, db_session: Session
+) -> None:
+    """Synced rows keep the raw close and also carry yfinance's adjusted close."""
+    db_session.add(Ticker(symbol="KO", currency="USD", price_hint=2))
+    db_session.commit()
+    mock_fetch.return_value = _frame_with_adj_close(
+        [date(2024, 1, 2), date(2024, 1, 3)], [60.0, 61.0], [55.2, 56.1]
+    )
+
+    response = client.post(
+        "/api/market-data/sync-all",
+        json={"start_date": "2024-01-02", "symbols": ["KO"]},
+    )
+    assert response.status_code == 200
+
+    series = client.post(
+        "/api/market-data/bulk", json={"symbols": ["KO"], "start_date": "2024-01-01"}
+    ).json()["data"]["KO"]
+    assert series == {
+        "dates": ["2024-01-02", "2024-01-03"],
+        "close": [60.0, 61.0],
+        "adj_close": [55.2, 56.1],
+    }
+
+
+@patch("asistrader.services.market_data_service.fetch_from_yfinance")
+def test_sync_all_refreshes_stored_adjusted_closes_after_a_split(
+    mock_fetch: MagicMock, client: TestClient, db_session: Session
+) -> None:
+    """A split in the newly synced bars re-adjusts earlier rows, so the series has no fake crash."""
+    db_session.add(Ticker(symbol="KO", currency="USD", price_hint=2))
+    db_session.commit()
+    db_session.add_all(
+        [
+            MarketData(ticker="KO", date=date(2024, 1, 2), close=100.0, adj_close=100.0),
+            MarketData(ticker="KO", date=date(2024, 1, 3), close=102.0, adj_close=102.0),
+        ]
+    )
+    db_session.commit()
+
+    def fake_fetch(symbol: str, start: date, end: date) -> pd.DataFrame:
+        if start == date(2024, 1, 2):
+            # Yahoo now reports the old bars adjusted for the 2:1 split.
+            return _frame_with_adj_close(
+                [date(2024, 1, 2), date(2024, 1, 3), date(2024, 1, 4)],
+                [100.0, 102.0, 51.5],
+                [50.0, 51.0, 51.5],
+            )
+        frame = _frame_with_adj_close([date(2024, 1, 4)], [51.5], [51.5])
+        frame["Stock Splits"] = [2.0]
+        frame["Dividends"] = [0.0]
+        return frame
+
+    mock_fetch.side_effect = fake_fetch
+
+    response = client.post(
+        "/api/market-data/sync-all", json={"start_date": "2024-01-02", "symbols": ["KO"]}
+    )
+    assert response.status_code == 200
+
+    series = client.post(
+        "/api/market-data/bulk", json={"symbols": ["KO"], "start_date": "2024-01-01"}
+    ).json()["data"]["KO"]
+    assert series["close"] == [100.0, 102.0, 51.5]
+    assert series["adj_close"] == [50.0, 51.0, 51.5]
+
+
+@patch("asistrader.services.market_data_service.fetch_from_yfinance")
+def test_backfill_fills_adjusted_closes_of_existing_rows(
+    mock_fetch: MagicMock, client: TestClient, db_session: Session
+) -> None:
+    """Rows stored before adjusted closes existed get them; complete tickers aren't refetched."""
+    db_session.add_all([Ticker(symbol="KO"), Ticker(symbol="PEP")])
+    db_session.commit()
+    db_session.add_all(
+        [
+            MarketData(ticker="KO", date=date(2024, 1, 2), close=60.0),
+            MarketData(ticker="KO", date=date(2024, 1, 3), close=61.0),
+            MarketData(ticker="PEP", date=date(2024, 1, 2), close=170.0, adj_close=160.0),
+        ]
+    )
+    db_session.commit()
+    mock_fetch.return_value = _frame_with_adj_close(
+        [date(2024, 1, 2), date(2024, 1, 3)], [60.0, 61.0], [55.2, 56.1]
+    )
+
+    response = client.post("/api/market-data/backfill-adjusted-closes", json={})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["results"] == {"KO": 2}
+    assert body["errors"] == {}
+
+    fetched_symbols = [call.args[0] for call in mock_fetch.call_args_list]
+    assert fetched_symbols == ["KO"]
+    data = client.post(
+        "/api/market-data/bulk", json={"symbols": ["KO", "PEP"], "start_date": "2024-01-01"}
+    ).json()["data"]
+    assert data["KO"]["adj_close"] == [55.2, 56.1]
+    assert data["KO"]["close"] == [60.0, 61.0]
+    assert data["PEP"]["adj_close"] == [160.0]
+
+
+@patch("asistrader.services.market_data_service.fetch_from_yfinance")
+def test_backfill_reports_per_symbol_errors(
+    mock_fetch: MagicMock, client: TestClient, db_session: Session
+) -> None:
+    """A failing Yahoo fetch is reported for that symbol without aborting the rest."""
+    db_session.add_all([Ticker(symbol="KO"), Ticker(symbol="BAD")])
+    db_session.commit()
+    db_session.add_all(
+        [
+            MarketData(ticker="KO", date=date(2024, 1, 2), close=60.0),
+            MarketData(ticker="BAD", date=date(2024, 1, 2), close=1.0),
+        ]
+    )
+    db_session.commit()
+
+    def fake_fetch(symbol: str, start: date, end: date) -> pd.DataFrame:
+        if symbol == "BAD":
+            raise RuntimeError("yahoo down")
+        return _frame_with_adj_close([date(2024, 1, 2)], [60.0], [55.2])
+
+    mock_fetch.side_effect = fake_fetch
+
+    body = client.post("/api/market-data/backfill-adjusted-closes", json={}).json()
+    assert body["results"]["KO"] == 1
+    assert "yahoo down" in body["errors"]["BAD"]

@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
 from asistrader.models.schemas import (
+    BackfillAdjustedClosesRequest,
+    BackfillAdjustedClosesResponse,
     BulkExtendRequest,
     BulkExtendResponse,
     BulkFetchRequest,
@@ -167,6 +169,16 @@ def sync_all_market_data(
     )
 
 
+@router.post("/backfill-adjusted-closes", response_model=BackfillAdjustedClosesResponse)
+def backfill_adjusted_closes(
+    request: BackfillAdjustedClosesRequest,
+    db: Session = Depends(get_db),
+) -> BackfillAdjustedClosesResponse:
+    """One-off: fill adjusted closes on rows stored before they were recorded."""
+    result = market_data_service.backfill_adjusted_closes(db, request.symbols)
+    return BackfillAdjustedClosesResponse(**result)
+
+
 @router.post("/bulk", response_model=BulkMarketDataResponse)
 def get_bulk_market_data(
     request: BulkMarketDataRequest,
@@ -174,15 +186,19 @@ def get_bulk_market_data(
 ) -> JSONResponse:
     """Get stored closes for multiple tickers in a single request.
 
-    Each symbol maps to parallel `dates` and `close` arrays — what the radar
-    consumes — rather than a list of full OHLCV rows. Returns a JSONResponse
+    Each symbol maps to parallel `dates`, `close` and `adj_close` arrays —
+    what the radar consumes — rather than a list of full OHLCV rows. Returns a JSONResponse
     built from plain lists: FastAPI passes a Response through untouched, so
     nothing is re-validated per value. `response_model` still documents the
     shape.
     """
     series = market_data_service.get_bulk_closes(db, request.symbols, request.start_date)
     data = {
-        symbol: {"dates": [d.isoformat() for d in dates], "close": closes}
-        for symbol, (dates, closes) in series.items()
+        symbol: {
+            "dates": [d.isoformat() for d in dates],
+            "close": closes,
+            "adj_close": adj_closes,
+        }
+        for symbol, (dates, closes, adj_closes) in series.items()
     }
     return JSONResponse({"data": data, "errors": {}})

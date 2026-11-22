@@ -157,13 +157,21 @@ def ensure_ticker_exists(db: Session, symbol: str) -> Ticker:
     return ticker
 
 
+def _optional_float(value: object) -> float | None:
+    """A float, or None for a missing/NaN cell (e.g. a frame without Adj Close)."""
+    if value is None or pd.isna(value):
+        return None
+    return float(value)
+
+
 def store_market_data(db: Session, symbol: str, df: pd.DataFrame) -> int:
     """Store market data using upsert logic.
 
     Args:
         db: Database session
         symbol: Ticker symbol
-        df: DataFrame from yfinance with OHLCV data
+        df: DataFrame from yfinance with OHLCV data, plus "Adj Close" when
+            available (stored as `adj_close`; left null if the column is absent)
 
     Returns:
         Number of rows upserted
@@ -182,6 +190,7 @@ def store_market_data(db: Session, symbol: str, df: pd.DataFrame) -> int:
                 "high": float(row["High"]) if pd.notna(row["High"]) else None,
                 "low": float(row["Low"]) if pd.notna(row["Low"]) else None,
                 "close": float(row["Close"]) if pd.notna(row["Close"]) else None,
+                "adj_close": _optional_float(row.get("Adj Close")),
                 "volume": float(row["Volume"]) if pd.notna(row["Volume"]) else None,
             }
         )
@@ -198,6 +207,7 @@ def store_market_data(db: Session, symbol: str, df: pd.DataFrame) -> int:
             "high": stmt.excluded.high,
             "low": stmt.excluded.low,
             "close": stmt.excluded.close,
+            "adj_close": stmt.excluded.adj_close,
             "volume": stmt.excluded.volume,
         },
     )
@@ -233,18 +243,19 @@ def get_market_data(
 
 def get_bulk_closes(
     db: Session, symbols: list[str], start_date: date
-) -> dict[str, tuple[list[date], list[float]]]:
-    """Stored closes for many tickers from `start_date`, as (dates, closes).
+) -> dict[str, tuple[list[date], list[float], list[float | None]]]:
+    """Stored closes for many tickers from `start_date`, as (dates, closes, adj_closes).
 
     Serves the radar, which reads every ticker at once and only uses the
-    close. One query for all symbols over just those columns, gathered into
-    two parallel lists per symbol instead of one object per row — the
-    per-row path was the backend's heaviest request (~100MB peak, see
+    closes. One query for all symbols over just those columns, gathered into
+    parallel lists per symbol instead of one object per row — the per-row
+    path was the backend's heaviest request (~100MB peak, see
     scripts/profile_memory.py). Rows without a close are skipped; symbols
-    without data map to empty lists.
+    without data map to empty lists. The adjusted close is None on rows not
+    yet backfilled.
     """
     rows = db.execute(
-        select(MarketData.ticker, MarketData.date, MarketData.close)
+        select(MarketData.ticker, MarketData.date, MarketData.close, MarketData.adj_close)
         .where(
             MarketData.ticker.in_(symbols),
             MarketData.date >= start_date,
@@ -252,11 +263,14 @@ def get_bulk_closes(
         )
         .order_by(MarketData.ticker, MarketData.date)
     )
-    out: dict[str, tuple[list[date], list[float]]] = {symbol: ([], []) for symbol in symbols}
-    for ticker, day, close in rows:
-        dates, closes = out[ticker]
+    out: dict[str, tuple[list[date], list[float], list[float | None]]] = {
+        symbol: ([], [], []) for symbol in symbols
+    }
+    for ticker, day, close, adj_close in rows:
+        dates, closes, adj_closes = out[ticker]
         dates.append(day)
         closes.append(close)
+        adj_closes.append(adj_close)
     return out
 
 
@@ -489,6 +503,49 @@ def bulk_fetch_and_store(
     return counts
 
 
+def _has_corporate_action(df: pd.DataFrame) -> bool:
+    """True if a history frame contains a dividend or split bar."""
+    for column in ("Dividends", "Stock Splits"):
+        if column in df.columns and (df[column].fillna(0) != 0).any():
+            return True
+    return False
+
+
+def backfill_adjusted_closes(db: Session, symbols: list[str] | None = None) -> dict:
+    """Fill `adj_close` on rows stored before adjusted closes were recorded.
+
+    Regular sync only fetches date gaps, so rows that already exist would
+    never get an adjusted close. This targets them explicitly: for each
+    ticker with rows whose adj_close is NULL, refetch that date span from
+    yfinance and upsert it. Tickers with complete adjusted closes are not
+    fetched, so running it again is cheap. Meant as a one-off after the
+    column was added (see `asistrader.cli.backfill_adj_close`).
+
+    Returns:
+        Dict with 'results' (symbol -> rows upserted), 'total_rows' and
+        'errors' (symbol -> message).
+    """
+    query = (
+        select(MarketData.ticker, func.min(MarketData.date), func.max(MarketData.date))
+        .where(MarketData.adj_close.is_(None), MarketData.close.isnot(None))
+        .group_by(MarketData.ticker)
+        .order_by(MarketData.ticker)
+    )
+    if symbols is not None:
+        query = query.where(MarketData.ticker.in_(symbols))
+    spans = db.execute(query).all()
+
+    results: dict[str, int] = {}
+    errors: dict[str, str] = {}
+    for symbol, start, end in spans:
+        try:
+            results[symbol] = store_market_data(db, symbol, fetch_from_yfinance(symbol, start, end))
+        except Exception as e:
+            db.rollback()
+            errors[symbol] = str(e)
+    return {"results": results, "total_rows": sum(results.values()), "errors": errors}
+
+
 def sync_ticker(
     db: Session,
     symbol: str,
@@ -553,7 +610,14 @@ def sync_ticker(
         if latest < last_trading_day:
             forward_start = latest + pd.Timedelta(days=1)
             forward_start_date = forward_start.date() if hasattr(forward_start, "date") else forward_start
-            fetched += fetch_and_store(db, symbol, forward_start_date, today)
+            ensure_ticker_exists(db, symbol)
+            df = fetch_from_yfinance(symbol, forward_start_date, today)
+            fetched += store_market_data(db, symbol, df)
+            if _has_corporate_action(df):
+                # Yahoo rescales every earlier adjusted close on a split or
+                # dividend; refetch the rows we already had so the adjusted
+                # series stays continuous. Raw closes come back unchanged.
+                store_market_data(db, symbol, fetch_from_yfinance(symbol, earliest, latest))
 
     skipped = fetched == 0
     return {"fetched": fetched, "skipped": skipped}
