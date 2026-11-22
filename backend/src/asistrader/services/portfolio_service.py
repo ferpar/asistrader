@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from asistrader.models.db import Portfolio, PortfolioTransaction, Ticker, TransactionKind
 from asistrader.services import fx_service
+from asistrader.services.basket_service import visible_baskets_containing
 from asistrader.services.fund_service import get_base_currency
 from asistrader.services.market_data_service import ensure_ticker_with_history
 from asistrader.services.portfolio_computation_service import (
@@ -316,17 +317,22 @@ def delete_transaction(
 
 def get_summary(db: Session, user_id: int, portfolio_id: int) -> SummaryFigures:
     """Invested, Portfolio Value, Unrealized / Realized / Total Gain and
-    Holdings as of today.
+    Holdings as of today, each Holding with the Baskets visible to the user
+    that contain it.
 
     If a valuation-date FX rate is missing, sync the Portfolio's currencies
     once and retry before giving up.
     """
     portfolio = get_portfolio(db, user_id, portfolio_id)
     try:
-        return compute_summary(db, portfolio)
+        summary = compute_summary(db, portfolio)
     except PortfolioFxUnavailableError:
         _sync_portfolio_fx(db, portfolio)
-        return compute_summary(db, portfolio)
+        summary = compute_summary(db, portfolio)
+    containing = visible_baskets_containing(db, user_id, [h.ticker for h in summary.holdings])
+    for holding in summary.holdings:
+        holding.baskets = containing[holding.ticker]
+    return summary
 
 
 def get_history(

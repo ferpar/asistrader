@@ -102,6 +102,9 @@ class HoldingFigures:
     unrealized_gain_pct: float | None
     last_price: float
     last_price_date: date
+    # Visible Baskets containing the instrument; filled per user by
+    # portfolio_service.get_summary, since visibility depends on who asks.
+    baskets: list = field(default_factory=list)
 
 
 @dataclass

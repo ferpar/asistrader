@@ -1321,9 +1321,21 @@ class PortfolioTransactionResponse(BaseModel):
     message: str
 
 
+class HoldingBasketSchema(BaseModel):
+    """A Basket visible to the user that contains a Holding's instrument."""
+
+    id: int
+    name: str
+    kind: str
+
+    model_config = {"from_attributes": True}
+
+
 class PortfolioHoldingSchema(BaseModel):
     """The units of one instrument a Portfolio owns, with cost and value in
-    Portfolio currency. `last_price` is in the instrument's currency."""
+    Portfolio currency. `last_price` is in the instrument's currency.
+    `baskets` are the Baskets visible to the user (Curated plus their own
+    Personal ones) that contain the instrument, curated first, then by name."""
 
     ticker: str
     name: str | None
@@ -1336,6 +1348,7 @@ class PortfolioHoldingSchema(BaseModel):
     unrealized_gain_pct: float | None
     last_price: float
     last_price_date: date
+    baskets: list[HoldingBasketSchema] = []
 
     model_config = {"from_attributes": True}
 
