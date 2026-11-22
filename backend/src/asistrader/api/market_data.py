@@ -9,8 +9,6 @@ from sqlalchemy.orm import Session
 from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
 from asistrader.models.schemas import (
-    BackfillAdjustedClosesRequest,
-    BackfillAdjustedClosesResponse,
     BulkExtendRequest,
     BulkExtendResponse,
     BulkFetchRequest,
@@ -167,16 +165,6 @@ def sync_all_market_data(
         errors=result["errors"],
         fx=result.get("fx"),
     )
-
-
-@router.post("/backfill-adjusted-closes", response_model=BackfillAdjustedClosesResponse)
-def backfill_adjusted_closes(
-    request: BackfillAdjustedClosesRequest,
-    db: Session = Depends(get_db),
-) -> BackfillAdjustedClosesResponse:
-    """One-off: fill adjusted closes on rows stored before they were recorded."""
-    result = market_data_service.backfill_adjusted_closes(db, request.symbols)
-    return BackfillAdjustedClosesResponse(**result)
 
 
 @router.post("/bulk", response_model=BulkMarketDataResponse)

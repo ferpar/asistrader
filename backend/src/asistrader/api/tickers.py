@@ -6,8 +6,6 @@ from sqlalchemy.orm import Session
 from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
 from asistrader.models.schemas import (
-    BackfillInstrumentMetadataRequest,
-    BackfillInstrumentMetadataResponse,
     BatchPriceRequest,
     BatchPriceResponse,
     PriceData,
@@ -25,7 +23,6 @@ from asistrader.services.ticker_service import (
     TickerExistsError,
     TickerNotFoundError,
     TickerValidationError,
-    backfill_instrument_metadata,
     create_ticker,
     get_all_tickers,
     get_batch_prices,
@@ -94,19 +91,6 @@ def create_new_ticker(
         raise HTTPException(status_code=409, detail=str(e))
     except TickerValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.post(
-    "/backfill-instrument-metadata", response_model=BackfillInstrumentMetadataResponse
-)
-def backfill_instrument_metadata_endpoint(
-    request: BackfillInstrumentMetadataRequest,
-    db: Session = Depends(get_db),
-) -> BackfillInstrumentMetadataResponse:
-    """One-off: fill instrument type and listing country on existing tickers."""
-    return BackfillInstrumentMetadataResponse(
-        **backfill_instrument_metadata(db, request.symbols)
-    )
 
 
 @router.put("/{symbol}/asset-class", response_model=TickerResponse)

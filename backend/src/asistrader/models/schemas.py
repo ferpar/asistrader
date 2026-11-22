@@ -387,25 +387,6 @@ class TickerAssetClassRequest(BaseModel):
     asset_class: Literal["domestic_stock", "international_stock", "etf"]
 
 
-class BackfillInstrumentMetadataRequest(BaseModel):
-    """Request schema for the instrument-metadata backfill. No symbols = every
-    ticker missing instrument type or listing country."""
-
-    symbols: list[str] | None = None
-
-
-class InstrumentMetadataSchema(BaseModel):
-    instrument_type: str | None
-    listing_country: str | None
-
-
-class BackfillInstrumentMetadataResponse(BaseModel):
-    """Metadata per backfilled symbol, plus per-symbol lookup errors."""
-
-    results: dict[str, InstrumentMetadataSchema]
-    errors: dict[str, str]
-
-
 class TickerResponse(BaseModel):
     """Response schema for a single-ticker update."""
 
@@ -714,20 +695,6 @@ class SyncRequest(BaseModel):
     start_date: date
     symbols: list[str] | None = None  # None = all tickers
     force_refresh: bool = False  # If True, wipe existing rows and re-fetch.
-
-
-class BackfillAdjustedClosesRequest(BaseModel):
-    """Request schema for the adjusted-close backfill. No symbols = every ticker."""
-
-    symbols: list[str] | None = None
-
-
-class BackfillAdjustedClosesResponse(BaseModel):
-    """Rows upserted per symbol, plus per-symbol fetch errors."""
-
-    results: dict[str, int]
-    total_rows: int
-    errors: dict[str, str]
 
 
 class SyncResponse(BaseModel):
