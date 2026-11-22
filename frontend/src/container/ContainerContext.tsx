@@ -95,6 +95,10 @@ export function useBasketStore() {
   return useContainer().basketStore
 }
 
+export function useBasketDetailStore() {
+  return useContainer().basketDetailStore
+}
+
 export function usePortfolioStore() {
   return useContainer().portfolioStore
 }
