@@ -16,6 +16,7 @@ function indicator(over: Partial<TickerIndicators> & { symbol: string }): Ticker
     },
     linearRegression: over.linearRegression ?? { lr20: lr(0.001), lr50: lr(0.001), lr200: lr(0.001) },
     rsi: over.rsi ?? { series: [], latest: 50, pivots: { highs: [], lows: [] }, divergence: { bearish: null, bullish: null } },
+    momentum: { r1m: null, r3m: null, r6m: null, r1y: null, score: null },
     datedCloses: [],
     error: null,
   }

@@ -112,6 +112,7 @@ export function tickerSortKeyValue(key: SortKey, ctx: TickerSortContext): number
   if (key === 'symbol') return null
   if (key === 'activeCount') return activeTrades(trades).length
   if (key === 'lrSlope50') return indicator.linearRegression.lr50.slope
+  if (key === 'momentum') return indicator.momentum.score
   if (key === 'rsi') return indicator.rsi.latest
   if (key === 'divergenceStrength') return divergenceScore(indicator)
   if (key === 'closestToSL') {
@@ -213,6 +214,7 @@ export function tradeSortKeyValue(
   const metric = liveMetrics[trade.id]
   if (key === 'symbol' || key === 'activeCount') return null
   if (key === 'lrSlope50') return indicator.linearRegression.lr50.slope
+  if (key === 'momentum') return indicator.momentum.score
   if (key === 'rsi') return indicator.rsi.latest
   if (key === 'divergenceStrength') return divergenceScore(indicator)
   if (key === 'closestToSL') return metric?.distanceToSL?.toNumber() ?? null

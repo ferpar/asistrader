@@ -1,14 +1,15 @@
 /**
- * Low-level shared pieces for turning dated closes into TickerIndicators.
- * Extracted so both the IndicatorStore (ticker pipeline) and RadarStore
- * (benchmark pipeline) can reuse the empty-state constants and builders.
+ * The one builder that turns dated closes into an indicator set. Used by the
+ * IndicatorStore (ticker pipeline) and RadarStore (benchmark pipeline), and
+ * meant for any other close series (Basket Index, Performance Index).
  */
-import type { DatedClose, TickerIndicators, RsiIndicator } from './types'
+import type { DatedClose, TickerIndicators, RsiIndicator, MomentumScore } from './types'
 import {
   computeSmaStructure,
   computePriceChanges,
   computeLinearRegressionStructure,
   computeRsi,
+  computeMomentum,
 } from './indicators'
 
 export const EMPTY_SMA = { sma5: null, sma20: null, sma50: null, sma200: null, structure: null, bullishScore: null }
@@ -21,11 +22,17 @@ export const EMPTY_RSI: RsiIndicator = {
   pivots: { highs: [], lows: [] },
   divergence: { bearish: null, bullish: null },
 }
+export const EMPTY_MOMENTUM: MomentumScore = { r1m: null, r3m: null, r6m: null, r1y: null, score: null }
 
-/** Sync/fetch window: 300 days back, ISO date. */
+/**
+ * Sync/fetch window, ISO date. 400 calendar days covers the 253 trading days
+ * the Momentum Score's 1-year return needs, with room for holidays.
+ */
+const INDICATOR_WINDOW_DAYS = 400
+
 export function startDate(): string {
   const d = new Date()
-  d.setDate(d.getDate() - 300)
+  d.setDate(d.getDate() - INDICATOR_WINDOW_DAYS)
   return d.toISOString().split('T')[0]
 }
 
@@ -46,6 +53,7 @@ export function buildTickerIndicators(
       priceChanges: EMPTY_CHANGES,
       linearRegression: EMPTY_LR,
       rsi: EMPTY_RSI,
+      momentum: EMPTY_MOMENTUM,
       datedCloses: [],
       error,
     }
@@ -60,6 +68,7 @@ export function buildTickerIndicators(
       priceChanges: EMPTY_CHANGES,
       linearRegression: EMPTY_LR,
       rsi: EMPTY_RSI,
+      momentum: EMPTY_MOMENTUM,
       datedCloses: [],
       error: 'No price data available',
     }
@@ -73,6 +82,7 @@ export function buildTickerIndicators(
     priceChanges: computePriceChanges(closes),
     linearRegression: computeLinearRegressionStructure(closes),
     rsi: computeRsi(datedCloses),
+    momentum: computeMomentum(datedCloses.map((r) => r.adjClose)),
     datedCloses,
     error: null,
   }

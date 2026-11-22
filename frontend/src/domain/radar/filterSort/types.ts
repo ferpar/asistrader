@@ -33,6 +33,7 @@ export type SortKey =
   | 'symbol'
   | 'activeCount'
   | 'lrSlope50'
+  | 'momentum'
   | 'rsi'
   | 'divergenceStrength'
   | 'closestToSL'
@@ -83,6 +84,7 @@ export const SORT_KEY_LABELS: Record<SortKey, string> = {
   symbol: 'Symbol',
   activeCount: 'Active count',
   lrSlope50: 'Trend (LR 50d)',
+  momentum: 'Momentum Score',
   rsi: 'RSI',
   divergenceStrength: 'Divergence strength',
   closestToSL: 'Closest to SL',
@@ -100,6 +102,7 @@ export const SORT_KEY_DEFAULT_DIR: Record<SortKey, SortDir> = {
   symbol: 'asc',
   activeCount: 'desc',
   lrSlope50: 'desc',
+  momentum: 'desc',
   rsi: 'desc',
   divergenceStrength: 'desc',
   closestToSL: 'desc',

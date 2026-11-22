@@ -22,7 +22,27 @@ export interface PriceChanges {
 
 export interface DatedClose {
   date: string
+  /** Raw close: what traded that day. Drives SMA, LR, RSI and price displays. */
   close: number
+  /**
+   * Split/dividend-adjusted close, used only for the Momentum Score (ADR 0002).
+   * Null/absent where the backend hasn't filled it yet.
+   */
+  adjClose?: number | null
+}
+
+/**
+ * Momentum Score: 0.35·r1M + 0.30·r3M + 0.20·r6M + 0.15·r1Y, where rN is the
+ * adjusted-close return over the last 21/63/126/252 trading days, as fractions
+ * (0.05 = +5%). Each return is null when its window isn't covered; the score is
+ * null unless all four are present.
+ */
+export interface MomentumScore {
+  r1m: number | null
+  r3m: number | null
+  r6m: number | null
+  r1y: number | null
+  score: number | null
 }
 
 export interface LinearRegressionResult {
@@ -73,6 +93,7 @@ export interface TickerIndicators {
   priceChanges: PriceChanges
   linearRegression: LinearRegressionStructure
   rsi: RsiIndicator
+  momentum: MomentumScore
   datedCloses: DatedClose[]
   error: string | null
 }

@@ -112,6 +112,7 @@ const SORT_KEYS: readonly SortKey[] = [
   'symbol',
   'activeCount',
   'lrSlope50',
+  'momentum',
   'rsi',
   'divergenceStrength',
   'closestToSL',
