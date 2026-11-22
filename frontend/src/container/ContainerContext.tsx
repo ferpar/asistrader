@@ -87,6 +87,10 @@ export function useBenchmarkStore() {
   return useContainer().benchmarkStore
 }
 
+export function useBenchmarkOverlayStore() {
+  return useContainer().benchmarkOverlayStore
+}
+
 export function useIrrStore() {
   return useContainer().irrStore
 }

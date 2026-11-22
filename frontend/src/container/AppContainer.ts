@@ -17,6 +17,7 @@ import { RadarStore } from '../domain/radar/RadarStore'
 import { IndicatorStore } from '../domain/radar/IndicatorStore'
 import { HttpBenchmarkRepository } from '../domain/benchmark/HttpBenchmarkRepository'
 import { BenchmarkStore } from '../domain/benchmark/BenchmarkStore'
+import { BenchmarkOverlayStore } from '../domain/benchmark/BenchmarkOverlayStore'
 import { HttpIrrRepository } from '../domain/irr/HttpIrrRepository'
 import { IrrStore } from '../domain/irr/IrrStore'
 import { AuthStore } from '../domain/auth/AuthStore'
@@ -52,6 +53,7 @@ export function createAppContainer(): AppContainer {
   )
   const benchmarkRepo = new HttpBenchmarkRepository(baseUrl, getAccessToken)
   const benchmarkStore = new BenchmarkStore(benchmarkRepo)
+  const benchmarkOverlayStore = new BenchmarkOverlayStore(benchmarkRepo)
   const radarRepo = new HttpRadarRepository(baseUrl, getAccessToken)
   const radarPresetRepo = new HttpRadarPresetRepository(baseUrl, getAccessToken)
   const indicatorStore = new IndicatorStore(radarRepo, priceProvider)
@@ -78,6 +80,7 @@ export function createAppContainer(): AppContainer {
     radarStore,
     indicatorStore,
     benchmarkStore,
+    benchmarkOverlayStore,
     irrStore,
     basketStore,
     basketDetailStore,

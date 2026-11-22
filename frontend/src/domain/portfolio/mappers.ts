@@ -72,6 +72,7 @@ export function mapHistory(dto: PortfolioHistoryDTO): PortfolioHistory {
       realizedGain: dto.realized_gain[i],
       totalGain: dto.total_gain[i],
       weightedDaysOpen: dto.weighted_days_open[i],
+      performanceIndex: dto.performance_index[i],
     })),
   }
 }

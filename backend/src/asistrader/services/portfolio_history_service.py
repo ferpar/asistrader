@@ -16,6 +16,17 @@ Valuation of a day:
 - Values are converted into the Portfolio currency at that day's stored FX
   rate; a day without a stored rate (weekend, FX holiday, sync gap) uses the
   latest earlier one. Only a day with no earlier rate at all is an error.
+
+Performance Index (time-weighted, so Buys and Sells don't look like
+performance): each day's return is (Value_t − net flow_t) / Value_{t−1} − 1,
+where net flow_t is that day's Buy cost minus Sell proceeds in Portfolio
+currency, fees included exactly as in the Ledger's cash flows (so fees do
+drag the index). Flows are taken at the close: the units a Buy adds earn the
+move from their price to that day's close. The index is 100 on the first
+business day and is chained from there; a day whose previous value is 0
+(before anything is held, or after selling everything and re-buying later)
+has no base to earn on, so the index carries flat. It is always chained from
+the first Transaction, so narrowing the range with `start` doesn't rebase it.
 """
 
 from collections.abc import Iterator
@@ -48,6 +59,7 @@ class HistoryFigures:
     realized_gain: list[float] = field(default_factory=list)
     total_gain: list[float] = field(default_factory=list)
     weighted_days_open: list[float | None] = field(default_factory=list)
+    performance_index: list[float] = field(default_factory=list)
 
 
 class _CarriedSeries:
@@ -96,6 +108,11 @@ class _HistoryBuilder:
         self.next_day: date | None = None
         self._closes: dict[str, _CarriedSeries] = {}
         self._fx: dict[str, _CarriedSeries] = {}
+        # Performance Index state, chained over every business day from the
+        # first Transaction (also the days before `start`, which aren't emitted).
+        self._index: float | None = None
+        self._previous_value = 0.0
+        self._flows_applied = 0
 
     def _rate_to_usd(self, currency: str, day: date) -> float:
         """USD per unit of `currency` on `day`, carried forward from the
@@ -139,6 +156,28 @@ class _HistoryBuilder:
             return 1.0
         return self._rate_to_usd(currency, day) / self._rate_to_usd(self.currency, day)
 
+    def _chain_index(self, day: date, value: float, ledger: Ledger) -> float:
+        """The Performance Index at the close of `day`, given its Portfolio Value.
+
+        The day's net flow is the Buy cost minus the Sell proceeds (fees
+        included, as in the Ledger's cash flows) of every Transaction since
+        the previous row, so a weekend Transaction counts on the next
+        business day. When the previous day's value is 0 (the first day, or
+        a day after selling everything) there is nothing to earn a return
+        on, so the index carries flat.
+        """
+        net_flow = 0.0
+        flows = ledger.cash_flows
+        while self._flows_applied < len(flows) and flows[self._flows_applied][0] <= day:
+            net_flow -= flows[self._flows_applied][1]
+            self._flows_applied += 1
+        if self._index is None:
+            self._index = 100.0
+        elif self._previous_value > 0:
+            self._index *= (value - net_flow) / self._previous_value
+        self._previous_value = value
+        return self._index
+
     def on_new_date(self, tx_date: date, ledger: Ledger) -> None:
         if self.next_day is None:
             self.next_day = tx_date
@@ -166,13 +205,14 @@ class _HistoryBuilder:
         lots = [lot for symbol in ledger.open_tickers() for lot in ledger.lots[symbol]]
 
         for day in _business_days(self.next_day, stop):
-            if self.start is not None and day < self.start:
-                continue
             value = 0.0
             for h in holdings:
                 close = self._close_series(h.ticker).at(day)
                 price = close if close is not None else h.fallback_price
                 value += h.units * price * self._fx_factor(h.currency, day)
+            index = self._chain_index(day, value, ledger)
+            if self.start is not None and day < self.start:
+                continue
             unrealized = value - invested
             self.history.dates.append(day)
             self.history.invested.append(invested)
@@ -184,6 +224,7 @@ class _HistoryBuilder:
             self.history.realized_gain.append(realized)
             self.history.total_gain.append(unrealized + realized)
             self.history.weighted_days_open.append(weighted_days_open(lots, day))
+            self.history.performance_index.append(index)
         self.next_day = stop + timedelta(days=1)
 
 

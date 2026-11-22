@@ -72,6 +72,7 @@ export interface PortfolioHistoryDTO {
   realized_gain: number[]
   total_gain: number[]
   weighted_days_open: (number | null)[]
+  performance_index: number[]
 }
 
 export interface PortfolioImportRequest {

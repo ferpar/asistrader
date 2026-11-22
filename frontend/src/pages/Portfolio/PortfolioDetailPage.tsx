@@ -8,6 +8,7 @@ import { CsvImport } from './CsvImport'
 import { HoldingsTable } from './HoldingsTable'
 import { HomeMarketSelect } from './HomeMarketSelect'
 import { MoneyChart } from './MoneyChart'
+import { PerformanceSection } from './PerformanceSection'
 import { TransactionForm } from './TransactionForm'
 import { fmtDate, fmtOptionalPct, fmtPrice, fmtUnits } from './format'
 import styles from './Portfolio.module.css'
@@ -111,6 +112,8 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
       ) : (
         history && <MoneyChart rows={history.rows} currency={history.currency} />
       )}
+
+      {history && <PerformanceSection portfolioId={portfolio.id} name={portfolio.name} history={history} />}
 
       <div className={styles.sectionHeader}>
         <h3>Holdings</h3>
