@@ -21,6 +21,8 @@ import { HttpIrrRepository } from '../domain/irr/HttpIrrRepository'
 import { IrrStore } from '../domain/irr/IrrStore'
 import { AuthStore } from '../domain/auth/AuthStore'
 import { RouterStore } from '../domain/router/RouterStore'
+import { HttpBasketRepository } from '../domain/basket/HttpBasketRepository'
+import { BasketStore } from '../domain/basket/BasketStore'
 import { AppContainer } from './types'
 
 export function createAppContainer(): AppContainer {
@@ -53,6 +55,7 @@ export function createAppContainer(): AppContainer {
   const radarStore = new RadarStore(benchmarkRepo, radarPresetRepo)
   const irrRepo = new HttpIrrRepository(baseUrl, getAccessToken)
   const irrStore = new IrrStore(irrRepo)
+  const basketStore = new BasketStore(new HttpBasketRepository(baseUrl, getAccessToken), benchmarkRepo)
   return {
     authStore,
     routerStore,
@@ -69,5 +72,6 @@ export function createAppContainer(): AppContainer {
     indicatorStore,
     benchmarkStore,
     irrStore,
+    basketStore,
   }
 }
