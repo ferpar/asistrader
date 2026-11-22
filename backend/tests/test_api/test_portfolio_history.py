@@ -303,3 +303,109 @@ class TestRecomputation:
         assert history["dates"] == ["2024-01-03", "2024-01-04"]
         assert history["invested"] == pytest.approx([450.0, 450.0])
         assert history["portfolio_value"] == pytest.approx([500.0, 600.0])
+
+
+class TestPerformanceIndex:
+    """Time-weighted: r_t = (Value_t − net flow_t) / Value_{t−1} − 1, chained
+    from 100, where net flow_t is that day's Buy cost minus Sell proceeds."""
+
+    def test_buys_and_sells_on_flat_price_days_leave_the_index_unchanged(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        flat = {date(2024, 1, d): 100.0 for d in (2, 3, 4, 5, 8, 9)}
+        _seed_ticker(db_session, "SPY", "USD", flat)
+        _seed_ticker(db_session, "QQQ", "USD", {d: 50.0 for d in flat})
+        pid = _create_portfolio(client, "US", "USD")
+        _record(client, pid, "buy", date="2024-01-02", ticker="SPY", units=1, price=100.0)
+        _record(client, pid, "buy", date="2024-01-03", ticker="SPY", units=9, price=100.0)
+        _record(client, pid, "buy", date="2024-01-04", ticker="QQQ", units=4, price=50.0)
+        _record(client, pid, "sell", date="2024-01-05", ticker="SPY", units=5, price=100.0)
+        _record(client, pid, "sell", date="2024-01-08", ticker="QQQ", units=4, price=50.0)
+
+        history = _history(client, pid, to="2024-01-09")
+
+        assert history["performance_index"] == pytest.approx([100.0] * 6)
+
+    def test_a_price_move_moves_the_index_by_the_holdings_return(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        _seed_ticker(
+            db_session,
+            "SPY",
+            "USD",
+            {date(2024, 1, 2): 100.0, date(2024, 1, 3): 110.0, date(2024, 1, 4): 99.0},
+        )
+        _seed_ticker(db_session, "QQQ", "USD", {date(2024, 1, d): 50.0 for d in (2, 3, 4)})
+        pid = _create_portfolio(client, "US", "USD")
+        _record(client, pid, "buy", date="2024-01-02", ticker="SPY", units=10, price=100.0)
+        # A same-day Buy of a flat instrument neither dilutes nor inflates the move.
+        _record(client, pid, "buy", date="2024-01-03", ticker="QQQ", units=20, price=50.0)
+
+        history = _history(client, pid, to="2024-01-04")
+
+        # 01-03: SPY +10% on a 1000 base → +10%.
+        # 01-04: SPY 1100 → 990 on a 2100 base (1100 SPY + 1000 QQQ) → −110/2100.
+        assert history["performance_index"] == pytest.approx(
+            [100.0, 110.0, 110.0 * (1 - 110 / 2100)]
+        )
+
+    def test_a_split_does_not_move_the_index(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        # Raw closes halve on the Split day; 20 units × 60 = 10 units × 120.
+        _seed_ticker(
+            db_session,
+            "NVDA",
+            "USD",
+            {date(2024, 1, 2): 120.0, date(2024, 1, 3): 120.0, date(2024, 1, 4): 60.0},
+        )
+        pid = _create_portfolio(client, "US", "USD")
+        _record(client, pid, "buy", date="2024-01-02", ticker="NVDA", units=10, price=120.0)
+        _record(client, pid, "split", date="2024-01-04", ticker="NVDA", split_ratio=2)
+
+        history = _history(client, pid, to="2024-01-04")
+
+        assert history["performance_index"] == pytest.approx([100.0] * 3)
+
+    def test_after_selling_everything_the_index_carries_flat_until_the_next_buy(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        _seed_ticker(
+            db_session,
+            "SPY",
+            "USD",
+            {
+                date(2024, 1, 2): 100.0,
+                date(2024, 1, 3): 120.0,
+                date(2024, 1, 4): 200.0,
+                date(2024, 1, 5): 50.0,
+                date(2024, 1, 8): 55.0,
+            },
+        )
+        pid = _create_portfolio(client, "US", "USD")
+        _record(client, pid, "buy", date="2024-01-02", ticker="SPY", units=1, price=100.0)
+        _record(client, pid, "sell", date="2024-01-03", ticker="SPY", units=1, price=120.0)
+        _record(client, pid, "buy", date="2024-01-05", ticker="SPY", units=2, price=50.0)
+
+        history = _history(client, pid, to="2024-01-08")
+
+        # +20% while held, flat while out (and on the re-buy day), then +10%.
+        assert history["performance_index"] == pytest.approx(
+            [100.0, 120.0, 120.0, 120.0, 132.0]
+        )
+
+    def test_narrowing_the_range_does_not_rebase_the_index(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        _seed_ticker(
+            db_session,
+            "SPY",
+            "USD",
+            {date(2024, 1, 2): 100.0, date(2024, 1, 3): 110.0, date(2024, 1, 4): 121.0},
+        )
+        pid = _create_portfolio(client, "US", "USD")
+        _record(client, pid, "buy", date="2024-01-02", ticker="SPY", units=1, price=100.0)
+
+        history = _history(client, pid, **{"from": "2024-01-03", "to": "2024-01-04"})
+
+        assert history["performance_index"] == pytest.approx([110.0, 121.0])

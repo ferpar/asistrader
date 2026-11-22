@@ -1364,7 +1364,10 @@ class PortfolioHistorySchema(BaseModel):
     `column[i]` is the figure at the close of `dates[i]`. One row per business
     day (Mon–Fri). `unrealized_gain_pct` is relative to Invested and null when
     nothing is invested; `weighted_days_open` is in calendar days and null
-    when no Lots remain."""
+    when no Lots remain. `performance_index` is the time-weighted Performance
+    Index, 100 on the first Transaction's day: each day's return is
+    (Value_t − net flow_t) / Value_{t−1} − 1, net flow being that day's Buy
+    cost minus Sell proceeds; it carries flat when Value_{t−1} is 0."""
 
     currency: str
     dates: list[date]
@@ -1375,6 +1378,7 @@ class PortfolioHistorySchema(BaseModel):
     realized_gain: list[float]
     total_gain: list[float]
     weighted_days_open: list[float | None]
+    performance_index: list[float]
 
     model_config = {"from_attributes": True}
 
