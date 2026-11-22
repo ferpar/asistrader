@@ -24,3 +24,20 @@ export interface BulkBasketIndexResponse {
   data: Record<string, CloseSeriesDTO>
   errors: Record<string, string>
 }
+
+/** One of the user's Portfolios that currently holds a Basket member. */
+export interface HoldingPortfolioDTO {
+  id: number
+  name: string
+}
+
+export interface BasketMemberDTO {
+  symbol: string
+  name: string | null
+  held_in: HoldingPortfolioDTO[]
+}
+
+export interface BasketMembersResponse {
+  members: BasketMemberDTO[]
+  count: number
+}
