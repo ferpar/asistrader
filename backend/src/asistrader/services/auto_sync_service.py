@@ -12,7 +12,12 @@ from datetime import date, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from asistrader.models.db import FundEvent, Ticker, Trade
+from asistrader.models.db import (
+    FundEvent,
+    Portfolio,
+    PortfolioTransaction,
+    Trade,
+)
 from asistrader.services import benchmark_service, fx_service, market_data_service
 
 
@@ -27,13 +32,21 @@ EARLIEST_DATE_BUFFER_DAYS = 14
 
 
 def _user_ticker_symbols(db: Session, user_id: int) -> list[str]:
-    rows = (
+    """Tickers the user trades plus tickers in any of their Portfolios."""
+    trade_rows = (
         db.query(Trade.ticker)
         .filter(Trade.user_id == user_id, Trade.ticker.isnot(None))
         .distinct()
         .all()
     )
-    return sorted({row[0] for row in rows if row[0]})
+    portfolio_rows = (
+        db.query(PortfolioTransaction.ticker)
+        .join(Portfolio, Portfolio.id == PortfolioTransaction.portfolio_id)
+        .filter(Portfolio.user_id == user_id)
+        .distinct()
+        .all()
+    )
+    return sorted({row[0] for row in (*trade_rows, *portfolio_rows) if row[0]})
 
 
 def _user_oldest_date(db: Session, user_id: int) -> date:
@@ -50,7 +63,17 @@ def _user_oldest_date(db: Session, user_id: int) -> date:
         .filter(Trade.user_id == user_id)
         .scalar()
     )
-    candidates = [d for d in (earliest_event, earliest_trade) if d is not None]
+    earliest_transaction = (
+        db.query(func.min(PortfolioTransaction.date))
+        .join(Portfolio, Portfolio.id == PortfolioTransaction.portfolio_id)
+        .filter(Portfolio.user_id == user_id)
+        .scalar()
+    )
+    candidates = [
+        d
+        for d in (earliest_event, earliest_trade, earliest_transaction)
+        if d is not None
+    ]
     if candidates:
         return min(candidates) - timedelta(days=EARLIEST_DATE_BUFFER_DAYS)
     return date.today() - timedelta(days=DEFAULT_LOOKBACK_DAYS)
