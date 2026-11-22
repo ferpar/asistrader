@@ -88,6 +88,7 @@ function mapHolding(dto: PortfolioHoldingDTO): Holding {
     unrealizedGainPct: dto.unrealized_gain_pct,
     lastPrice: Decimal.from(dto.last_price),
     lastPriceDate: parseDateOnly(dto.last_price_date),
+    baskets: dto.baskets,
   }
 }
 

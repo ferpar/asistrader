@@ -9,6 +9,7 @@ import { useMultiSort, useSortedRows, type Sortable } from '../../hooks/useMulti
 import type { Holding } from '../../domain/portfolio/types'
 import { holdingMeasures, type HoldingMeasures } from '../../domain/portfolio/holdingMeasures'
 import { fmtDate, fmtOptionalPct, fmtPrice, fmtUnits } from './format'
+import { HoldingBasketLinks } from './HoldingBasketLinks'
 import styles from './Portfolio.module.css'
 
 type SortKey =
@@ -121,6 +122,7 @@ export const HoldingsTable = observer(function HoldingsTable({
             {th('R²', 'lrR2', 'Fit of the 50-day linear regression')}
             {th('TIR', 'tir', 'Annualised TIR: 50-day slope % × 365')}
             {th('RSI', 'rsi', 'RSI (14)')}
+            <th title="Baskets you can see that contain this instrument">Baskets</th>
           </tr>
         </thead>
         <tbody>
@@ -150,6 +152,9 @@ export const HoldingsTable = observer(function HoldingsTable({
                 {measure(row, m.lrR2, (v) => v.toFixed(2))}
                 {measure(row, m.tir, fmtPct1, signClass(m.tir ?? 0))}
                 {measure(row, m.rsi, (v) => v.toFixed(1), getRsiTone(m.rsi))}
+                <td>
+                  <HoldingBasketLinks baskets={h.baskets} />
+                </td>
               </tr>
             )
           })}

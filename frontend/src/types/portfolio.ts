@@ -104,6 +104,8 @@ export interface PortfolioHoldingDTO {
   unrealized_gain_pct: number | null
   last_price: number
   last_price_date: string
+  /** Visible Baskets (Curated + the user's Personal ones) containing the instrument. */
+  baskets: { id: number; name: string; kind: 'curated' | 'personal' }[]
 }
 
 export interface PortfolioSummaryDTO {

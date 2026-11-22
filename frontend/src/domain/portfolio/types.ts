@@ -1,4 +1,5 @@
 import type { Decimal } from '../shared/Decimal'
+import type { BasketKind } from '../basket/types'
 
 /** A named collection of long-term Holdings, separate from Trades (ADR 0001). */
 export interface Portfolio {
@@ -97,6 +98,15 @@ export interface Holding {
   unrealizedGainPct: number | null
   lastPrice: Decimal
   lastPriceDate: Date
+  /** The Baskets visible to the user that contain this instrument, curated first. */
+  baskets: HoldingBasket[]
+}
+
+/** A Basket a Holding's instrument belongs to (links to its detail page). */
+export interface HoldingBasket {
+  id: number
+  name: string
+  kind: BasketKind
 }
 
 export interface PortfolioSummary {
