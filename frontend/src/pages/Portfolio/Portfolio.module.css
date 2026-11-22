@@ -257,3 +257,26 @@
   font-size: 0.85rem;
   color: var(--color-text-muted);
 }
+
+/* Basket membership chips in the Holdings table; each links to the Basket. */
+.basketLinks {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 16rem;
+}
+
+.basketLink {
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--color-info-dark);
+  background-color: color-mix(in srgb, var(--color-info) 15%, transparent);
+}
+
+.basketLink:hover {
+  text-decoration: underline;
+}

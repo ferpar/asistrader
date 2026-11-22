@@ -107,6 +107,8 @@ export interface PortfolioHoldingDTO {
   asset_class: AssetClassDTO
   asset_class_override: AssetClassChoiceDTO | null
   weighted_days_open: number | null
+  /** Visible Baskets (Curated + the user's Personal ones) containing the instrument. */
+  baskets: { id: number; name: string; kind: 'curated' | 'personal' }[]
 }
 
 export type AssetClassChoiceDTO = 'domestic_stock' | 'international_stock' | 'etf'

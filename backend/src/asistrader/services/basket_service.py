@@ -53,6 +53,21 @@ def get_visible_baskets(db: Session, user_id: int) -> list[Basket]:
     return sorted(baskets, key=lambda b: (b.kind != BasketKind.CURATED.value, b.name.lower()))
 
 
+def visible_baskets_containing(
+    db: Session, user_id: int, symbols: list[str]
+) -> dict[str, list[Basket]]:
+    """Per symbol, the visible Baskets that have it as a member, ordered as
+    `get_visible_baskets` (curated first, then by name). Symbols in no visible
+    Basket map to an empty list."""
+    wanted = set(symbols)
+    containing: dict[str, list[Basket]] = {s: [] for s in symbols}
+    for basket in get_visible_baskets(db, user_id):
+        for member in basket.members:
+            if member.ticker in wanted:
+                containing[member.ticker].append(basket)
+    return containing
+
+
 def get_visible_basket(db: Session, user_id: int, basket_id: int) -> Basket:
     basket = _visible(db, user_id).filter(Basket.id == basket_id).first()
     if basket is None:

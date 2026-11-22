@@ -16,7 +16,16 @@ export interface LevelSeries {
   label: string
   /** Stroke colour (CSS). Follows the entity, not its position in the list. */
   color: string
+  /** Draw dashed, to tell a kind of overlay (Baskets) from another (benchmarks). */
+  dashed?: boolean
   points: LevelPoint[]
+}
+
+const DASH = '5 3'
+
+/** A legend / chip swatch background matching a series' stroke. */
+export function swatchBackground(color: string, dashed = false): string {
+  return dashed ? `repeating-linear-gradient(90deg, ${color} 0 4px, transparent 4px 6px)` : color
 }
 
 interface Plotted extends LevelSeries {
@@ -98,7 +107,14 @@ export function RebasedLineChart({
             .slice(1)
             .reverse()
             .map((s) => (
-              <path key={s.key} d={path(s.rebased) ?? ''} fill="none" stroke={s.color} strokeWidth={1.5} />
+              <path
+                key={s.key}
+                d={path(s.rebased) ?? ''}
+                fill="none"
+                stroke={s.color}
+                strokeWidth={1.5}
+                strokeDasharray={s.dashed ? DASH : undefined}
+              />
             ))}
           <path d={path(primary.rebased) ?? ''} fill="none" stroke={primary.color} strokeWidth={2} />
           {hoverIdx !== null &&
@@ -155,7 +171,7 @@ export function RebasedLineChart({
         <div className={styles.legend}>
           {plotted.map((s) => (
             <span key={s.key} className={styles.legendItem}>
-              <span className={styles.swatch} style={{ background: s.color }} />
+              <span className={styles.swatch} style={{ background: swatchBackground(s.color, s.dashed) }} />
               {s.label}
             </span>
           ))}

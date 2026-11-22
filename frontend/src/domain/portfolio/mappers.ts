@@ -93,6 +93,7 @@ function mapHolding(dto: PortfolioHoldingDTO): Holding {
     assetClass: dto.asset_class,
     assetClassOverride: dto.asset_class_override,
     weightedDaysOpen: dto.weighted_days_open,
+    baskets: dto.baskets,
   }
 }
 

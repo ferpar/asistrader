@@ -14,6 +14,7 @@ import {
 } from '../../domain/portfolio/types'
 import { holdingMeasures, type HoldingMeasures } from '../../domain/portfolio/holdingMeasures'
 import { fmtDate, fmtOptionalPct, fmtPrice, fmtUnits } from './format'
+import { HoldingBasketLinks } from './HoldingBasketLinks'
 import styles from './Portfolio.module.css'
 
 type SortKey =
@@ -40,7 +41,7 @@ interface Row {
   error: string | null
 }
 
-/** The radar measure columns, which subtotal rows leave blank. */
+/** The radar measure columns, which subtotal rows leave blank (as well as Baskets). */
 const MEASURE_COLUMNS = 6
 
 const OVERRIDE_CHOICES: AssetClassChoice[] = ['domestic_stock', 'international_stock', 'etf']
@@ -179,6 +180,9 @@ export const HoldingsTable = observer(function HoldingsTable({
         {measure(row, m.lrR2, (v) => v.toFixed(2))}
         {measure(row, m.tir, fmtPct1, signClass(m.tir ?? 0))}
         {measure(row, m.rsi, (v) => v.toFixed(1), getRsiTone(m.rsi))}
+        <td>
+          <HoldingBasketLinks baskets={h.baskets} />
+        </td>
       </tr>
     )
   }
@@ -200,7 +204,8 @@ export const HoldingsTable = observer(function HoldingsTable({
         <td className={`${styles.num} ${signClass(gain)}`}>
           {fmtMoney(gain, currency)} <small>({fmtOptionalPct(group.unrealizedGainPct)})</small>
         </td>
-        <td colSpan={MEASURE_COLUMNS} />
+        {/* The radar measures and the Baskets column stay blank. */}
+        <td colSpan={MEASURE_COLUMNS + 1} />
       </tr>
     )
   }
@@ -225,6 +230,7 @@ export const HoldingsTable = observer(function HoldingsTable({
             {th('R²', 'lrR2', 'Fit of the 50-day linear regression')}
             {th('TIR', 'tir', 'Annualised TIR: 50-day slope % × 365')}
             {th('RSI', 'rsi', 'RSI (14)')}
+            <th title="Baskets you can see that contain this instrument">Baskets</th>
           </tr>
         </thead>
         {assetClasses.map((group) => (

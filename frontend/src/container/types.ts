@@ -16,6 +16,7 @@ import { AuthStore } from '../domain/auth/AuthStore'
 import { RouterStore } from '../domain/router/RouterStore'
 import { BasketStore } from '../domain/basket/BasketStore'
 import { BasketDetailStore } from '../domain/basket/BasketDetailStore'
+import { BasketOverlayStore } from '../domain/basket/BasketOverlayStore'
 import { PortfolioStore } from '../domain/portfolio/PortfolioStore'
 
 export interface AppContainer {
@@ -37,5 +38,6 @@ export interface AppContainer {
   irrStore: IrrStore
   basketStore: BasketStore
   basketDetailStore: BasketDetailStore
+  basketOverlayStore: BasketOverlayStore
   portfolioStore: PortfolioStore
 }

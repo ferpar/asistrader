@@ -114,6 +114,9 @@ class HoldingFigures:
     asset_class: str
     asset_class_override: str | None
     weighted_days_open: float | None
+    # Visible Baskets containing the instrument; filled per user by
+    # portfolio_service.get_summary, since visibility depends on who asks.
+    baskets: list = field(default_factory=list)
 
 
 @dataclass
