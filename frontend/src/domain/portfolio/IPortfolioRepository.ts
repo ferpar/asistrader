@@ -1,4 +1,4 @@
-import type { NewBuy, Portfolio, PortfolioSummary, PortfolioTransaction } from './types'
+import type { Portfolio, PortfolioSummary, PortfolioTransaction, TransactionInput } from './types'
 
 export interface IPortfolioRepository {
   fetchPortfolios(): Promise<Portfolio[]>
@@ -7,7 +7,12 @@ export interface IPortfolioRepository {
   renamePortfolio(id: number, name: string): Promise<Portfolio>
   deletePortfolio(id: number): Promise<void>
   fetchTransactions(portfolioId: number): Promise<PortfolioTransaction[]>
-  createBuy(portfolioId: number, buy: NewBuy): Promise<PortfolioTransaction>
+  createTransaction(portfolioId: number, input: TransactionInput): Promise<PortfolioTransaction>
+  updateTransaction(
+    portfolioId: number,
+    transactionId: number,
+    input: TransactionInput,
+  ): Promise<PortfolioTransaction>
   deleteTransaction(portfolioId: number, transactionId: number): Promise<void>
   fetchSummary(portfolioId: number): Promise<PortfolioSummary>
 }

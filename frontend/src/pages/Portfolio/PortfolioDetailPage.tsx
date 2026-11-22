@@ -5,7 +5,7 @@ import { fmtMoney, fmtPct } from '../../components/portfolio/format'
 import { signClass } from '../../components/portfolio/signClass'
 import type { Decimal } from '../../domain/shared/Decimal'
 import type { Holding, PortfolioSummary, PortfolioTransaction } from '../../domain/portfolio/types'
-import { BuyForm } from './BuyForm'
+import { TransactionForm } from './TransactionForm'
 import styles from './Portfolio.module.css'
 
 const fmtUnits = (units: Decimal | null) =>
@@ -18,7 +18,8 @@ const fmtDate = (d: Date) => d.toLocaleDateString('en-CA')
 
 const fmtOptionalPct = (value: number | null) => (value === null ? '—' : fmtPct(value))
 
-/** Portfolio detail: KPI header, Holdings table and Buy Transactions. */
+/** Portfolio detail: KPI header, Holdings table and the Transactions list
+ *  (add, edit and delete Buys and Sells). */
 export const PortfolioDetailPage = observer(function PortfolioDetailPage({
   portfolioId,
 }: {
@@ -38,6 +39,8 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
   const error = store.detailError$.get()
 
   const [actionError, setActionError] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const heldTickers = summary?.holdings.map((h) => h.ticker) ?? []
 
   const run = async (action: () => Promise<void>, fallback: string) => {
     setActionError(null)
@@ -103,11 +106,15 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
       {summary && summary.holdings.length > 0 ? (
         <HoldingsTable holdings={summary.holdings} currency={summary.currency} />
       ) : (
-        <p className={styles.empty}>No Holdings yet. Record a Buy below.</p>
+        <p className={styles.empty}>No Holdings. Record a Buy below.</p>
       )}
 
       <h3>Transactions</h3>
-      <BuyForm portfolio={portfolio} onSubmit={(buy) => store.addBuy(portfolio.id, buy)} />
+      <TransactionForm
+        portfolio={portfolio}
+        heldTickers={heldTickers}
+        onSubmit={(input) => store.addTransaction(portfolio.id, input)}
+      />
       {transactions.length === 0 ? (
         <p className={styles.empty}>No Transactions yet.</p>
       ) : (
@@ -126,27 +133,54 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
               </tr>
             </thead>
             <tbody>
-              {[...transactions].reverse().map((tx) => (
-                <tr key={tx.id}>
-                  <td>{fmtDate(tx.date)}</td>
-                  <td>{tx.kind}</td>
-                  <td>{tx.ticker}</td>
-                  <td className={styles.num}>{fmtUnits(tx.units)}</td>
-                  <td className={styles.num}>{fmtPrice(tx.price)}</td>
-                  <td className={styles.num}>{fmtPrice(tx.fees)}</td>
-                  <td className={styles.num}>{tx.fxRate === null ? 'stored' : fmtPrice(tx.fxRate)}</td>
-                  <td className={styles.num}>
-                    <button
-                      type="button"
-                      className={styles.iconButton}
-                      aria-label={`Delete Transaction ${tx.id}`}
-                      onClick={() => handleDeleteTransaction(tx)}
-                    >
-                      ✕
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {[...transactions].reverse().map((tx) =>
+                editingId === tx.id ? (
+                  <tr key={tx.id}>
+                    <td colSpan={8}>
+                      <TransactionForm
+                        portfolio={portfolio}
+                        heldTickers={heldTickers}
+                        initial={tx}
+                        onSubmit={async (input) => {
+                          await store.updateTransaction(portfolio.id, tx.id, input)
+                          setEditingId(null)
+                        }}
+                        onCancel={() => setEditingId(null)}
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={tx.id}>
+                    <td>{fmtDate(tx.date)}</td>
+                    <td>{tx.kind}</td>
+                    <td>{tx.ticker}</td>
+                    <td className={styles.num}>{fmtUnits(tx.units)}</td>
+                    <td className={styles.num}>{fmtPrice(tx.price)}</td>
+                    <td className={styles.num}>{fmtPrice(tx.fees)}</td>
+                    <td className={styles.num}>{tx.fxRate === null ? 'stored' : fmtPrice(tx.fxRate)}</td>
+                    <td className={styles.num}>
+                      {tx.kind !== 'split' && (
+                        <button
+                          type="button"
+                          className={`${styles.iconButton} ${styles.editButton}`}
+                          aria-label={`Edit Transaction ${tx.id}`}
+                          onClick={() => setEditingId(tx.id)}
+                        >
+                          ✎
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className={styles.iconButton}
+                        aria-label={`Delete Transaction ${tx.id}`}
+                        onClick={() => handleDeleteTransaction(tx)}
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                ),
+              )}
             </tbody>
           </table>
         </div>
@@ -158,6 +192,8 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
 function SummaryKpis({ summary }: { summary: PortfolioSummary }) {
   const ccy = summary.currency
   const gain = summary.unrealizedGain.toNumber()
+  const realized = summary.realizedGain.toNumber()
+  const total = summary.totalGain.toNumber()
   return (
     <div className={styles.kpis}>
       <div className={styles.kpi}>
@@ -173,6 +209,14 @@ function SummaryKpis({ summary }: { summary: PortfolioSummary }) {
         <span className={`${styles.kpiValue} ${signClass(gain)}`}>
           {fmtMoney(gain, ccy)} <small>({fmtOptionalPct(summary.unrealizedGainPct)})</small>
         </span>
+      </div>
+      <div className={styles.kpi}>
+        <span className={styles.kpiLabel}>Realized Gain</span>
+        <span className={`${styles.kpiValue} ${signClass(realized)}`}>{fmtMoney(realized, ccy)}</span>
+      </div>
+      <div className={styles.kpi}>
+        <span className={styles.kpiLabel}>Total Gain</span>
+        <span className={`${styles.kpiValue} ${signClass(total)}`}>{fmtMoney(total, ccy)}</span>
       </div>
     </div>
   )

@@ -47,8 +47,9 @@ export interface PortfolioTransactionResponseDTO {
   message: string
 }
 
-export interface BuyRequest {
-  kind: 'buy'
+/** Body of POST (create) and PUT (replace) of a Buy or Sell. */
+export interface TransactionRequest {
+  kind: 'buy' | 'sell'
   date: string
   ticker: string
   units: number
@@ -78,5 +79,7 @@ export interface PortfolioSummaryDTO {
   portfolio_value: number
   unrealized_gain: number
   unrealized_gain_pct: number | null
+  realized_gain: number
+  total_gain: number
   holdings: PortfolioHoldingDTO[]
 }

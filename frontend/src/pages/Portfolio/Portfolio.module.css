@@ -56,6 +56,10 @@
   color: var(--color-error-dark);
 }
 
+.iconButton.editButton:hover {
+  color: var(--color-primary);
+}
+
 .error {
   color: var(--color-error-dark);
   margin: 0.5rem 0;

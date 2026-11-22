@@ -58,6 +58,8 @@ export function mapSummary(dto: PortfolioSummaryDTO): PortfolioSummary {
     portfolioValue: Decimal.from(dto.portfolio_value),
     unrealizedGain: Decimal.from(dto.unrealized_gain),
     unrealizedGainPct: dto.unrealized_gain_pct,
+    realizedGain: Decimal.from(dto.realized_gain),
+    totalGain: Decimal.from(dto.total_gain),
     holdings: dto.holdings.map(mapHolding),
   }
 }

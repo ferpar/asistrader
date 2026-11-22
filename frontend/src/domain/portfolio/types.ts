@@ -25,7 +25,9 @@ export interface PortfolioTransaction {
   fxRate: Decimal | null
 }
 
-export interface NewBuy {
+/** A Buy or Sell as entered by the user, to record or to replace one. */
+export interface TransactionInput {
+  kind: 'buy' | 'sell'
   date: string
   ticker: string
   units: number
@@ -56,5 +58,9 @@ export interface PortfolioSummary {
   portfolioValue: Decimal
   unrealizedGain: Decimal
   unrealizedGainPct: number | null
+  /** Accumulated result of Sells: net proceeds minus the consumed Lots' cost. */
+  realizedGain: Decimal
+  /** Unrealized Gain plus Realized Gain. */
+  totalGain: Decimal
   holdings: Holding[]
 }
