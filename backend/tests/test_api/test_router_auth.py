@@ -14,7 +14,13 @@ from fastapi.testclient import TestClient
 
 from asistrader.main import app
 
-GUARDED_PREFIXES = ("/api/market-data", "/api/strategies", "/api/tickers", "/api/benchmarks")
+GUARDED_PREFIXES = (
+    "/api/market-data",
+    "/api/strategies",
+    "/api/tickers",
+    "/api/benchmarks",
+    "/api/baskets",
+)
 
 
 def _guarded_endpoints() -> list[tuple[str, str]]:

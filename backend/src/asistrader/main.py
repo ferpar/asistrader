@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from asistrader.api.auth import router as auth_router
+from asistrader.api.baskets import router as baskets_router
 from asistrader.api.benchmarks import router as benchmarks_router
 from asistrader.api.fund import router as fund_router
 from asistrader.api.fx import router as fx_router
@@ -92,6 +93,7 @@ app.include_router(benchmarks_router)
 app.include_router(fx_router)
 app.include_router(irr_router)
 app.include_router(radar_presets_router)
+app.include_router(baskets_router)
 
 
 @app.get("/health")
