@@ -4,6 +4,7 @@ Curated Baskets are visible to every user and read-only; Personal Baskets are
 visible only to their owner. Baskets and market data are seeded directly.
 """
 
+import re
 from datetime import date
 
 import pytest
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from asistrader.auth.jwt import create_access_token
 from asistrader.auth.password import hash_password
-from asistrader.db.seed_baskets import seed_baskets
+from asistrader.db.seed_baskets import load_curated_baskets, seed_baskets
 from asistrader.models.db import Basket, BasketMember, MarketData, Ticker, User
 
 
@@ -317,10 +318,29 @@ def test_reseeding_updates_names_and_members_by_slug_without_duplicating(
 def test_the_shipped_seed_file_applies_idempotently(
     client: TestClient, db_session: Session, auth_headers: dict[str, str]
 ) -> None:
-    created, _ = seed_baskets(db_session)
+    specs = load_curated_baskets()
 
-    assert created >= 2
+    assert seed_baskets(db_session) == (len(specs), 0)
     assert seed_baskets(db_session) == (0, 0)
     curated = _curated(client, auth_headers)
-    assert len(curated) == created
-    assert all(b["members"] for b in curated.values())
+    assert set(curated) == {spec["slug"] for spec in specs}
+    for spec in specs:
+        basket = curated[spec["slug"]]
+        assert basket["name"] == spec["name"]
+        assert basket["description"] == spec["description"]
+        assert sorted(basket["members"]) == sorted(spec["members"])
+
+
+def test_the_shipped_seed_file_is_well_formed() -> None:
+    specs = load_curated_baskets()
+
+    slugs = [spec["slug"] for spec in specs]
+    names = [spec["name"] for spec in specs]
+    assert len(slugs) == len(set(slugs))
+    assert len(names) == len(set(names))
+    for spec in specs:
+        assert re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", spec["slug"]), spec["slug"]
+        assert spec["name"].strip() and spec["description"].strip()
+        assert spec["members"], spec["slug"]
+        assert len(spec["members"]) == len(set(spec["members"])), spec["slug"]
+        assert all(re.fullmatch(r"[A-Z0-9.\-]+", s) for s in spec["members"]), spec["slug"]
