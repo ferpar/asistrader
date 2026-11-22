@@ -685,6 +685,7 @@ class TestEditTransactions:
         )
 
         assert response.status_code == 422
+        assert "future" in response.json()["detail"]
 
     def test_editing_a_missing_or_foreign_transaction_is_not_found(
         self, client: TestClient, spy_two_lots: int, other_headers: dict[str, str]

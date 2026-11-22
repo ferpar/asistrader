@@ -44,6 +44,10 @@ class PortfolioNameExistsError(Exception):
     """Raised when the user already has a Portfolio with that name."""
 
 
+class FutureTransactionError(PortfolioReplayError):
+    """A Transaction dated after today: a Portfolio only records what happened."""
+
+
 @dataclass
 class TransactionFields:
     """A Buy or Sell as entered, before it is recorded."""
@@ -199,9 +203,13 @@ def _prepare_instrument(
 ) -> None:
     """Make sure the ticker and the FX rate a Transaction needs are stored.
 
-    A Buy of an unknown ticker creates it and loads its history. A Sell can
-    only be of a ticker already held, so an unknown one is rejected.
+    A Transaction can't be dated in the future (checked first, so nothing is
+    created for one). A Buy of an unknown ticker creates it and loads its
+    history. A Sell can only be of a ticker already held, so an unknown one is
+    rejected.
     """
+    if on_date > date.today():
+        raise FutureTransactionError("A Transaction can't be in the future")
     since = on_date - timedelta(days=fx_service.EARLIEST_DATE_BUFFER_DAYS)
     if kind == TransactionKind.BUY:
         instrument = ensure_ticker_with_history(db, symbol, since)

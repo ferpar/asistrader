@@ -96,8 +96,6 @@ def _parse_row(record: dict[str | None, str | None]) -> PortfolioTransactionCrea
         )
     except ValidationError as e:
         raise RowError("; ".join(f"{err['loc'][0]}: {err['msg']}" for err in e.errors()))
-    if request.date > date.today():
-        raise RowError("A Transaction can't be in the future")
     return request
 
 

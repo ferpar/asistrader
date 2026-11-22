@@ -119,11 +119,6 @@ def delete_portfolio(
 # ── Transactions ──
 
 
-def _reject_future(request: PortfolioTransactionCreateRequest) -> None:
-    if request.date > date.today():
-        raise HTTPException(status_code=422, detail="A Transaction can't be in the future")
-
-
 def _transaction_fields(request: PortfolioTransactionCreateRequest) -> dict:
     return dict(
         kind=TransactionKind(request.kind),
@@ -161,7 +156,6 @@ def create_transaction(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PortfolioTransactionResponse:
-    _reject_future(request)
     try:
         transaction = portfolio_service.create_transaction(
             db, current_user.id, portfolio_id, **_transaction_fields(request)
@@ -191,7 +185,6 @@ def update_transaction(
 ) -> PortfolioTransactionResponse:
     """Replace a Transaction. Rejected (422) if the edited list no longer
     replays, e.g. a later Sell would exceed the units held."""
-    _reject_future(request)
     try:
         transaction = portfolio_service.update_transaction(
             db,
