@@ -97,6 +97,7 @@ export function buildTickerIndicators(overrides?: Partial<TickerIndicators>): Ti
     priceChanges: buildPriceChanges(),
     linearRegression: buildLinearRegression(),
     rsi: buildRsiIndicator(),
+    momentum: { r1m: null, r3m: null, r6m: null, r1y: null, score: null },
     datedCloses: defaultDatedCloses(),
     error: null,
     ...overrides,

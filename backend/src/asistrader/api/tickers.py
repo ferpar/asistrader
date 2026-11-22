@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
 from asistrader.models.schemas import (
+    BackfillInstrumentMetadataRequest,
+    BackfillInstrumentMetadataResponse,
     BatchPriceRequest,
     BatchPriceResponse,
     PriceData,
@@ -13,18 +15,23 @@ from asistrader.models.schemas import (
     TickerCreateResponse,
     TickerListResponse,
     TickerPriceResponse,
+    TickerAssetClassRequest,
+    TickerResponse,
     TickerSchema,
     TickerSearchResponse,
     TickerSuggestion,
 )
 from asistrader.services.ticker_service import (
     TickerExistsError,
+    TickerNotFoundError,
     TickerValidationError,
+    backfill_instrument_metadata,
     create_ticker,
     get_all_tickers,
     get_batch_prices,
     get_current_price,
     get_existing_symbols,
+    set_asset_class_override,
 )
 from asistrader.services.yahoo_search_service import search_yahoo_tickers
 
@@ -39,22 +46,7 @@ router = APIRouter(
 def list_tickers(db: Session = Depends(get_db)) -> TickerListResponse:
     """Get all tickers."""
     tickers = get_all_tickers(db)
-    ticker_schemas = [
-        TickerSchema(
-            symbol=t.symbol,
-            name=t.name,
-            currency=t.currency,
-            price_hint=t.price_hint,
-            probability=t.probability,
-            trend_mean_growth=t.trend_mean_growth,
-            trend_std_deviation=t.trend_std_deviation,
-            bias=t.bias,
-            horizon=t.horizon,
-            beta=t.beta,
-            strategy_id=t.strategy_id,
-        )
-        for t in tickers
-    ]
+    ticker_schemas = [TickerSchema.model_validate(t) for t in tickers]
     return TickerListResponse(tickers=ticker_schemas, count=len(ticker_schemas))
 
 
@@ -93,19 +85,7 @@ def create_new_ticker(
     """Validate via yfinance and create a new ticker."""
     try:
         ticker = create_ticker(db, request.symbol)
-        ticker_schema = TickerSchema(
-            symbol=ticker.symbol,
-            name=ticker.name,
-            currency=ticker.currency,
-            price_hint=ticker.price_hint,
-            probability=ticker.probability,
-            trend_mean_growth=ticker.trend_mean_growth,
-            trend_std_deviation=ticker.trend_std_deviation,
-            bias=ticker.bias,
-            horizon=ticker.horizon,
-            beta=ticker.beta,
-            strategy_id=ticker.strategy_id,
-        )
+        ticker_schema = TickerSchema.model_validate(ticker)
         return TickerCreateResponse(
             ticker=ticker_schema,
             message=f"Ticker {ticker.symbol} created successfully",
@@ -114,6 +94,50 @@ def create_new_ticker(
         raise HTTPException(status_code=409, detail=str(e))
     except TickerValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post(
+    "/backfill-instrument-metadata", response_model=BackfillInstrumentMetadataResponse
+)
+def backfill_instrument_metadata_endpoint(
+    request: BackfillInstrumentMetadataRequest,
+    db: Session = Depends(get_db),
+) -> BackfillInstrumentMetadataResponse:
+    """One-off: fill instrument type and listing country on existing tickers."""
+    return BackfillInstrumentMetadataResponse(
+        **backfill_instrument_metadata(db, request.symbols)
+    )
+
+
+@router.put("/{symbol}/asset-class", response_model=TickerResponse)
+def set_asset_class(
+    symbol: str,
+    request: TickerAssetClassRequest,
+    db: Session = Depends(get_db),
+) -> TickerResponse:
+    """Override the ticker's Asset Class. Tickers are global, so this applies
+    to every user's Holdings of it."""
+    try:
+        ticker = set_asset_class_override(db, symbol, request.asset_class)
+    except TickerNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return TickerResponse(
+        ticker=TickerSchema.model_validate(ticker),
+        message=f"{ticker.symbol} classified as {request.asset_class}",
+    )
+
+
+@router.delete("/{symbol}/asset-class", response_model=TickerResponse)
+def clear_asset_class(symbol: str, db: Session = Depends(get_db)) -> TickerResponse:
+    """Clear the ticker's Asset Class override so detection applies again."""
+    try:
+        ticker = set_asset_class_override(db, symbol, None)
+    except TickerNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return TickerResponse(
+        ticker=TickerSchema.model_validate(ticker),
+        message=f"{ticker.symbol} Asset Class override cleared",
+    )
 
 
 @router.get("/{symbol}/price", response_model=TickerPriceResponse)

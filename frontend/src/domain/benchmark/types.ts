@@ -1,6 +1,7 @@
 import type {
   DatedClose,
   LinearRegressionStructure,
+  MomentumScore,
   PriceChanges,
   RsiIndicator,
   SmaStructure,
@@ -20,6 +21,7 @@ export interface BenchmarkIndicators {
   priceChanges: PriceChanges
   linearRegression: LinearRegressionStructure
   rsi: RsiIndicator
+  momentum: MomentumScore
   datedCloses: DatedClose[]
   error: string | null
 }

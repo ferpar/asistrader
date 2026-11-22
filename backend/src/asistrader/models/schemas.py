@@ -1,10 +1,11 @@
 """Pydantic schemas for API request/response validation."""
 
 from datetime import date, datetime
+from decimal import Decimal
 from enum import Enum
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, StringConstraints, model_validator
 
 
 class TradeStatus(str, Enum):
@@ -284,6 +285,79 @@ class RadarPresetResponse(BaseModel):
     message: str
 
 
+class BasketSchema(BaseModel):
+    """A Basket visible to the current user, with its members' symbols.
+
+    `kind` is "curated" (ours, read-only, `slug` set) or "personal" (the
+    user's own).
+    """
+
+    id: int
+    kind: str
+    name: str
+    description: str | None = None
+    slug: str | None = None
+    members: list[str]
+
+
+class BasketListResponse(BaseModel):
+    """Response schema for the Basket list endpoint."""
+
+    baskets: list[BasketSchema]
+    count: int
+
+
+class HoldingPortfolioSchema(BaseModel):
+    """One of the current user's Portfolios, as a place a ticker is held."""
+
+    id: int
+    name: str
+
+
+class BasketMemberSchema(BaseModel):
+    """A Basket member and the user's Portfolios that currently hold it."""
+
+    symbol: str
+    name: str | None = None
+    held_in: list[HoldingPortfolioSchema]
+
+
+class BasketMembersResponse(BaseModel):
+    """Response schema for the Basket members endpoint."""
+
+    members: list[BasketMemberSchema]
+    count: int
+
+
+BasketName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+
+
+class BasketCreateRequest(BaseModel):
+    """Create a Personal Basket for the current user."""
+
+    name: BasketName
+    description: str | None = None
+
+
+class BasketCopyRequest(BaseModel):
+    """Copy a visible Basket into a new Personal one; `name` defaults to "<name> (copy)"."""
+
+    name: BasketName | None = None
+
+
+class BasketMemberAddRequest(BaseModel):
+    """Add a ticker to a Personal Basket by its Yahoo symbol."""
+
+    symbol: str = Field(min_length=1, max_length=32)
+
+
+class BasketUpdateRequest(BaseModel):
+    """Rename a Personal Basket or change its description; omitted fields stay."""
+
+    name: BasketName | None = None
+    description: str | None = None
+
+
 class TickerSchema(BaseModel):
     """Schema for ticker data."""
 
@@ -298,8 +372,45 @@ class TickerSchema(BaseModel):
     horizon: str | None = None
     beta: Beta | None = None
     strategy_id: int | None = None
+    # Asset Class inputs: detected instrument type ("stock", "etf", ...) and
+    # ISO-2 listing country, plus the optional global override.
+    instrument_type: str | None = None
+    listing_country: str | None = None
+    asset_class_override: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class TickerAssetClassRequest(BaseModel):
+    """Set a ticker's Asset Class override (clear it with DELETE)."""
+
+    asset_class: Literal["domestic_stock", "international_stock", "etf"]
+
+
+class BackfillInstrumentMetadataRequest(BaseModel):
+    """Request schema for the instrument-metadata backfill. No symbols = every
+    ticker missing instrument type or listing country."""
+
+    symbols: list[str] | None = None
+
+
+class InstrumentMetadataSchema(BaseModel):
+    instrument_type: str | None
+    listing_country: str | None
+
+
+class BackfillInstrumentMetadataResponse(BaseModel):
+    """Metadata per backfilled symbol, plus per-symbol lookup errors."""
+
+    results: dict[str, InstrumentMetadataSchema]
+    errors: dict[str, str]
+
+
+class TickerResponse(BaseModel):
+    """Response schema for a single-ticker update."""
+
+    ticker: TickerSchema
+    message: str
 
 
 class TickerListResponse(BaseModel):
@@ -579,10 +690,15 @@ class BulkMarketDataRequest(BaseModel):
 
 
 class CloseSeriesSchema(BaseModel):
-    """A ticker's closes as parallel arrays: close[i] is the close on dates[i]."""
+    """A ticker's closes as parallel arrays: close[i] is the close on dates[i].
+
+    adj_close[i] is the split/dividend-adjusted close on dates[i], or null
+    where it has not been filled yet.
+    """
 
     dates: list[date]
     close: list[float]
+    adj_close: list[float | None]
 
 
 class BulkMarketDataResponse(BaseModel):
@@ -598,6 +714,20 @@ class SyncRequest(BaseModel):
     start_date: date
     symbols: list[str] | None = None  # None = all tickers
     force_refresh: bool = False  # If True, wipe existing rows and re-fetch.
+
+
+class BackfillAdjustedClosesRequest(BaseModel):
+    """Request schema for the adjusted-close backfill. No symbols = every ticker."""
+
+    symbols: list[str] | None = None
+
+
+class BackfillAdjustedClosesResponse(BaseModel):
+    """Rows upserted per symbol, plus per-symbol fetch errors."""
+
+    results: dict[str, int]
+    total_rows: int
+    errors: dict[str, str]
 
 
 class SyncResponse(BaseModel):
@@ -1044,6 +1174,8 @@ class RiskSettingsRequest(BaseModel):
     risk_pct: float | None = Field(default=None, gt=0, le=1.0)
     base_currency: str | None = None
     detection_margin_pct: float | None = Field(default=None, gt=0, le=0.1)
+    # ISO 3166-1 alpha-2 country code, case-insensitive ("es" → "ES").
+    home_market: str | None = Field(default=None, pattern=r"^[A-Za-z]{2}$")
 
 
 class RiskSettingsResponse(BaseModel):
@@ -1052,6 +1184,7 @@ class RiskSettingsResponse(BaseModel):
     risk_pct: float
     base_currency: str
     detection_margin_pct: float
+    home_market: str
 
 
 class RepairCurrenciesResponse(BaseModel):
@@ -1117,3 +1250,237 @@ class DetectionTraceResponse(BaseModel):
     trace: ScanTraceSchema
     detector_kind: str  # "sltp" | "entry" | "layered" | "none"
     what_if: dict[str, Any] = {}
+
+
+# ── Portfolios ──
+
+
+class PortfolioSchema(BaseModel):
+    """A Portfolio: a named collection of long-term Holdings (ADR 0001)."""
+
+    id: int
+    name: str
+    currency: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PortfolioCreateRequest(BaseModel):
+    """Create a Portfolio. `currency` defaults to the user's base currency."""
+
+    name: str = Field(min_length=1)
+    currency: str | None = Field(default=None, pattern=r"^[A-Za-z]{3}$")
+
+
+class PortfolioUpdateRequest(BaseModel):
+    """Rename a Portfolio. The currency is immutable, so it is not accepted."""
+
+    name: str = Field(min_length=1)
+
+    model_config = {"extra": "forbid"}
+
+
+class PortfolioListResponse(BaseModel):
+    portfolios: list[PortfolioSchema]
+    count: int
+
+
+class PortfolioResponse(BaseModel):
+    portfolio: PortfolioSchema
+    message: str
+
+
+class PortfolioTransactionSchema(BaseModel):
+    """A dated Buy/Sell/Split in a Portfolio. Price and fees are in the
+    instrument's currency; `fx_rate` converts it into the Portfolio's. A
+    Split has only `split_ratio` (no units, price or FX rate)."""
+
+    id: int
+    kind: str
+    date: date
+    ticker: str
+    units: float | None
+    price: float | None
+    fees: float
+    fx_rate: float | None
+    split_ratio: float | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PortfolioTransactionCreateRequest(BaseModel):
+    """Record (or, on update, replace) a Buy, Sell or Split.
+
+    A Buy or Sell needs `units` (fractional allowed) and `price`; `fx_rate` is
+    optional and overrides the stored rate for the date (instrument →
+    Portfolio currency). A Split needs only `split_ratio` (new units per old
+    unit, e.g. 2 for a 2-for-1 split, 0.1 for a 1-for-10 reverse split) and
+    takes no units, price, fees or FX rate.
+    """
+
+    kind: Literal["buy", "sell", "split"]
+    date: date
+    ticker: str = Field(min_length=1)
+    units: Decimal | None = Field(default=None, gt=0)
+    price: Decimal | None = Field(default=None, gt=0)
+    fees: Decimal = Field(default=Decimal(0), ge=0)
+    fx_rate: Decimal | None = Field(default=None, gt=0)
+    split_ratio: Decimal | None = Field(default=None, gt=0)
+
+    @model_validator(mode="after")
+    def _fields_match_kind(self) -> "PortfolioTransactionCreateRequest":
+        if self.kind == "split":
+            if self.split_ratio is None:
+                raise ValueError("A Split needs a split_ratio")
+            given = [
+                name
+                for name in ("units", "price", "fx_rate")
+                if getattr(self, name) is not None
+            ] + (["fees"] if self.fees else [])
+            if given:
+                raise ValueError(f"A Split takes no {', '.join(given)}")
+        else:
+            missing = [n for n in ("units", "price") if getattr(self, n) is None]
+            if missing:
+                raise ValueError(f"A {self.kind.capitalize()} needs {' and '.join(missing)}")
+            if self.split_ratio is not None:
+                raise ValueError("Only a Split takes a split_ratio")
+        return self
+
+
+class PortfolioTransactionListResponse(BaseModel):
+    transactions: list[PortfolioTransactionSchema]
+    count: int
+
+
+class PortfolioTransactionResponse(BaseModel):
+    transaction: PortfolioTransactionSchema
+    message: str
+
+
+class HoldingBasketSchema(BaseModel):
+    """A Basket visible to the user that contains a Holding's instrument."""
+
+    id: int
+    name: str
+    kind: str
+
+    model_config = {"from_attributes": True}
+
+
+class PortfolioHoldingSchema(BaseModel):
+    """The units of one instrument a Portfolio owns, with cost and value in
+    Portfolio currency. `last_price` is in the instrument's currency.
+    `baskets` are the Baskets visible to the user (Curated plus their own
+    Personal ones) that contain the instrument, curated first, then by name."""
+
+    ticker: str
+    name: str | None
+    currency: str
+    units: float
+    cost: float
+    value: float
+    weight: float | None
+    unrealized_gain: float
+    unrealized_gain_pct: float | None
+    last_price: float
+    last_price_date: date
+    # domestic_stock | international_stock | etf | unclassified
+    asset_class: str
+    # The ticker's global override when set (asset_class then equals it).
+    asset_class_override: str | None = None
+    weighted_days_open: float | None = None
+    baskets: list[HoldingBasketSchema] = []
+
+    model_config = {"from_attributes": True}
+
+
+class PortfolioAssetClassSchema(BaseModel):
+    """Subtotals of a Portfolio's Holdings in one Asset Class, in Portfolio
+    currency. `weight` is the class's share of Portfolio Value; `tickers`
+    lists its Holdings in the order of `holdings`."""
+
+    asset_class: str
+    count: int
+    invested: float
+    portfolio_value: float
+    unrealized_gain: float
+    unrealized_gain_pct: float | None
+    weighted_days_open: float | None
+    weight: float | None
+    tickers: list[str]
+
+    model_config = {"from_attributes": True}
+
+
+class PortfolioSummarySchema(BaseModel):
+    """Portfolio KPIs as of a day, in the Portfolio's currency."""
+
+    currency: str
+    as_of: date
+    invested: float
+    portfolio_value: float
+    unrealized_gain: float
+    unrealized_gain_pct: float | None
+    realized_gain: float
+    total_gain: float
+    holdings: list[PortfolioHoldingSchema]
+    weighted_days_open: float | None = None
+    simple_tir: float | None = None
+    xirr: float | None = None
+    # Holdings grouped by Asset Class, one entry per non-empty class in the
+    # order domestic_stock, international_stock, etf, unclassified.
+    asset_classes: list[PortfolioAssetClassSchema] = []
+
+    model_config = {"from_attributes": True}
+
+
+class PortfolioHistorySchema(BaseModel):
+    """A Portfolio's daily rows in columnar form, in the Portfolio's currency:
+    `column[i]` is the figure at the close of `dates[i]`. One row per business
+    day (Mon–Fri). `unrealized_gain_pct` is relative to Invested and null when
+    nothing is invested; `weighted_days_open` is in calendar days and null
+    when no Lots remain. `performance_index` is the time-weighted Performance
+    Index, 100 on the first Transaction's day: each day's return is
+    (Value_t − net flow_t) / Value_{t−1} − 1, net flow being that day's Buy
+    cost minus Sell proceeds; it carries flat when Value_{t−1} is 0."""
+
+    currency: str
+    dates: list[date]
+    invested: list[float]
+    portfolio_value: list[float]
+    unrealized_gain: list[float]
+    unrealized_gain_pct: list[float | None]
+    realized_gain: list[float]
+    total_gain: list[float]
+    weighted_days_open: list[float | None]
+    performance_index: list[float]
+
+    model_config = {"from_attributes": True}
+
+
+class PortfolioImportRequest(BaseModel):
+    """A CSV of Transactions, sent as text. A header row is required, with
+    columns `date, ticker, units, price, fees` and optional `fx_rate` and
+    `kind` (`buy`, the default, or `sell`)."""
+
+    csv: str
+
+
+class PortfolioImportRowResult(BaseModel):
+    """What happened to one data row. `row` is its line number in the file,
+    the header being line 1."""
+
+    row: int
+    status: Literal["created", "error"]
+    transaction: PortfolioTransactionSchema | None = None
+    error: str | None = None
+
+
+class PortfolioImportResponse(BaseModel):
+    results: list[PortfolioImportRowResult]
+    created: int
+    failed: int

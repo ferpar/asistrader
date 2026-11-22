@@ -30,12 +30,14 @@ from asistrader.services.fund_service import (
     create_withdrawal,
     get_base_currency,
     get_detection_margin,
+    get_home_market,
     get_fund_events,
     get_risk_pct,
     rebuild_events_from_trades,
     repair_trade_event_currencies,
     update_base_currency,
     update_detection_margin,
+    update_home_market,
     update_risk_pct,
     void_event,
 )
@@ -186,6 +188,7 @@ def get_settings(
         risk_pct=get_risk_pct(db, current_user.id),
         base_currency=get_base_currency(db, current_user.id),
         detection_margin_pct=get_detection_margin(db, current_user.id),
+        home_market=get_home_market(db, current_user.id),
     )
 
 
@@ -209,17 +212,20 @@ def update_settings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> RiskSettingsResponse:
-    """Update risk, base currency and/or detection margin settings."""
+    """Update risk, base currency, detection margin and/or Home Market settings."""
     if request.risk_pct is not None:
         update_risk_pct(db, current_user.id, request.risk_pct)
     if request.base_currency is not None:
         update_base_currency(db, current_user.id, request.base_currency.upper())
     if request.detection_margin_pct is not None:
         update_detection_margin(db, current_user.id, request.detection_margin_pct)
+    if request.home_market is not None:
+        update_home_market(db, current_user.id, request.home_market.upper())
     return RiskSettingsResponse(
         risk_pct=get_risk_pct(db, current_user.id),
         base_currency=get_base_currency(db, current_user.id),
         detection_margin_pct=get_detection_margin(db, current_user.id),
+        home_market=get_home_market(db, current_user.id),
     )
 
 

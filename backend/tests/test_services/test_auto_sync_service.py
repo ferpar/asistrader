@@ -4,6 +4,7 @@ Hooked into /api/auth/me; bundles FX, ticker MD, and benchmark MD sync.
 """
 
 from datetime import date
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -14,6 +15,8 @@ from asistrader.models.db import (
     Benchmark,
     Bias,
     FxRate,
+    Portfolio,
+    PortfolioTransaction,
     Strategy,
     Ticker,
     Trade,
@@ -194,3 +197,103 @@ class TestEnsureUserDataFresh:
         # No tickers means tickers stage is skipped (None).
         assert result["tickers"] is None
         assert result["errors"] == {}
+
+
+@pytest.fixture
+def user_with_portfolio(db_session: Session, sample_user: User) -> User:
+    """A user with no Trades and one GBP Portfolio holding a EUR instrument."""
+    db_session.add(Ticker(symbol="SAP.DE", currency="EUR", price_hint=2))
+    portfolio = Portfolio(user_id=sample_user.id, name="Broker", currency="GBP")
+    db_session.add(portfolio)
+    db_session.commit()
+    db_session.add(
+        PortfolioTransaction(
+            portfolio_id=portfolio.id,
+            kind="buy",
+            date=date(2024, 6, 10),
+            ticker="SAP.DE",
+            units=Decimal("3"),
+            price=Decimal("170"),
+            fees=Decimal("0"),
+        )
+    )
+    db_session.commit()
+    return sample_user
+
+
+class TestEnsureUserDataFreshForPortfolios:
+    @patch("asistrader.services.market_data_service.fetch_from_yfinance")
+    @patch("asistrader.services.benchmark_service.fetch_from_yfinance")
+    @patch("asistrader.services.fx_service.fetch_from_yfinance")
+    def test_syncs_tickers_held_in_portfolios(
+        self,
+        mock_fx_fetch: MagicMock,
+        mock_bench_fetch: MagicMock,
+        mock_md_fetch: MagicMock,
+        db_session: Session,
+        user_with_portfolio: User,
+    ) -> None:
+        mock_fx_fetch.return_value = _ohlc_frame(date(2024, 6, 10))
+        mock_md_fetch.return_value = _ohlc_frame(date(2024, 6, 10))
+
+        result = auto_sync_service.ensure_user_data_fresh(
+            db_session, user_with_portfolio.id
+        )
+
+        assert result["errors"] == {}
+        ticker_symbols = {call[0][0] for call in mock_md_fetch.call_args_list}
+        assert ticker_symbols == {"SAP.DE"}
+
+    @patch("asistrader.services.market_data_service.fetch_from_yfinance")
+    @patch("asistrader.services.benchmark_service.fetch_from_yfinance")
+    @patch("asistrader.services.fx_service.fetch_from_yfinance")
+    def test_starts_from_earliest_transaction_minus_buffer(
+        self,
+        mock_fx_fetch: MagicMock,
+        mock_bench_fetch: MagicMock,
+        mock_md_fetch: MagicMock,
+        db_session: Session,
+        user_with_portfolio: User,
+    ) -> None:
+        """The Portfolio's 2024-06-10 Buy is the user's earliest data; history
+        is fetched from 14 days before it (2024-05-27)."""
+        db_session.add(Benchmark(symbol="^STOXX50E"))
+        db_session.commit()
+        mock_fx_fetch.return_value = _ohlc_frame(date(2024, 6, 10))
+        mock_bench_fetch.return_value = _ohlc_frame(date(2024, 6, 10))
+        mock_md_fetch.return_value = _ohlc_frame(date(2024, 6, 10))
+
+        auto_sync_service.ensure_user_data_fresh(db_session, user_with_portfolio.id)
+
+        expected_start = date(2024, 5, 27)
+        md_starts = {call[0][1] for call in mock_md_fetch.call_args_list}
+        bench_starts = {call[0][1] for call in mock_bench_fetch.call_args_list}
+        assert md_starts == {expected_start}
+        assert bench_starts == {expected_start}
+
+    @patch("asistrader.services.market_data_service.fetch_from_yfinance")
+    @patch("asistrader.services.benchmark_service.fetch_from_yfinance")
+    @patch("asistrader.services.fx_service.fetch_from_yfinance")
+    def test_fx_stage_covers_portfolio_and_instrument_currencies(
+        self,
+        mock_fx_fetch: MagicMock,
+        mock_bench_fetch: MagicMock,
+        mock_md_fetch: MagicMock,
+        db_session: Session,
+        user_with_portfolio: User,
+    ) -> None:
+        """GBP (the Portfolio's currency) and EUR (SAP.DE's currency) are both
+        ensured by the FX stage itself, not only as a side effect of the
+        ticker stage."""
+        mock_fx_fetch.return_value = _ohlc_frame(date(2024, 6, 10))
+        mock_md_fetch.side_effect = Exception("yfinance tickers are down")
+
+        result = auto_sync_service.ensure_user_data_fresh(
+            db_session, user_with_portfolio.id
+        )
+
+        assert set(result["fx"]["results"]) == {"EUR", "GBP"}
+        assert result["fx"]["errors"] == {}
+        fx_calls = {(call[0][0], call[0][1]) for call in mock_fx_fetch.call_args_list}
+        assert ("GBPUSD=X", date(2024, 5, 27)) in fx_calls
+        assert ("EURUSD=X", date(2024, 5, 27)) in fx_calls

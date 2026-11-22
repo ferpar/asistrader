@@ -8,6 +8,7 @@ import type {
   RsiIndicator,
   DivergenceSignal,
   DivergenceStrength,
+  MomentumScore,
 } from './types'
 
 const EMPTY_LR_RESULT: LinearRegressionResult = { slope: null, slopePct: null, r2: null }
@@ -331,4 +332,36 @@ export function computeRsi(datedCloses: DatedClose[]): RsiIndicator {
       bullish: detectDivergenceLine(lows, false),
     },
   }
+}
+
+/** Trading-day windows and weights of the Momentum Score's 1M/3M/6M/1Y returns. */
+const MOMENTUM_WINDOWS = { r1m: 21, r3m: 63, r6m: 126, r1y: 252 } as const
+const MOMENTUM_WEIGHTS = { r1m: 0.35, r3m: 0.3, r6m: 0.2, r1y: 0.15 } as const
+
+/**
+ * Momentum Score over a trading-day-indexed series of adjusted closes (oldest
+ * first). rN = adj[last] / adj[last − N] − 1; null when that point is missing,
+ * null or zero. The score needs all four returns.
+ */
+export function computeMomentum(adjCloses: (number | null | undefined)[]): MomentumScore {
+  const last = adjCloses.length - 1
+  const latest = last >= 0 ? adjCloses[last] : null
+  const ret = (n: number): number | null => {
+    if (latest == null || last - n < 0) return null
+    const past = adjCloses[last - n]
+    if (past == null || past === 0) return null
+    return latest / past - 1
+  }
+  const r1m = ret(MOMENTUM_WINDOWS.r1m)
+  const r3m = ret(MOMENTUM_WINDOWS.r3m)
+  const r6m = ret(MOMENTUM_WINDOWS.r6m)
+  const r1y = ret(MOMENTUM_WINDOWS.r1y)
+  const score =
+    r1m === null || r3m === null || r6m === null || r1y === null
+      ? null
+      : MOMENTUM_WEIGHTS.r1m * r1m +
+        MOMENTUM_WEIGHTS.r3m * r3m +
+        MOMENTUM_WEIGHTS.r6m * r6m +
+        MOMENTUM_WEIGHTS.r1y * r1y
+  return { r1m, r3m, r6m, r1y, score }
 }

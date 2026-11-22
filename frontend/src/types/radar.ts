@@ -3,10 +3,14 @@ export interface BulkMarketDataRequest {
   start_date: string
 }
 
-/** A ticker's closes as parallel arrays: close[i] is the close on dates[i]. */
+/**
+ * A ticker's closes as parallel arrays: close[i] is the raw close on dates[i],
+ * adj_close[i] the adjusted close (null until backfilled).
+ */
 export interface CloseSeriesDTO {
   dates: string[]
   close: number[]
+  adj_close: (number | null)[]
 }
 
 export interface BulkMarketDataResponse {

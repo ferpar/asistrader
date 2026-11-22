@@ -1,0 +1,282 @@
+.page {
+  padding: 1rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.primary {
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.danger {
+  color: var(--color-error-dark);
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-info-dark);
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+.iconButton {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  color: var(--color-error-dark);
+}
+
+.iconButton.editButton:hover {
+  color: var(--color-primary);
+}
+
+.error {
+  color: var(--color-error-dark);
+  margin: 0.5rem 0;
+}
+
+.hint,
+.muted {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: normal;
+}
+
+.empty {
+  color: var(--color-text-muted);
+  padding: 1rem 0;
+}
+
+.inlineForm {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.currencyInput {
+  width: 5rem;
+  text-transform: uppercase;
+}
+
+.cardList {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.card {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.card:hover {
+  background: var(--color-surface-hover);
+}
+
+.cardName {
+  font-weight: 600;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.kpiLabel {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.kpiValue {
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.table th {
+  background: var(--color-table-header);
+  font-weight: 600;
+}
+
+.table tbody tr:hover {
+  background: var(--color-table-row-hover);
+}
+
+.table .num {
+  text-align: right;
+}
+
+.buyForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.buyForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.buyForm input {
+  width: 8rem;
+}
+
+.buyForm .error {
+  flex-basis: 100%;
+}
+
+.csvImport {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.csvImport .error,
+.importResult {
+  flex-basis: 100%;
+}
+
+.importResult p {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  margin: 0.25rem 0;
+}
+
+.importResult .link {
+  margin: 0;
+}
+
+.importErrors {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--color-error-dark);
+  font-size: 0.85rem;
+}
+
+.table tbody tr.subtotal {
+  background: var(--color-surface);
+  font-weight: 600;
+}
+
+.classSelect {
+  font-size: 0.85rem;
+  padding: 0.1rem 0.25rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.homeMarket {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+/* Basket membership chips in the Holdings table; each links to the Basket. */
+.basketLinks {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 16rem;
+}
+
+.basketLink {
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--color-info-dark);
+  background-color: color-mix(in srgb, var(--color-info) 15%, transparent);
+}
+
+.basketLink:hover {
+  text-decoration: underline;
+}

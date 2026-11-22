@@ -1,0 +1,126 @@
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.newButton {
+  margin-left: auto;
+}
+
+.hint {
+  margin: 0 0 12px;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.error {
+  color: var(--color-error-dark);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.table th,
+.table td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.table th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.table tbody tr:hover {
+  background-color: var(--color-table-row-hover);
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.strong {
+  font-weight: 600;
+}
+
+.reference td {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.linkButton {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.linkButton:hover {
+  text-decoration: underline;
+}
+
+.badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.curated {
+  color: var(--color-info-dark);
+  background-color: color-mix(in srgb, var(--color-info) 15%, transparent);
+}
+
+.personal {
+  color: var(--color-success-dark);
+  background-color: color-mix(in srgb, var(--color-success) 15%, transparent);
+}
+
+.benchmark {
+  color: var(--color-text-muted);
+  background-color: var(--color-surface);
+}
+
+
+.rowActions {
+  text-align: right;
+}
+
+.rowActions button {
+  padding: 0 4px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.rowActions button:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+.rowActions button.danger:hover {
+  color: var(--color-error-dark);
+}

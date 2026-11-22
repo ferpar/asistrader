@@ -7,6 +7,7 @@ import { RadarTradeLine } from './tradeLine/RadarTradeLine'
 import { RsiSparkline } from './RsiSparkline'
 import { SmaStructureSection } from './SmaStructureSection'
 import { LinearRegressionSection } from './LinearRegressionSection'
+import { MomentumSection } from './MomentumSection'
 import { divergenceRange, divergenceTitle, getRsiTone } from './rsiHelpers'
 import styles from './RadarTickerCard.module.css'
 
@@ -46,7 +47,7 @@ export const RadarTickerCard = observer(function RadarTickerCard({
   onToggleFavorite,
   onNewTrade,
 }: RadarTickerCardProps) {
-  const { symbol, currentPrice, sma, priceChanges, linearRegression, rsi, datedCloses, error } = indicators
+  const { symbol, currentPrice, sma, priceChanges, linearRegression, rsi, momentum, datedCloses, error } = indicators
   // Prefer the live quote for "current price" displays (headline + SMA position),
   // matching the trade dialog; indicators below stay computed from daily closes.
   const displayPrice = livePrice ?? currentPrice
@@ -147,6 +148,8 @@ export const RadarTickerCard = observer(function RadarTickerCard({
             </div>
           </div>
         </div>
+
+        <MomentumSection momentum={momentum} />
 
         <LinearRegressionSection linearRegression={linearRegression} fmt={fmt} />
 

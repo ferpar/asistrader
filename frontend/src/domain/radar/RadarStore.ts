@@ -3,20 +3,7 @@ import type { IRadarPresetRepository } from './IRadarPresetRepository'
 import type { RadarPreset } from './types'
 import type { IBenchmarkRepository } from '../benchmark/IBenchmarkRepository'
 import type { BenchmarkIndicators } from '../benchmark/types'
-import {
-  computeSmaStructure,
-  computePriceChanges,
-  computeLinearRegressionStructure,
-  computeRsi,
-} from './indicators'
-import {
-  EMPTY_SMA,
-  EMPTY_CHANGES,
-  EMPTY_LR,
-  EMPTY_RSI,
-  startDate,
-  SYNC_THROTTLE_MS,
-} from './indicatorBuild'
+import { buildTickerIndicators, startDate, SYNC_THROTTLE_MS } from './indicatorBuild'
 import {
   DEFAULT_VIEW_STATE,
   diffFromDefault,
@@ -71,53 +58,20 @@ function saveViewToStorage(state: RadarViewState) {
   }
 }
 
+/**
+ * Benchmark rows → indicators, via the same builder as tickers. Rows without a
+ * close are dropped. Benchmarks carry no adjusted close, so their Momentum
+ * Score stays empty.
+ */
 export function buildBenchmarkIndicators(
   symbol: string,
   rows: { date: string; close: number | null }[],
   error: string | null,
 ): BenchmarkIndicators {
-  if (error) {
-    return {
-      symbol,
-      name: null,
-      currentPrice: null,
-      sma: EMPTY_SMA,
-      priceChanges: EMPTY_CHANGES,
-      linearRegression: EMPTY_LR,
-      rsi: EMPTY_RSI,
-      datedCloses: [],
-      error,
-    }
-  }
   const datedCloses = rows
     .filter((r): r is { date: string; close: number } => r.close !== null)
     .map((r) => ({ date: r.date, close: r.close }))
-  const closes = datedCloses.map((d) => d.close)
-  if (closes.length === 0) {
-    return {
-      symbol,
-      name: null,
-      currentPrice: null,
-      sma: EMPTY_SMA,
-      priceChanges: EMPTY_CHANGES,
-      linearRegression: EMPTY_LR,
-      rsi: EMPTY_RSI,
-      datedCloses: [],
-      error: 'No price data available',
-    }
-  }
-  const currentPrice = closes[closes.length - 1]
-  return {
-    symbol,
-    name: null,
-    currentPrice,
-    sma: computeSmaStructure(closes, currentPrice),
-    priceChanges: computePriceChanges(closes),
-    linearRegression: computeLinearRegressionStructure(closes),
-    rsi: computeRsi(datedCloses),
-    datedCloses,
-    error: null,
-  }
+  return buildTickerIndicators(symbol, datedCloses, error)
 }
 
 /**

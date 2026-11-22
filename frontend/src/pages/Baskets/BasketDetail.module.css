@@ -1,0 +1,61 @@
+.back {
+  padding: 0;
+  margin-bottom: 8px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.back:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.title h2 {
+  margin: 0;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.section {
+  margin-top: 20px;
+}
+
+.section h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.heldIn {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.held {
+  padding: 1px 6px;
+  border: none;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-success-dark);
+  background-color: color-mix(in srgb, var(--color-success) 15%, transparent);
+  cursor: pointer;
+}
+
+.held:hover {
+  text-decoration: underline;
+}

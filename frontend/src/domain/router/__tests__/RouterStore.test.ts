@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { RouterStore, routeFromPath } from '../RouterStore'
+import { RouterStore, routeFromPath, resolveRoute } from '../RouterStore'
 
 beforeEach(() => {
   window.history.replaceState({}, '', '/')
@@ -21,8 +21,43 @@ describe('routeFromPath', () => {
     expect(routeFromPath('')).toBe('trades')
   })
 
-  it('uses only the first path segment', () => {
+  it('resolves trading pages by their first segment, ignoring extra segments', () => {
     expect(routeFromPath('/radar/extra/stuff')).toBe('radar')
+  })
+})
+
+describe('resolveRoute', () => {
+  it('resolves the portfolio area root to the Portfolios list', () => {
+    expect(resolveRoute('/portfolio')).toEqual({
+      key: 'portfolio',
+      path: '/portfolio',
+      portfolio: { page: 'portfolios', id: null },
+    })
+  })
+
+  it('resolves Portfolio detail, Baskets list and Basket detail paths', () => {
+    expect(resolveRoute('/portfolio/portfolios/5')).toEqual({
+      key: 'portfolio',
+      path: '/portfolio/portfolios/5',
+      portfolio: { page: 'portfolios', id: '5' },
+    })
+    expect(resolveRoute('/portfolio/baskets')).toEqual({
+      key: 'portfolio',
+      path: '/portfolio/baskets',
+      portfolio: { page: 'baskets', id: null },
+    })
+    expect(resolveRoute('/portfolio/baskets/12')).toEqual({
+      key: 'portfolio',
+      path: '/portfolio/baskets/12',
+      portfolio: { page: 'baskets', id: '12' },
+    })
+  })
+
+  it('normalises unknown or over-long portfolio paths to the nearest known page', () => {
+    expect(resolveRoute('/portfolio/nonsense').path).toBe('/portfolio')
+    expect(resolveRoute('/portfolio/portfolios').path).toBe('/portfolio')
+    expect(resolveRoute('/portfolio/baskets/').path).toBe('/portfolio/baskets')
+    expect(resolveRoute('/portfolio/baskets/12/extra').path).toBe('/portfolio/baskets/12')
   })
 })
 
@@ -38,6 +73,14 @@ describe('RouterStore', () => {
     const router = new RouterStore()
     expect(router.route$.get()).toBe('trades')
     expect(window.location.pathname).toBe('/trades')
+  })
+
+  it('keeps a nested portfolio path in the address bar on startup (reload)', () => {
+    window.history.replaceState({}, '', '/portfolio/baskets/12')
+    const router = new RouterStore()
+    expect(router.route$.get()).toBe('portfolio')
+    expect(router.path$.get()).toBe('/portfolio/baskets/12')
+    expect(window.location.pathname).toBe('/portfolio/baskets/12')
   })
 
   it('keeps the reset token in the URL on startup', () => {
@@ -77,5 +120,38 @@ describe('RouterStore', () => {
     window.dispatchEvent(new PopStateEvent('popstate'))
 
     expect(router.route$.get()).toBe('fund')
+  })
+
+  it('navigates to a nested portfolio path, exposing where in the area we are', () => {
+    const router = new RouterStore()
+    router.navigate('/portfolio/portfolios/5')
+    expect(router.route$.get()).toBe('portfolio')
+    expect(router.portfolio$.get()).toEqual({ page: 'portfolios', id: '5' })
+    expect(window.location.pathname).toBe('/portfolio/portfolios/5')
+  })
+
+  it('pushes a history entry when moving between two detail pages of the same area', () => {
+    const router = new RouterStore()
+    router.navigate('/portfolio/baskets/1')
+    const before = window.history.length
+    router.navigate('/portfolio/baskets/2')
+    expect(window.history.length).toBe(before + 1)
+    expect(router.portfolio$.get()).toEqual({ page: 'baskets', id: '2' })
+  })
+
+  it('restores the nested portfolio page on back/forward (popstate)', () => {
+    const router = new RouterStore()
+    router.navigate('/portfolio/baskets/2')
+
+    window.history.replaceState({}, '', '/portfolio/baskets/1')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+
+    expect(router.portfolio$.get()).toEqual({ page: 'baskets', id: '1' })
+  })
+
+  it('has no portfolio view outside the portfolio area', () => {
+    window.history.replaceState({}, '', '/radar')
+    const router = new RouterStore()
+    expect(router.portfolio$.get()).toBeNull()
   })
 })

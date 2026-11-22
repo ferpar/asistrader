@@ -17,10 +17,17 @@ import { RadarStore } from '../domain/radar/RadarStore'
 import { IndicatorStore } from '../domain/radar/IndicatorStore'
 import { HttpBenchmarkRepository } from '../domain/benchmark/HttpBenchmarkRepository'
 import { BenchmarkStore } from '../domain/benchmark/BenchmarkStore'
+import { BenchmarkOverlayStore } from '../domain/benchmark/BenchmarkOverlayStore'
 import { HttpIrrRepository } from '../domain/irr/HttpIrrRepository'
 import { IrrStore } from '../domain/irr/IrrStore'
 import { AuthStore } from '../domain/auth/AuthStore'
 import { RouterStore } from '../domain/router/RouterStore'
+import { HttpBasketRepository } from '../domain/basket/HttpBasketRepository'
+import { BasketStore } from '../domain/basket/BasketStore'
+import { BasketDetailStore } from '../domain/basket/BasketDetailStore'
+import { BasketOverlayStore } from '../domain/basket/BasketOverlayStore'
+import { HttpPortfolioRepository } from '../domain/portfolio/HttpPortfolioRepository'
+import { PortfolioStore } from '../domain/portfolio/PortfolioStore'
 import { AppContainer } from './types'
 
 export function createAppContainer(): AppContainer {
@@ -47,12 +54,19 @@ export function createAppContainer(): AppContainer {
   )
   const benchmarkRepo = new HttpBenchmarkRepository(baseUrl, getAccessToken)
   const benchmarkStore = new BenchmarkStore(benchmarkRepo)
+  const benchmarkOverlayStore = new BenchmarkOverlayStore(benchmarkRepo)
   const radarRepo = new HttpRadarRepository(baseUrl, getAccessToken)
   const radarPresetRepo = new HttpRadarPresetRepository(baseUrl, getAccessToken)
   const indicatorStore = new IndicatorStore(radarRepo, priceProvider)
   const radarStore = new RadarStore(benchmarkRepo, radarPresetRepo)
   const irrRepo = new HttpIrrRepository(baseUrl, getAccessToken)
   const irrStore = new IrrStore(irrRepo)
+  const basketRepo = new HttpBasketRepository(baseUrl, getAccessToken)
+  const basketStore = new BasketStore(basketRepo, benchmarkRepo)
+  const basketDetailStore = new BasketDetailStore(basketRepo, benchmarkRepo)
+  const basketOverlayStore = new BasketOverlayStore(basketRepo)
+  const portfolioRepo = new HttpPortfolioRepository(baseUrl, getAccessToken)
+  const portfolioStore = new PortfolioStore(portfolioRepo)
   return {
     authStore,
     routerStore,
@@ -68,6 +82,11 @@ export function createAppContainer(): AppContainer {
     radarStore,
     indicatorStore,
     benchmarkStore,
+    benchmarkOverlayStore,
     irrStore,
+    basketStore,
+    basketDetailStore,
+    basketOverlayStore,
+    portfolioStore,
   }
 }

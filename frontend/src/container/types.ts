@@ -10,9 +10,14 @@ import { FxStore } from '../domain/fx/FxStore'
 import { RadarStore } from '../domain/radar/RadarStore'
 import { IndicatorStore } from '../domain/radar/IndicatorStore'
 import { BenchmarkStore } from '../domain/benchmark/BenchmarkStore'
+import { BenchmarkOverlayStore } from '../domain/benchmark/BenchmarkOverlayStore'
 import { IrrStore } from '../domain/irr/IrrStore'
 import { AuthStore } from '../domain/auth/AuthStore'
 import { RouterStore } from '../domain/router/RouterStore'
+import { BasketStore } from '../domain/basket/BasketStore'
+import { BasketDetailStore } from '../domain/basket/BasketDetailStore'
+import { BasketOverlayStore } from '../domain/basket/BasketOverlayStore'
+import { PortfolioStore } from '../domain/portfolio/PortfolioStore'
 
 export interface AppContainer {
   authStore: AuthStore
@@ -29,5 +34,10 @@ export interface AppContainer {
   radarStore: RadarStore
   indicatorStore: IndicatorStore
   benchmarkStore: BenchmarkStore
+  benchmarkOverlayStore: BenchmarkOverlayStore
   irrStore: IrrStore
+  basketStore: BasketStore
+  basketDetailStore: BasketDetailStore
+  basketOverlayStore: BasketOverlayStore
+  portfolioStore: PortfolioStore
 }

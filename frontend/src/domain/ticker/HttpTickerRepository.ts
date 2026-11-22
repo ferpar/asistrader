@@ -7,6 +7,7 @@ import type {
   TickerListResponse,
   TickerSearchResponse,
   TickerCreateResponse,
+  TickerResponse,
 } from '../../types/ticker'
 import { mapTicker } from './mappers'
 import { buildHeaders } from '../shared/httpHelpers'
@@ -51,6 +52,29 @@ export class HttpTickerRepository implements ITickerRepository {
       throw new Error(error.detail || `Failed to create ticker: ${response.statusText}`)
     }
     const data: TickerCreateResponse = await response.json()
+    return mapTicker(data.ticker)
+  }
+
+  async setAssetClassOverride(
+    symbol: string,
+    assetClass: 'domestic_stock' | 'international_stock' | 'etf' | null,
+  ): Promise<Ticker> {
+    const url = `${this.baseUrl}/api/tickers/${encodeURIComponent(symbol)}/asset-class`
+    const response = await fetch(
+      url,
+      assetClass === null
+        ? { method: 'DELETE', headers: buildHeaders(this.getToken) }
+        : {
+            method: 'PUT',
+            headers: buildHeaders(this.getToken, true),
+            body: JSON.stringify({ asset_class: assetClass }),
+          },
+    )
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || `Failed to set Asset Class: ${response.statusText}`)
+    }
+    const data: TickerResponse = await response.json()
     return mapTicker(data.ticker)
   }
 

@@ -3,7 +3,7 @@
 from datetime import date, datetime, timezone
 from enum import Enum as PyEnum
 
-from sqlalchemy import JSON, Boolean, Column, Date, DateTime, Enum, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Column, Date, DateTime, Enum, Float, ForeignKey, Index, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -122,6 +122,7 @@ class User(Base):
     alert_dismissals = relationship("AlertDismissal", back_populates="user_rel")
     radar_presets = relationship("RadarPreset", back_populates="user_rel")
     password_reset_tokens = relationship("PasswordResetToken", back_populates="user_rel")
+    portfolios = relationship("Portfolio", back_populates="user_rel")
 
 
 class RefreshToken(Base):
@@ -177,6 +178,31 @@ class Strategy(Base):
     trades = relationship("Trade", back_populates="strategy_rel")
 
 
+class InstrumentType(str, PyEnum):
+    """What kind of instrument a ticker is, from yfinance's `quoteType`.
+
+    Only stocks and ETFs are classified; anything else Yahoo reports
+    (mutual funds, indexes...) is stored as its lower-cased quoteType.
+    """
+
+    STOCK = "stock"
+    ETF = "etf"
+
+
+class AssetClass(str, PyEnum):
+    """How a Holding is grouped for reporting (see GLOSSARY.md).
+
+    UNCLASSIFIED is never stored or chosen: it is what a Holding falls into
+    when its ticker lacks the metadata to classify it (unknown instrument
+    type, or a stock with unknown listing country) and has no override.
+    """
+
+    DOMESTIC_STOCK = "domestic_stock"
+    INTERNATIONAL_STOCK = "international_stock"
+    ETF = "etf"
+    UNCLASSIFIED = "unclassified"
+
+
 class Ticker(Base):
     """Ticker model representing a stock/asset."""
 
@@ -204,6 +230,16 @@ class Ticker(Base):
     # sync, forever. Cleared whenever a backfill does land rows; re-probed
     # after BACKFILL_RETRY_DAYS in case the upstream history is extended.
     backfill_exhausted_at = Column(DateTime, nullable=True)
+    # Instrument metadata for Asset Classes, from yfinance `.info`: the
+    # instrument type (an `InstrumentType` value, or another lower-cased
+    # quoteType) and the ISO-2 country of the listing venue (from
+    # `info["market"]`, e.g. "es_market" → "ES" — not `info["country"]`, which
+    # is the company's domicile). NULL until detected or backfilled.
+    instrument_type = Column(String(16), nullable=True)
+    listing_country = Column(String(2), nullable=True)
+    # Global (tickers are shared): an `AssetClass` value except UNCLASSIFIED
+    # that wins over detection when set.
+    asset_class_override = Column(String(32), nullable=True)
 
     trades = relationship("Trade", back_populates="ticker_rel")
     strategy_rel = relationship("Strategy", back_populates="tickers")
@@ -344,6 +380,9 @@ class MarketData(Base):
     high = Column(Float, nullable=True)
     low = Column(Float, nullable=True)
     close = Column(Float, nullable=True)
+    # Split/dividend-adjusted close, for measurement only (Momentum Score,
+    # Basket Indexes). SL/TP detection keeps using the raw OHLC (ADR 0002).
+    adj_close = Column(Float, nullable=True)
     volume = Column(Float, nullable=True)
 
     __table_args__ = (
@@ -468,6 +507,9 @@ class UserFundSettings(Base):
     detection_margin_pct = Column(
         Float, nullable=False, default=0.005, server_default="0.005"
     )
+    # ISO 3166-1 alpha-2 country the user considers domestic: a stock listed
+    # there is a Domestic Stock, any other stock an International Stock.
+    home_market = Column(String(2), nullable=False, default="ES", server_default="ES")
 
     user_rel = relationship("User", back_populates="fund_settings")
 
@@ -592,3 +634,141 @@ class SweepResultCache(Base):
         ),
         Index("ix_sweep_results_ticker", "ticker"),
     )
+
+
+class TransactionKind(str, PyEnum):
+    """Kind of a Portfolio Transaction."""
+
+    BUY = "buy"
+    SELL = "sell"
+    SPLIT = "split"
+
+
+class Portfolio(Base):
+    """A named collection of the user's long-term Holdings.
+
+    Separate from Trades (ADR 0001): a Portfolio records its own Transactions
+    and its Holdings are derived by replaying them. `currency` is fixed at
+    creation so recorded FX rates and history never change meaning.
+    """
+
+    __tablename__ = "portfolios"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String, nullable=False)
+    currency = Column(String(3), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_portfolios_user_name"),
+        Index("ix_portfolios_user_id", "user_id"),
+    )
+
+    user_rel = relationship("User", back_populates="portfolios")
+    transactions = relationship(
+        "PortfolioTransaction",
+        back_populates="portfolio_rel",
+        cascade="all, delete-orphan",
+        order_by="(PortfolioTransaction.date, PortfolioTransaction.id)",
+    )
+
+
+class PortfolioTransaction(Base):
+    """A dated Buy, Sell or Split of an instrument within a Portfolio.
+
+    `units` is fractional (Numeric, not Integer). `price` and `fees` are in the
+    instrument's currency; `fx_rate` (optional) converts one unit of the
+    instrument's currency into the Portfolio's currency — when absent, the
+    stored FX rate for `date` is used. `split_ratio` is only set on Splits.
+    """
+
+    __tablename__ = "portfolio_transactions"
+
+    id = Column(Integer, primary_key=True)
+    portfolio_id = Column(
+        Integer, ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=False
+    )
+    kind = Column(String(10), nullable=False)
+    date = Column(Date, nullable=False)
+    ticker = Column(String, ForeignKey("tickers.symbol"), nullable=False)
+    units = Column(Numeric(28, 10), nullable=True)
+    price = Column(Numeric(28, 10), nullable=True)
+    fees = Column(Numeric(28, 10), nullable=False, default=0)
+    fx_rate = Column(Numeric(28, 10), nullable=True)
+    split_ratio = Column(Numeric(28, 10), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    __table_args__ = (
+        Index("ix_portfolio_transactions_portfolio_date", "portfolio_id", "date"),
+    )
+
+    portfolio_rel = relationship("Portfolio", back_populates="transactions")
+
+
+class BasketKind(str, PyEnum):
+    """Who maintains a Basket: us (curated, visible to all, read-only) or one user."""
+
+    CURATED = "curated"
+    PERSONAL = "personal"
+
+
+class Basket(Base):
+    """A named group of instruments measured as one unit (see GLOSSARY.md).
+
+    Curated Baskets have no owner and a stable `slug` the seed file reconciles
+    by (db/seed_baskets.py); Personal Baskets belong to `owner_user_id`.
+    `kind` is a plain string holding a BasketKind value.
+    """
+
+    __tablename__ = "baskets"
+
+    id = Column(Integer, primary_key=True)
+    kind = Column(String(16), nullable=False)
+    owner_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    slug = Column(String, nullable=True, unique=True)
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (Index("ix_baskets_owner_user_id", "owner_user_id"),)
+
+    members = relationship(
+        "BasketMember",
+        back_populates="basket_rel",
+        cascade="all, delete-orphan",
+        order_by="BasketMember.ticker",
+    )
+
+
+class BasketMember(Base):
+    """A ticker's current membership in a Basket (no membership history)."""
+
+    __tablename__ = "basket_members"
+
+    id = Column(Integer, primary_key=True)
+    basket_id = Column(Integer, ForeignKey("baskets.id", ondelete="CASCADE"), nullable=False)
+    ticker = Column(String, ForeignKey("tickers.symbol"), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("basket_id", "ticker", name="uq_basket_members_basket_ticker"),
+        Index("ix_basket_members_basket_id", "basket_id"),
+    )
+
+    basket_rel = relationship("Basket", back_populates="members")

@@ -10,6 +10,9 @@ export interface TickerDTO {
   horizon: string | null
   beta: 'low' | 'medium' | 'high' | null
   strategy_id: number | null
+  instrument_type: string | null
+  listing_country: string | null
+  asset_class_override: 'domestic_stock' | 'international_stock' | 'etf' | null
 }
 
 export interface TickerListResponse {
@@ -31,6 +34,11 @@ export interface TickerSearchResponse {
 
 export interface TickerCreateRequest {
   symbol: string
+}
+
+export interface TickerResponse {
+  ticker: TickerDTO
+  message: string
 }
 
 export interface TickerCreateResponse {
