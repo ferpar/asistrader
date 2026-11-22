@@ -9,7 +9,10 @@ request from Transactions, stored market data and FX rates.
 Money is expressed in the Portfolio's currency. A Lot's cost is
 `units × price + fees` in the instrument's currency, converted with the
 Transaction's own FX rate when one was entered, else the stored rate for the
-Transaction's date. Portfolio Value uses each instrument's latest raw close
+Transaction's date. A Sell consumes the oldest Lots first (FIFO) and is
+rejected if it exceeds the units held at that point of the replay; its
+proceeds net of fees, converted the same way, minus the consumed Lots' cost
+accumulate into Realized Gain. Portfolio Value uses each instrument's latest raw close
 (never the adjusted close — ADR 0002) converted at that close's date.
 """
 
@@ -42,9 +45,17 @@ class InstrumentCurrencyUnknownError(PortfolioReplayError):
     """A Transaction's ticker has no known currency, so it can't be converted."""
 
 
+class OversellError(PortfolioReplayError):
+    """A Sell exceeds the units held at that point of the replay (long-only)."""
+
+
 @dataclass
 class Lot:
-    """Units bought in one Buy, with their date and cost in Portfolio currency."""
+    """Units bought in one Buy, with their date and cost in Portfolio currency.
+
+    A Sell that consumes part of a Lot shrinks its units and cost pro rata;
+    the Lot keeps its original date.
+    """
 
     ticker: str
     date: date
@@ -54,9 +65,11 @@ class Lot:
 
 @dataclass
 class Ledger:
-    """The state a Transaction list leaves a Portfolio in: open Lots per ticker."""
+    """The state a Transaction list leaves a Portfolio in: open Lots per ticker
+    and the Realized Gain accumulated by Sells."""
 
     currency: str
+    realized_gain: float = 0.0
     lots: dict[str, list[Lot]] = field(default_factory=lambda: defaultdict(list))
     instrument_currency: dict[str, str] = field(default_factory=dict)
     last_price: dict[str, tuple[date, float]] = field(default_factory=dict)
@@ -88,6 +101,8 @@ class SummaryFigures:
     portfolio_value: float
     unrealized_gain: float
     unrealized_gain_pct: float | None
+    realized_gain: float
+    total_gain: float
     holdings: list[HoldingFigures]
 
 
@@ -101,6 +116,49 @@ def _to_portfolio_currency(
             f"No {from_ccy}→{to_ccy} FX rate for {on_date.isoformat()}; "
             "enter the FX rate you paid"
         ) from e
+
+
+def _transaction_amount(
+    db: Session,
+    tx: PortfolioTransaction,
+    native_amount: float,
+    instrument_ccy: str,
+    portfolio_ccy: str,
+) -> float:
+    """Convert a Transaction's amount at its entered FX rate, else the stored one."""
+    if tx.fx_rate is not None:
+        return native_amount * float(tx.fx_rate)
+    return _to_portfolio_currency(
+        db, native_amount, instrument_ccy, portfolio_ccy, tx.date
+    )
+
+
+def _consume_fifo(lots: list[Lot], units: Decimal, tx: PortfolioTransaction) -> float:
+    """Remove `units` from the oldest Lots first; return the cost consumed.
+
+    Raises `OversellError` (leaving `lots` untouched) when fewer units are held.
+    """
+    held = sum((lot.units for lot in lots), Decimal(0))
+    if units > held:
+        raise OversellError(
+            f"Sell of {units.normalize():f} {tx.ticker} on {tx.date.isoformat()} "
+            f"exceeds the {held.normalize():f} units held then"
+        )
+    consumed = 0.0
+    remaining = units
+    while remaining > 0:
+        lot = lots[0]
+        if lot.units <= remaining:
+            consumed += lot.cost
+            remaining -= lot.units
+            lots.pop(0)
+        else:
+            part = lot.cost * float(remaining / lot.units)
+            consumed += part
+            lot.cost -= part
+            lot.units -= remaining
+            remaining = Decimal(0)
+    return consumed
 
 
 def transactions_of(db: Session, portfolio_id: int) -> list[PortfolioTransaction]:
@@ -136,15 +194,19 @@ def replay(db: Session, portfolio: Portfolio) -> Ledger:
         if tx.kind == TransactionKind.BUY.value:
             units = Decimal(tx.units)
             native_cost = float(units * Decimal(tx.price) + Decimal(tx.fees or 0))
-            if tx.fx_rate is not None:
-                cost = native_cost * float(tx.fx_rate)
-            else:
-                cost = _to_portfolio_currency(
-                    db, native_cost, ccy, portfolio.currency, tx.date
-                )
+            cost = _transaction_amount(db, tx, native_cost, ccy, portfolio.currency)
             ledger.lots[tx.ticker].append(
                 Lot(ticker=tx.ticker, date=tx.date, units=units, cost=cost)
             )
+            ledger.last_price[tx.ticker] = (tx.date, float(tx.price))
+        elif tx.kind == TransactionKind.SELL.value:
+            units = Decimal(tx.units)
+            consumed_cost = _consume_fifo(ledger.lots[tx.ticker], units, tx)
+            native_proceeds = float(units * Decimal(tx.price) - Decimal(tx.fees or 0))
+            proceeds = _transaction_amount(
+                db, tx, native_proceeds, ccy, portfolio.currency
+            )
+            ledger.realized_gain += proceeds - consumed_cost
             ledger.last_price[tx.ticker] = (tx.date, float(tx.price))
         else:
             raise PortfolioReplayError(f"Unsupported Transaction kind: {tx.kind}")
@@ -169,7 +231,8 @@ def _latest_close(db: Session, symbol: str, as_of: date) -> tuple[date, float] |
 def compute_summary(
     db: Session, portfolio: Portfolio, as_of: date | None = None
 ) -> SummaryFigures:
-    """Invested, Portfolio Value, Unrealized Gain and Holdings as of `as_of`.
+    """Invested, Portfolio Value, Unrealized / Realized / Total Gain and
+    Holdings as of `as_of`.
 
     A Holding is valued at its latest raw close on or before `as_of`; an
     instrument with no stored close yet is valued at its latest Transaction
@@ -225,5 +288,7 @@ def compute_summary(
         portfolio_value=portfolio_value,
         unrealized_gain=unrealized,
         unrealized_gain_pct=unrealized / invested if invested else None,
+        realized_gain=ledger.realized_gain,
+        total_gain=unrealized + ledger.realized_gain,
         holdings=holdings,
     )

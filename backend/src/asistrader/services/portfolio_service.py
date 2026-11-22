@@ -16,6 +16,7 @@ from asistrader.services import fx_service
 from asistrader.services.fund_service import get_base_currency
 from asistrader.services.market_data_service import ensure_ticker_with_history
 from asistrader.services.portfolio_computation_service import (
+    OversellError,
     PortfolioFxUnavailableError,
     PortfolioReplayError,
     SummaryFigures,
@@ -160,29 +161,26 @@ def _validate(db: Session, portfolio: Portfolio) -> None:
         raise
 
 
-def create_buy(
+def _prepare_instrument(
     db: Session,
-    user_id: int,
-    portfolio_id: int,
-    *,
+    portfolio: Portfolio,
+    kind: TransactionKind,
+    symbol: str,
     on_date: date,
-    ticker: str,
-    units: Decimal,
-    price: Decimal,
-    fees: Decimal = Decimal(0),
-    fx_rate: Decimal | None = None,
-) -> PortfolioTransaction:
-    """Record a Buy. An unknown ticker is created and its history loaded.
+    fx_rate: Decimal | None,
+) -> None:
+    """Make sure the ticker and the FX rate a Transaction needs are stored.
 
-    Raises:
-        PortfolioNotFoundError: the Portfolio isn't the user's.
-        TickerValidationError: Yahoo doesn't know the ticker either.
-        PortfolioReplayError: the Buy can't be costed (no FX rate, no currency).
+    A Buy of an unknown ticker creates it and loads its history. A Sell can
+    only be of a ticker already held, so an unknown one is an oversell.
     """
-    portfolio = get_portfolio(db, user_id, portfolio_id)
-    symbol = ticker.strip().upper()
     since = on_date - timedelta(days=fx_service.EARLIEST_DATE_BUFFER_DAYS)
-    instrument = ensure_ticker_with_history(db, symbol, since)
+    if kind == TransactionKind.BUY:
+        instrument = ensure_ticker_with_history(db, symbol, since)
+    else:
+        instrument = db.get(Ticker, symbol)
+        if instrument is None:
+            raise OversellError(f"No units of {symbol} are held to sell")
 
     if fx_rate is None and instrument.currency:
         try:
@@ -190,9 +188,35 @@ def create_buy(
         except fx_service.FxRateUnavailable:
             _ensure_fx_history(db, {instrument.currency, portfolio.currency}, since)
 
+
+def create_transaction(
+    db: Session,
+    user_id: int,
+    portfolio_id: int,
+    *,
+    kind: TransactionKind,
+    on_date: date,
+    ticker: str,
+    units: Decimal,
+    price: Decimal,
+    fees: Decimal = Decimal(0),
+    fx_rate: Decimal | None = None,
+) -> PortfolioTransaction:
+    """Record a Buy or Sell, validated by replaying the full Transaction list.
+
+    Raises:
+        PortfolioNotFoundError: the Portfolio isn't the user's.
+        TickerValidationError: a Buy's ticker is unknown to Yahoo too.
+        PortfolioReplayError: the list no longer replays — e.g. the Transaction
+            can't be costed (no FX rate, no currency) or a Sell oversells.
+    """
+    portfolio = get_portfolio(db, user_id, portfolio_id)
+    symbol = ticker.strip().upper()
+    _prepare_instrument(db, portfolio, kind, symbol, on_date, fx_rate)
+
     transaction = PortfolioTransaction(
         portfolio_id=portfolio.id,
-        kind=TransactionKind.BUY.value,
+        kind=kind.value,
         date=on_date,
         ticker=symbol,
         units=units,
@@ -208,11 +232,9 @@ def create_buy(
     return transaction
 
 
-def delete_transaction(
-    db: Session, user_id: int, portfolio_id: int, transaction_id: int
-) -> None:
-    """Delete a Transaction; the remaining list must still replay."""
-    portfolio = get_portfolio(db, user_id, portfolio_id)
+def _get_transaction(
+    db: Session, portfolio: Portfolio, transaction_id: int
+) -> PortfolioTransaction:
     transaction = (
         db.query(PortfolioTransaction)
         .filter(
@@ -223,6 +245,55 @@ def delete_transaction(
     )
     if transaction is None:
         raise TransactionNotFoundError(f"Transaction with ID {transaction_id} not found")
+    return transaction
+
+
+def update_transaction(
+    db: Session,
+    user_id: int,
+    portfolio_id: int,
+    transaction_id: int,
+    *,
+    kind: TransactionKind,
+    on_date: date,
+    ticker: str,
+    units: Decimal,
+    price: Decimal,
+    fees: Decimal = Decimal(0),
+    fx_rate: Decimal | None = None,
+) -> PortfolioTransaction:
+    """Replace a Transaction's fields; the whole list must still replay.
+
+    An edit that makes any later Sell oversell is rejected and nothing changes.
+    Raises the same errors as `create_transaction`, plus
+    `TransactionNotFoundError`.
+    """
+    portfolio = get_portfolio(db, user_id, portfolio_id)
+    transaction = _get_transaction(db, portfolio, transaction_id)
+    symbol = ticker.strip().upper()
+    _prepare_instrument(db, portfolio, kind, symbol, on_date, fx_rate)
+
+    transaction.kind = kind.value
+    transaction.date = on_date
+    transaction.ticker = symbol
+    transaction.units = units
+    transaction.price = price
+    transaction.fees = fees
+    transaction.fx_rate = fx_rate
+    db.flush()
+    _validate(db, portfolio)
+    db.commit()
+    db.refresh(transaction)
+    return transaction
+
+
+def delete_transaction(
+    db: Session, user_id: int, portfolio_id: int, transaction_id: int
+) -> None:
+    """Delete a Transaction; the remaining list must still replay, so deleting
+    a Buy that a later Sell depends on is rejected as an oversell."""
+    portfolio = get_portfolio(db, user_id, portfolio_id)
+    transaction = _get_transaction(db, portfolio, transaction_id)
     db.delete(transaction)
     db.flush()
     _validate(db, portfolio)
@@ -233,7 +304,8 @@ def delete_transaction(
 
 
 def get_summary(db: Session, user_id: int, portfolio_id: int) -> SummaryFigures:
-    """Invested, Portfolio Value, Unrealized Gain and Holdings as of today.
+    """Invested, Portfolio Value, Unrealized / Realized / Total Gain and
+    Holdings as of today.
 
     If a valuation-date FX rate is missing, sync the Portfolio's currencies
     once and retry before giving up.

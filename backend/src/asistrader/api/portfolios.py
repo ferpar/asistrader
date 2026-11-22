@@ -11,9 +11,12 @@ from sqlalchemy.orm import Session
 
 from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
-from asistrader.models.db import User
+from asistrader.models.db import TransactionKind, User
 from asistrader.models.schemas import (
     PortfolioCreateRequest,
+    PortfolioImportRequest,
+    PortfolioImportResponse,
+    PortfolioImportRowResult,
     PortfolioListResponse,
     PortfolioResponse,
     PortfolioSchema,
@@ -24,8 +27,9 @@ from asistrader.models.schemas import (
     PortfolioTransactionSchema,
     PortfolioUpdateRequest,
 )
-from asistrader.services import portfolio_service
+from asistrader.services import portfolio_import_service, portfolio_service
 from asistrader.services.portfolio_computation_service import PortfolioReplayError
+from asistrader.services.portfolio_import_service import ImportFileError
 from asistrader.services.portfolio_service import (
     PortfolioNameExistsError,
     PortfolioNotFoundError,
@@ -114,6 +118,23 @@ def delete_portfolio(
 # ── Transactions ──
 
 
+def _reject_future(request: PortfolioTransactionCreateRequest) -> None:
+    if request.date > date.today():
+        raise HTTPException(status_code=422, detail="A Transaction can't be in the future")
+
+
+def _transaction_fields(request: PortfolioTransactionCreateRequest) -> dict:
+    return dict(
+        kind=TransactionKind(request.kind),
+        on_date=request.date,
+        ticker=request.ticker,
+        units=request.units,
+        price=request.price,
+        fees=request.fees,
+        fx_rate=request.fx_rate,
+    )
+
+
 @router.get("/{portfolio_id}/transactions", response_model=PortfolioTransactionListResponse)
 def list_transactions(
     portfolio_id: int,
@@ -139,19 +160,10 @@ def create_transaction(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PortfolioTransactionResponse:
-    if request.date > date.today():
-        raise HTTPException(status_code=422, detail="A Transaction can't be in the future")
+    _reject_future(request)
     try:
-        transaction = portfolio_service.create_buy(
-            db,
-            current_user.id,
-            portfolio_id,
-            on_date=request.date,
-            ticker=request.ticker,
-            units=request.units,
-            price=request.price,
-            fees=request.fees,
-            fx_rate=request.fx_rate,
+        transaction = portfolio_service.create_transaction(
+            db, current_user.id, portfolio_id, **_transaction_fields(request)
         )
     except PortfolioNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -161,7 +173,79 @@ def create_transaction(
         raise HTTPException(status_code=422, detail=str(e))
     return PortfolioTransactionResponse(
         transaction=PortfolioTransactionSchema.model_validate(transaction),
-        message=f"Buy of {transaction.ticker} recorded",
+        message=f"{transaction.kind.capitalize()} of {transaction.ticker} recorded",
+    )
+
+
+@router.put(
+    "/{portfolio_id}/transactions/{transaction_id}",
+    response_model=PortfolioTransactionResponse,
+)
+def update_transaction(
+    portfolio_id: int,
+    transaction_id: int,
+    request: PortfolioTransactionCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PortfolioTransactionResponse:
+    """Replace a Transaction. Rejected (422) if the edited list no longer
+    replays, e.g. a later Sell would exceed the units held."""
+    _reject_future(request)
+    try:
+        transaction = portfolio_service.update_transaction(
+            db,
+            current_user.id,
+            portfolio_id,
+            transaction_id,
+            **_transaction_fields(request),
+        )
+    except (PortfolioNotFoundError, TransactionNotFoundError) as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except TickerValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except PortfolioReplayError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return PortfolioTransactionResponse(
+        transaction=PortfolioTransactionSchema.model_validate(transaction),
+        message=f"{transaction.kind.capitalize()} of {transaction.ticker} updated",
+    )
+
+
+@router.post(
+    "/{portfolio_id}/transactions/import", response_model=PortfolioImportResponse
+)
+def import_transactions(
+    portfolio_id: int,
+    request: PortfolioImportRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PortfolioImportResponse:
+    """Import Buys from CSV text. Each row succeeds or fails on its own: valid
+    rows are recorded, failing rows are reported with a reason."""
+    try:
+        results = portfolio_import_service.import_csv(
+            db, current_user.id, portfolio_id, request.csv
+        )
+    except PortfolioNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ImportFileError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    rows = [
+        PortfolioImportRowResult(
+            row=r.row,
+            status=r.status,
+            transaction=(
+                PortfolioTransactionSchema.model_validate(r.transaction)
+                if r.transaction is not None
+                else None
+            ),
+            error=r.error,
+        )
+        for r in results
+    ]
+    created = sum(1 for r in rows if r.status == "created")
+    return PortfolioImportResponse(
+        results=rows, created=created, failed=len(rows) - created
     )
 
 
@@ -192,7 +276,8 @@ def get_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PortfolioSummarySchema:
-    """Invested, Portfolio Value, Unrealized Gain and Holdings as of today."""
+    """Invested, Portfolio Value, Unrealized / Realized / Total Gain and
+    Holdings as of today."""
     try:
         summary = portfolio_service.get_summary(db, current_user.id, portfolio_id)
     except PortfolioNotFoundError as e:
