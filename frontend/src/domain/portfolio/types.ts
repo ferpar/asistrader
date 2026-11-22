@@ -71,6 +71,11 @@ export interface PortfolioHistoryRow {
   totalGain: number
   /** Calendar days; null when no Lots remain. */
   weightedDaysOpen: number | null
+  /**
+   * Time-weighted Performance Index: 100 on the first Transaction's day, each
+   * day's return net of that day's Buys and Sells; flat while nothing is held.
+   */
+  performanceIndex: number
 }
 
 /** A Portfolio's daily history: one row per business day from its first Transaction. */
