@@ -203,6 +203,27 @@ def test_holidays_carry_the_last_close_forward_over_business_days(
     )
 
 
+def test_a_member_without_a_close_for_more_than_5_business_days_stops_contributing(
+    client: TestClient, db_session: Session, auth_headers: dict[str, str]
+) -> None:
+    next_tue, next_wed = date(2025, 1, 14), date(2025, 1, 15)
+    # BBB's last close is Monday (e.g. delisted); AAA keeps trading.
+    _closes(
+        db_session,
+        "AAA",
+        {MON: 100, TUE: 100, WED: 100, THU: 100, FRI: 100, NEXT_MON: 100, next_tue: 110, next_wed: 121},
+    )
+    _closes(db_session, "BBB", {MON: 50})
+    basket = _basket(db_session, "Pair", ["AAA", "BBB"], slug="pair")
+
+    series = _index(client, auth_headers, basket.id)
+
+    assert series["dates"][-3:] == ["2025-01-13", "2025-01-14", "2025-01-15"]
+    # Up to next Monday (5 business days after its last close) BBB is carried
+    # forward like a holiday; from next Tuesday only AAA counts: +10%, +10%.
+    assert series["close"] == pytest.approx([100] * 6 + [110, 121])
+
+
 def test_index_is_built_from_adjusted_closes(
     client: TestClient, db_session: Session, auth_headers: dict[str, str]
 ) -> None:
