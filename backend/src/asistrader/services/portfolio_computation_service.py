@@ -13,10 +13,16 @@ Transaction's date. A Sell consumes the oldest Lots first (FIFO) and is
 rejected if it exceeds the units held at that point of the replay; its
 proceeds net of fees, converted the same way, minus the consumed Lots' cost
 accumulate into Realized Gain. Both are recorded as dated cash flows for XIRR.
-A Split multiplies the units of every open Lot of its ticker by its ratio,
-leaving their cost unchanged, and is rejected when no units are held at that
-point. Portfolio Value uses each instrument's latest raw close
-(never the adjusted close — ADR 0002) converted at that close's date.
+
+Splits are applied automatically. Stored closes are split-adjusted (but not
+dividend-adjusted, ADR 0002), so Lot units are expressed in that same
+split-adjusted basis: a Buy's or Sell's entered units are multiplied by the
+product of the ratios of the ticker's split events dated after the
+Transaction (its price divided by it), while the Transaction itself keeps
+what the user entered. Cost and proceeds are money, so a split never changes
+them: Portfolio Value is continuous across a split and the Performance Index
+doesn't see it. Portfolio Value uses each instrument's latest stored close
+(never the adjusted close) converted at the valuation day's FX rate.
 
 Each Holding has an Asset Class: its ticker's override if set; else ETF when
 the instrument type is ETF; else Domestic Stock when the listing country is
@@ -41,6 +47,7 @@ from asistrader.models.db import (
     Portfolio,
     PortfolioTransaction,
     Ticker,
+    TickerSplit,
     TransactionKind,
 )
 from asistrader.services import fund_service, fx_service
@@ -63,16 +70,13 @@ class OversellError(PortfolioReplayError):
     """A Sell exceeds the units held at that point of the replay (long-only)."""
 
 
-class NothingHeldError(PortfolioReplayError):
-    """A Split of a ticker with no units held at that point of the replay."""
-
-
 @dataclass
 class Lot:
     """Units bought in one Buy, with their date and cost in Portfolio currency.
 
-    A Sell that consumes part of a Lot shrinks its units and cost pro rata;
-    the Lot keeps its original date.
+    `units` is in the split-adjusted basis of the stored closes. A Sell that
+    consumes part of a Lot shrinks its units and cost pro rata; the Lot keeps
+    its original date.
     """
 
     ticker: str
@@ -91,6 +95,8 @@ class Ledger:
     realized_gain: float = 0.0
     lots: dict[str, list[Lot]] = field(default_factory=lambda: defaultdict(list))
     instrument_currency: dict[str, str] = field(default_factory=dict)
+    # Latest Transaction price per ticker, split-adjusted like the Lots: the
+    # valuation fallback before an instrument's first stored close.
     last_price: dict[str, tuple[date, float]] = field(default_factory=dict)
     cash_flows: list[tuple[date, float]] = field(default_factory=list)
 
@@ -179,16 +185,20 @@ def _transaction_amount(
     )
 
 
-def _consume_fifo(lots: list[Lot], units: Decimal, tx: PortfolioTransaction) -> float:
-    """Remove `units` from the oldest Lots first; return the cost consumed.
+def _consume_fifo(
+    lots: list[Lot], units: Decimal, factor: Decimal, tx: PortfolioTransaction
+) -> float:
+    """Remove `units` (split-adjusted) from the oldest Lots first; return the
+    cost consumed. `factor` converts the Sell's entered units into that basis.
 
     Raises `OversellError` (leaving `lots` untouched) when fewer units are held.
     """
     held = sum((lot.units for lot in lots), Decimal(0))
     if units > held:
+        held_then = held / factor
         raise OversellError(
-            f"Sell of {units.normalize():f} {tx.ticker} on {tx.date.isoformat()} "
-            f"exceeds the {held.normalize():f} units held then"
+            f"Sell of {Decimal(tx.units).normalize():f} {tx.ticker} on "
+            f"{tx.date.isoformat()} exceeds the {held_then.normalize():f} units held then"
         )
     consumed = 0.0
     remaining = units
@@ -207,19 +217,27 @@ def _consume_fifo(lots: list[Lot], units: Decimal, tx: PortfolioTransaction) -> 
     return consumed
 
 
-def _apply_split(ledger: Ledger, tx: PortfolioTransaction) -> None:
-    """Multiply the units of every open Lot of the ticker by the ratio; cost
-    is unchanged. Raises `NothingHeldError` when no units are held then."""
-    lots = ledger.lots[tx.ticker]
-    if not lots:
-        raise NothingHeldError(
-            f"No units of {tx.ticker} are held on {tx.date.isoformat()} to split"
+class _SplitFactors:
+    """Per ticker, the factor that turns units entered on a date into the
+    split-adjusted basis of the stored closes: the product of the ratios of
+    the split events dated after it."""
+
+    def __init__(self, db: Session, symbols: set[str]) -> None:
+        self._splits: dict[str, list[tuple[date, Decimal]]] = defaultdict(list)
+        rows = (
+            db.query(TickerSplit.ticker, TickerSplit.date, TickerSplit.ratio)
+            .filter(TickerSplit.ticker.in_(symbols))
+            .all()
         )
-    ratio = Decimal(tx.split_ratio)
-    for lot in lots:
-        lot.units *= ratio
-    price_date, price = ledger.last_price[tx.ticker]
-    ledger.last_price[tx.ticker] = (price_date, price / float(ratio))
+        for symbol, day, ratio in rows:
+            self._splits[symbol].append((day, Decimal(ratio)))
+
+    def at(self, symbol: str, on_date: date) -> Decimal:
+        factor = Decimal(1)
+        for day, ratio in self._splits.get(symbol, ()):
+            if day > on_date:
+                factor *= ratio
+        return factor
 
 
 def transactions_of(db: Session, portfolio_id: int) -> list[PortfolioTransaction]:
@@ -252,6 +270,7 @@ def replay(
         db.query(Ticker.symbol, Ticker.currency).filter(Ticker.symbol.in_(symbols)).all()
     )
 
+    factors = _SplitFactors(db, symbols)
     ledger = Ledger(currency=portfolio.currency)
     replayed_date: date | None = None
     for tx in transactions:
@@ -265,29 +284,29 @@ def replay(
             )
         ledger.instrument_currency[tx.ticker] = ccy
 
+        factor = factors.at(tx.ticker, tx.date)
+        units = Decimal(tx.units) * factor
+        adjusted_price = float(Decimal(tx.price) / factor)
         if tx.kind == TransactionKind.BUY.value:
-            units = Decimal(tx.units)
-            native_cost = float(units * Decimal(tx.price) + Decimal(tx.fees or 0))
+            native_cost = float(Decimal(tx.units) * Decimal(tx.price) + Decimal(tx.fees or 0))
             cost = _transaction_amount(db, tx, native_cost, ccy, portfolio.currency)
             ledger.lots[tx.ticker].append(
                 Lot(ticker=tx.ticker, date=tx.date, units=units, cost=cost)
             )
             ledger.cash_flows.append((tx.date, -cost))
-            ledger.last_price[tx.ticker] = (tx.date, float(tx.price))
         elif tx.kind == TransactionKind.SELL.value:
-            units = Decimal(tx.units)
-            consumed_cost = _consume_fifo(ledger.lots[tx.ticker], units, tx)
-            native_proceeds = float(units * Decimal(tx.price) - Decimal(tx.fees or 0))
+            consumed_cost = _consume_fifo(ledger.lots[tx.ticker], units, factor, tx)
+            native_proceeds = float(
+                Decimal(tx.units) * Decimal(tx.price) - Decimal(tx.fees or 0)
+            )
             proceeds = _transaction_amount(
                 db, tx, native_proceeds, ccy, portfolio.currency
             )
             ledger.realized_gain += proceeds - consumed_cost
             ledger.cash_flows.append((tx.date, proceeds))
-            ledger.last_price[tx.ticker] = (tx.date, float(tx.price))
-        elif tx.kind == TransactionKind.SPLIT.value:
-            _apply_split(ledger, tx)
         else:
             raise PortfolioReplayError(f"Unsupported Transaction kind: {tx.kind}")
+        ledger.last_price[tx.ticker] = (tx.date, adjusted_price)
 
     return ledger
 

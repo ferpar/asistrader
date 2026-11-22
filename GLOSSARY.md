@@ -29,7 +29,7 @@ The units bought in one Buy, with their date and cost (fees included). Sells con
 _Avoid_: Tranche, batch
 
 **Split**:
-A Transaction that multiplies the units of every Lot of an instrument without changing their cost.
+A split event of an instrument (e.g. 2-for-1), as reported by the market data. Not a Transaction: it is applied automatically, multiplying the units of every Lot bought before it without changing their cost.
 
 **Unrealized Gain**:
 Portfolio Value minus Invested, in absolute terms or relative to Invested.

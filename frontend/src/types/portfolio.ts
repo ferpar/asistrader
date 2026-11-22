@@ -23,18 +23,17 @@ export interface PortfolioCreateRequest {
   currency?: string
 }
 
-export type TransactionKindDTO = 'buy' | 'sell' | 'split'
+export type TransactionKindDTO = 'buy' | 'sell'
 
 export interface PortfolioTransactionDTO {
   id: number
   kind: TransactionKindDTO
   date: string
   ticker: string
-  units: number | null
-  price: number | null
+  units: number
+  price: number
   fees: number
   fx_rate: number | null
-  split_ratio: number | null
   created_at: string
 }
 
@@ -48,18 +47,16 @@ export interface PortfolioTransactionResponseDTO {
   message: string
 }
 
-/** Body of POST (create) and PUT (replace) of a Buy, Sell or Split. */
-export type TransactionRequest =
-  | {
-      kind: 'buy' | 'sell'
-      date: string
-      ticker: string
-      units: number
-      price: number
-      fees: number
-      fx_rate?: number
-    }
-  | { kind: 'split'; date: string; ticker: string; split_ratio: number }
+/** Body of POST (create) and PUT (replace) of a Buy or Sell. */
+export interface TransactionRequest {
+  kind: TransactionKindDTO
+  date: string
+  ticker: string
+  units: number
+  price: number
+  fees: number
+  fx_rate?: number
+}
 
 /** Daily rows as parallel columns: `column[i]` is the figure at the close of `dates[i]`. */
 export interface PortfolioHistoryDTO {

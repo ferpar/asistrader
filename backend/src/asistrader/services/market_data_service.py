@@ -3,6 +3,7 @@
 import logging
 import time
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 
 import pandas as pd
 import yfinance as yf
@@ -10,7 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from asistrader.models.db import MarketData, Ticker
+from asistrader.models.db import MarketData, Ticker, TickerSplit
 from asistrader.services.ticker_service import (
     TickerValidationError,
     backfill_ticker_metadata,
@@ -123,16 +124,16 @@ def fetch_from_yfinance(symbol: str, start_date: date, end_date: date) -> pd.Dat
         end_date: End date for data range (inclusive)
 
     Returns:
-        DataFrame with columns: Open, High, Low, Close, Volume
-        Index is DatetimeIndex
+        DataFrame with columns: Open, High, Low, Close, Adj Close, Volume,
+        Dividends, Stock Splits. Index is DatetimeIndex
 
     Note:
-        We pass `auto_adjust=False` so the OHLCV values match the actual
-        prices the user saw on charts the day each bar printed. yfinance's
-        default (`True`) back-adjusts past prices for dividends and splits,
-        which silently lowers historical lows below the user's entry/SL
-        levels and causes false-positive auto-detect hits. For SL/TP/entry
-        detection we always want the raw, unadjusted prices.
+        We pass `auto_adjust=False` so the OHLC values are not back-adjusted
+        for dividends. yfinance's default (`True`) does that, which silently
+        lowers historical lows below the user's entry/SL levels and causes
+        false-positive auto-detect hits. Yahoo still adjusts these prices for
+        splits (ADR 0002); split events come in "Stock Splits" and are stored
+        by `store_market_data` so Portfolios can apply them.
     """
     ticker = yf.Ticker(symbol)
     # yfinance end is exclusive, so add 1 day
@@ -219,9 +220,72 @@ def store_market_data(db: Session, symbol: str, df: pd.DataFrame) -> int:
         },
     )
     db.execute(stmt)
+    store_splits(db, symbol, df)
     db.commit()
 
     return len(rows)
+
+
+def store_splits(db: Session, symbol: str, df: pd.DataFrame) -> int:
+    """Upsert the split events in a yfinance frame's "Stock Splits" column
+    (the ratio on the split date, 0 elsewhere). A frame without the column
+    (e.g. a bulk download without actions) stores nothing. Not committed.
+
+    Returns:
+        Number of split events upserted
+    """
+    if df.empty or "Stock Splits" not in df.columns:
+        return 0
+    stored = 0
+    for idx, ratio in df["Stock Splits"].items():
+        if pd.isna(ratio) or float(ratio) <= 0:
+            continue
+        day = idx.date() if hasattr(idx, "date") else idx
+        value = Decimal(str(float(ratio)))
+        existing = (
+            db.query(TickerSplit)
+            .filter(TickerSplit.ticker == symbol, TickerSplit.date == day)
+            .first()
+        )
+        if existing is None:
+            db.add(TickerSplit(ticker=symbol, date=day, ratio=value))
+        else:
+            existing.ratio = value
+        stored += 1
+    return stored
+
+
+def fetch_splits_from_yfinance(symbol: str) -> pd.Series:
+    """Every split event Yahoo knows for the symbol: ratio indexed by date."""
+    return yf.Ticker(symbol).splits
+
+
+def backfill_splits(db: Session, symbols: list[str] | None = None) -> dict:
+    """Store the split events of existing tickers.
+
+    Sync stores the splits found in the bars it fetches, so tickers whose
+    history was loaded before splits were recorded need this one-off pass
+    (see `asistrader.cli.backfill_instrument_metadata`). Rerunning is safe:
+    events are upserted by (ticker, date).
+
+    Returns:
+        Dict with 'results' (symbol -> split events stored) and 'errors'
+        (symbol -> message).
+    """
+    if symbols is None:
+        symbols = get_all_ticker_symbols(db)
+    results: dict[str, int] = {}
+    errors: dict[str, str] = {}
+    for symbol in symbols:
+        try:
+            splits = fetch_splits_from_yfinance(symbol)
+            frame = pd.DataFrame({"Stock Splits": splits})
+            results[symbol] = store_splits(db, symbol, frame)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            errors[symbol] = str(e) or type(e).__name__
+    return {"results": results, "errors": errors}
 
 
 def get_market_data(
@@ -450,6 +514,7 @@ def fetch_bulk_from_yfinance(
         start=start_date,
         end=end_exclusive,
         auto_adjust=False,
+        actions=True,
         progress=False,
         group_by="ticker",
         threads=True,
@@ -470,7 +535,11 @@ def fetch_bulk_from_yfinance(
     for sym in symbols:
         if sym not in available:
             continue
-        sub = df[sym].dropna(how="all")
+        sub = df[sym]
+        # Action columns (Dividends, Stock Splits) are 0 on days the symbol
+        # didn't trade, so drop by the price columns only.
+        prices = [c for c in ("Open", "High", "Low", "Close") if c in sub.columns]
+        sub = sub.dropna(how="all", subset=prices or None)
         if not sub.empty:
             out[sym] = sub
     return out
@@ -508,14 +577,6 @@ def bulk_fetch_and_store(
             time.sleep(delay_between_chunks)
 
     return counts
-
-
-def _has_corporate_action(df: pd.DataFrame) -> bool:
-    """True if a history frame contains a dividend or split bar."""
-    for column in ("Dividends", "Stock Splits"):
-        if column in df.columns and (df[column].fillna(0) != 0).any():
-            return True
-    return False
 
 
 def backfill_adjusted_closes(db: Session, symbols: list[str] | None = None) -> dict:
@@ -620,11 +681,6 @@ def sync_ticker(
             ensure_ticker_exists(db, symbol)
             df = fetch_from_yfinance(symbol, forward_start_date, today)
             fetched += store_market_data(db, symbol, df)
-            if _has_corporate_action(df):
-                # Yahoo rescales every earlier adjusted close on a split or
-                # dividend; refetch the rows we already had so the adjusted
-                # series stays continuous. Raw closes come back unchanged.
-                store_market_data(db, symbol, fetch_from_yfinance(symbol, earliest, latest))
 
     skipped = fetched == 0
     return {"fetched": fetched, "skipped": skipped}

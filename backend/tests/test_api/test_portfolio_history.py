@@ -349,24 +349,6 @@ class TestPerformanceIndex:
             [100.0, 110.0, 110.0 * (1 - 110 / 2100)]
         )
 
-    def test_a_split_does_not_move_the_index(
-        self, client: TestClient, db_session: Session
-    ) -> None:
-        # Raw closes halve on the Split day; 20 units × 60 = 10 units × 120.
-        _seed_ticker(
-            db_session,
-            "NVDA",
-            "USD",
-            {date(2024, 1, 2): 120.0, date(2024, 1, 3): 120.0, date(2024, 1, 4): 60.0},
-        )
-        pid = _create_portfolio(client, "US", "USD")
-        _record(client, pid, "buy", date="2024-01-02", ticker="NVDA", units=10, price=120.0)
-        _record(client, pid, "split", date="2024-01-04", ticker="NVDA", split_ratio=2)
-
-        history = _history(client, pid, to="2024-01-04")
-
-        assert history["performance_index"] == pytest.approx([100.0] * 3)
-
     def test_after_selling_everything_the_index_carries_flat_until_the_next_buy(
         self, client: TestClient, db_session: Session
     ) -> None:

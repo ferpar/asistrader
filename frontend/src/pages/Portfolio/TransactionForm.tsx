@@ -13,7 +13,7 @@ import styles from './Portfolio.module.css'
 
 interface TransactionFormProps {
   portfolio: Portfolio
-  /** Tickers currently held, suggested when recording a Sell or a Split. */
+  /** Tickers currently held, suggested when recording a Sell. */
   heldTickers: string[]
   /** The Transaction being edited; omitted when recording a new one. */
   initial?: PortfolioTransaction
@@ -21,7 +21,7 @@ interface TransactionFormProps {
   onCancel?: () => void
 }
 
-const EMPTY = { ticker: '', units: '', price: '', fees: '', fxRate: '', splitRatio: '' }
+const EMPTY = { ticker: '', units: '', price: '', fees: '', fxRate: '' }
 
 const str = (value: Decimal | null) => (value === null ? '' : String(value.toNumber()))
 
@@ -31,16 +31,14 @@ function fieldsOf(tx: PortfolioTransaction | undefined): typeof EMPTY {
     ticker: tx.ticker,
     units: str(tx.units),
     price: str(tx.price),
-    fees: tx.kind === 'split' ? '' : str(tx.fees),
+    fees: str(tx.fees),
     fxRate: str(tx.fxRate),
-    splitRatio: str(tx.splitRatio),
   }
 }
 
 const SUBMIT_LABEL: Record<TransactionKind, string> = {
   buy: 'Add Buy',
   sell: 'Add Sell',
-  split: 'Add Split',
 }
 
 /**
@@ -53,11 +51,6 @@ function toInput(
   fields: typeof EMPTY,
 ): TransactionInput | string {
   const ticker = fields.ticker.trim().toUpperCase()
-  if (kind === 'split') {
-    const splitRatio = Number(fields.splitRatio)
-    if (!ticker || !(splitRatio > 0)) return 'Ticker and a positive split ratio are required.'
-    return { kind, date, ticker, splitRatio }
-  }
   const units = Number(fields.units)
   const price = Number(fields.price)
   const fees = fields.fees === '' ? 0 : Number(fields.fees)
@@ -70,12 +63,12 @@ function toInput(
 }
 
 /**
- * Record or edit a Buy, Sell or Split. A Buy may name any symbol (an unknown
- * one is created and its history loaded by the backend); a Sell consumes the
- * oldest Lots first and is rejected if it exceeds the units held. Leave the FX
- * rate empty to use the stored rate for the date. A Split multiplies the units
- * of every Lot held of the ticker by its ratio (2 for a 2-for-1 split, 0.1 for
- * a 1-for-10 reverse split) without changing their cost.
+ * Record or edit a Buy or Sell, with units and price as the broker reported
+ * them on that date (stock splits are applied automatically). A Buy may name
+ * any symbol (an unknown one is created and its history loaded by the
+ * backend); a Sell consumes the oldest Lots first and is rejected if it
+ * exceeds the units held. Leave the FX rate empty to use the stored rate for
+ * the date.
  */
 export const TransactionForm = observer(function TransactionForm({
   portfolio,
@@ -129,7 +122,6 @@ export const TransactionForm = observer(function TransactionForm({
         <select value={kind} onChange={(e) => setKind(e.target.value as TransactionKind)}>
           <option value="buy">Buy</option>
           <option value="sell">Sell</option>
-          <option value="split">Split</option>
         </select>
       </label>
       <label>
@@ -145,45 +137,29 @@ export const TransactionForm = observer(function TransactionForm({
           ))}
         </datalist>
       </label>
-      {kind === 'split' ? (
-        <label title="New units per old unit: 2 for a 2-for-1 split, 0.1 for a 1-for-10 reverse split">
-          Split ratio
-          <input
-            type="number"
-            step="any"
-            min="0"
-            value={fields.splitRatio}
-            onChange={set('splitRatio')}
-            placeholder="2"
-          />
-        </label>
-      ) : (
-        <>
-          <label>
-            Units
-            <input type="number" step="any" min="0" value={fields.units} onChange={set('units')} />
-          </label>
-          <label>
-            Price
-            <input type="number" step="any" min="0" value={fields.price} onChange={set('price')} />
-          </label>
-          <label>
-            Fees
-            <input type="number" step="any" min="0" value={fields.fees} onChange={set('fees')} placeholder="0" />
-          </label>
-          <label title={`Units of ${portfolio.currency} per unit of the instrument's currency`}>
-            FX rate → {portfolio.currency}
-            <input
-              type="number"
-              step="any"
-              min="0"
-              value={fields.fxRate}
-              onChange={set('fxRate')}
-              placeholder="stored"
-            />
-          </label>
-        </>
-      )}
+      <label>
+        Units
+        <input type="number" step="any" min="0" value={fields.units} onChange={set('units')} />
+      </label>
+      <label>
+        Price
+        <input type="number" step="any" min="0" value={fields.price} onChange={set('price')} />
+      </label>
+      <label>
+        Fees
+        <input type="number" step="any" min="0" value={fields.fees} onChange={set('fees')} placeholder="0" />
+      </label>
+      <label title={`Units of ${portfolio.currency} per unit of the instrument's currency`}>
+        FX rate → {portfolio.currency}
+        <input
+          type="number"
+          step="any"
+          min="0"
+          value={fields.fxRate}
+          onChange={set('fxRate')}
+          placeholder="stored"
+        />
+      </label>
       <button type="submit" className={styles.primary} disabled={saving}>
         {saving ? 'Saving…' : initial ? 'Save' : SUBMIT_LABEL[kind]}
       </button>

@@ -11,38 +11,33 @@ export interface Portfolio {
   updatedAt: Date
 }
 
-export type TransactionKind = 'buy' | 'sell' | 'split'
+export type TransactionKind = 'buy' | 'sell'
 
-/** A dated Buy/Sell/Split. Price and fees are in the instrument's currency.
- * A Split has no units, price or FX rate, only `splitRatio`. */
+/** A dated Buy or Sell, with the units and price as entered (splits are
+ * applied automatically by the backend). Price and fees are in the
+ * instrument's currency. */
 export interface PortfolioTransaction {
   id: number
   kind: TransactionKind
   date: Date
   ticker: string
-  units: Decimal | null
-  price: Decimal | null
+  units: Decimal
+  price: Decimal
   fees: Decimal
   /** Instrument → Portfolio currency rate entered by the user, if any. */
   fxRate: Decimal | null
-  /** New units per old unit (2 for a 2-for-1 split); set only on Splits. */
-  splitRatio: Decimal | null
 }
 
-/** A Buy, Sell or Split as entered by the user, to record or to replace one.
- * A Split multiplies the units of every open Lot of the ticker by `splitRatio`
- * and leaves their cost unchanged. */
-export type TransactionInput =
-  | {
-      kind: 'buy' | 'sell'
-      date: string
-      ticker: string
-      units: number
-      price: number
-      fees: number
-      fxRate?: number
-    }
-  | { kind: 'split'; date: string; ticker: string; splitRatio: number }
+/** A Buy or Sell as entered by the user, to record or to replace one. */
+export interface TransactionInput {
+  kind: TransactionKind
+  date: string
+  ticker: string
+  units: number
+  price: number
+  fees: number
+  fxRate?: number
+}
 
 /** What happened to one CSV data row; `row` is its line number (header = 1). */
 export type ImportRowResult =

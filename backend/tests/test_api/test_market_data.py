@@ -399,48 +399,6 @@ def test_sync_all_stores_adjusted_close_next_to_raw_close(
 
 
 @patch("asistrader.services.market_data_service.fetch_from_yfinance")
-def test_sync_all_refreshes_stored_adjusted_closes_after_a_split(
-    mock_fetch: MagicMock, client: TestClient, db_session: Session
-) -> None:
-    """A split in the newly synced bars re-adjusts earlier rows, so the series has no fake crash."""
-    db_session.add(Ticker(symbol="KO", currency="USD", price_hint=2))
-    db_session.commit()
-    db_session.add_all(
-        [
-            MarketData(ticker="KO", date=date(2024, 1, 2), close=100.0, adj_close=100.0),
-            MarketData(ticker="KO", date=date(2024, 1, 3), close=102.0, adj_close=102.0),
-        ]
-    )
-    db_session.commit()
-
-    def fake_fetch(symbol: str, start: date, end: date) -> pd.DataFrame:
-        if start == date(2024, 1, 2):
-            # Yahoo now reports the old bars adjusted for the 2:1 split.
-            return _frame_with_adj_close(
-                [date(2024, 1, 2), date(2024, 1, 3), date(2024, 1, 4)],
-                [100.0, 102.0, 51.5],
-                [50.0, 51.0, 51.5],
-            )
-        frame = _frame_with_adj_close([date(2024, 1, 4)], [51.5], [51.5])
-        frame["Stock Splits"] = [2.0]
-        frame["Dividends"] = [0.0]
-        return frame
-
-    mock_fetch.side_effect = fake_fetch
-
-    response = client.post(
-        "/api/market-data/sync-all", json={"start_date": "2024-01-02", "symbols": ["KO"]}
-    )
-    assert response.status_code == 200
-
-    series = client.post(
-        "/api/market-data/bulk", json={"symbols": ["KO"], "start_date": "2024-01-01"}
-    ).json()["data"]["KO"]
-    assert series["close"] == [100.0, 102.0, 51.5]
-    assert series["adj_close"] == [50.0, 51.0, 51.5]
-
-
-@patch("asistrader.services.market_data_service.fetch_from_yfinance")
 def test_backfill_fills_adjusted_closes_of_existing_rows(
     mock_fetch: MagicMock, client: TestClient, db_session: Session
 ) -> None:
