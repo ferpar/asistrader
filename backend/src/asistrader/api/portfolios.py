@@ -6,7 +6,7 @@ authenticated user, and another user's Portfolio answers 404.
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from asistrader.auth.dependencies import get_current_user
@@ -14,6 +14,7 @@ from asistrader.db.database import get_db
 from asistrader.models.db import TransactionKind, User
 from asistrader.models.schemas import (
     PortfolioCreateRequest,
+    PortfolioHistorySchema,
     PortfolioImportRequest,
     PortfolioImportResponse,
     PortfolioImportRowResult,
@@ -286,3 +287,29 @@ def get_summary(
     except PortfolioReplayError as e:
         raise HTTPException(status_code=503, detail=str(e))
     return PortfolioSummarySchema.model_validate(summary)
+
+
+# ── History ──
+
+
+@router.get("/{portfolio_id}/history", response_model=PortfolioHistorySchema)
+def get_history(
+    portfolio_id: int,
+    start: date | None = Query(None, alias="from"),
+    end: date | None = Query(None, alias="to"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PortfolioHistorySchema:
+    """Daily rows (business days, from the first Transaction to today) of
+    Invested, Portfolio Value, Unrealized / Realized / Total Gain and
+    Weighted Days Open, optionally narrowed with `from` / `to`. Computed on
+    request from the current Transactions, so edits are always reflected."""
+    try:
+        history = portfolio_service.get_history(
+            db, current_user.id, portfolio_id, start, end
+        )
+    except PortfolioNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PortfolioReplayError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    return PortfolioHistorySchema.model_validate(history)

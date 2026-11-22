@@ -24,6 +24,7 @@ from asistrader.services.portfolio_computation_service import (
     replay,
     transactions_of,
 )
+from asistrader.services.portfolio_history_service import HistoryFigures, compute_history
 
 logger = logging.getLogger(__name__)
 
@@ -291,15 +292,41 @@ def get_summary(db: Session, user_id: int, portfolio_id: int) -> SummaryFigures:
     try:
         return compute_summary(db, portfolio)
     except PortfolioFxUnavailableError:
-        transactions = transactions_of(db, portfolio.id)
-        symbols = {tx.ticker for tx in transactions}
-        currencies = {
-            c
-            for (c,) in db.query(Ticker.currency).filter(Ticker.symbol.in_(symbols))
-            if c
-        } | {portfolio.currency}
-        since = min(tx.date for tx in transactions) - timedelta(
-            days=fx_service.EARLIEST_DATE_BUFFER_DAYS
-        )
-        _ensure_fx_history(db, currencies, since)
+        _sync_portfolio_fx(db, portfolio)
         return compute_summary(db, portfolio)
+
+
+def get_history(
+    db: Session,
+    user_id: int,
+    portfolio_id: int,
+    start: date | None = None,
+    end: date | None = None,
+) -> HistoryFigures:
+    """The Portfolio's daily rows, one per business day from its first
+    Transaction to today, optionally narrowed to [start, end].
+
+    Like the summary, a missing FX rate triggers one sync of the Portfolio's
+    currencies and a retry.
+    """
+    portfolio = get_portfolio(db, user_id, portfolio_id)
+    try:
+        return compute_history(db, portfolio, start, end)
+    except PortfolioFxUnavailableError:
+        _sync_portfolio_fx(db, portfolio)
+        return compute_history(db, portfolio, start, end)
+
+
+def _sync_portfolio_fx(db: Session, portfolio: Portfolio) -> None:
+    """Load FX rates for the Portfolio's currencies since its first Transaction."""
+    transactions = transactions_of(db, portfolio.id)
+    symbols = {tx.ticker for tx in transactions}
+    currencies = {
+        c
+        for (c,) in db.query(Ticker.currency).filter(Ticker.symbol.in_(symbols))
+        if c
+    } | {portfolio.currency}
+    since = min(tx.date for tx in transactions) - timedelta(
+        days=fx_service.EARLIEST_DATE_BUFFER_DAYS
+    )
+    _ensure_fx_history(db, currencies, since)
