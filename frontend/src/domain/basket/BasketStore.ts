@@ -123,6 +123,15 @@ export class BasketStore {
     if (basket) this.replace({ ...basket, members: basket.members.filter((m) => m !== symbol) })
   }
 
+  /**
+   * Make sure `basket` is in `baskets$`, e.g. one opened straight from its
+   * detail page before the ranking ever loaded, so member edits can track it.
+   */
+  remember(basket: Basket): void {
+    if (this.baskets$.peek().some((b) => b.id === basket.id)) return
+    this.baskets$.set([...this.baskets$.peek(), basket])
+  }
+
   private replace(basket: Basket): void {
     this.baskets$.set(this.baskets$.peek().map((b) => (b.id === basket.id ? basket : b)))
   }
