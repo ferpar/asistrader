@@ -25,6 +25,7 @@ vi.mock('../components/ThemeToggle', () => ({ ThemeToggle: () => null }))
 vi.mock('../pages', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../pages')>()),
   TradeDashboard: () => <div>Trades page</div>,
+  BasketsPage: ({ basketId }: { basketId: string | null }) => <h2>Basket {basketId}</h2>,
 }))
 
 function setUp(path: string, auth: { bootstrapping?: boolean; bootstrapError?: string | null } = {}) {

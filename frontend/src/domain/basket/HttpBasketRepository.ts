@@ -1,7 +1,13 @@
 import type { IBasketRepository } from './IBasketRepository'
-import type { Basket, BasketIndexPoint } from './types'
-import type { BasketListResponse, BulkBasketIndexResponse } from '../../types/basket'
-import { mapBasket, mapBasketIndex } from './mappers'
+import type { Basket, BasketIndexPoint, BasketMember } from './types'
+import type {
+  BasketDTO,
+  BasketListResponse,
+  BasketMembersResponse,
+  BulkBasketIndexResponse,
+} from '../../types/basket'
+import type { CloseSeriesDTO } from '../../types/radar'
+import { mapBasket, mapBasketIndex, mapBasketMember } from './mappers'
 import { buildHeaders } from '../shared/httpHelpers'
 import { fetchWithTimeout, MARKET_DATA_TIMEOUT_MS } from '../../api/http'
 
@@ -45,5 +51,41 @@ export class HttpBasketRepository implements IBasketRepository {
       errors[Number(id)] = message
     }
     return { data, errors }
+  }
+
+  async fetchBasket(id: number): Promise<Basket> {
+    const response = await fetch(`${this.baseUrl}/api/baskets/${id}`, {
+      headers: buildHeaders(this.getToken),
+    })
+    if (!response.ok) {
+      throw new Error(response.status === 404 ? 'Basket not found' : `Failed to fetch basket: ${response.statusText}`)
+    }
+    const result: BasketDTO = await response.json()
+    return mapBasket(result)
+  }
+
+  async fetchBasketIndex(id: number, startDate: string): Promise<BasketIndexPoint[]> {
+    const params = new URLSearchParams({ start_date: startDate })
+    const response = await fetchWithTimeout(
+      `${this.baseUrl}/api/baskets/${id}/index?${params}`,
+      { headers: buildHeaders(this.getToken) },
+      MARKET_DATA_TIMEOUT_MS,
+    )
+    if (!response.ok) {
+      throw new Error(`Failed to fetch basket index: ${response.statusText}`)
+    }
+    const result: CloseSeriesDTO = await response.json()
+    return mapBasketIndex(result)
+  }
+
+  async fetchBasketMembers(id: number): Promise<BasketMember[]> {
+    const response = await fetch(`${this.baseUrl}/api/baskets/${id}/members`, {
+      headers: buildHeaders(this.getToken),
+    })
+    if (!response.ok) {
+      throw new Error(`Failed to fetch basket members: ${response.statusText}`)
+    }
+    const result: BasketMembersResponse = await response.json()
+    return result.members.map(mapBasketMember)
   }
 }

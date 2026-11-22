@@ -22,3 +22,10 @@ export interface BasketIndexPoint {
 export type RankingRow =
   | { kind: BasketKind; id: number; name: string; memberCount: number; indicators: TickerIndicators }
   | { kind: 'benchmark'; id: string; name: string; memberCount: null; indicators: TickerIndicators }
+
+/** A Basket member, with the user's Portfolios whose current Holdings include it. */
+export interface BasketMember {
+  symbol: string
+  name: string | null
+  heldIn: { id: number; name: string }[]
+}
