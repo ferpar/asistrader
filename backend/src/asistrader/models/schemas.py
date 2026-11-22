@@ -1359,6 +1359,26 @@ class PortfolioSummarySchema(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PortfolioHistorySchema(BaseModel):
+    """A Portfolio's daily rows in columnar form, in the Portfolio's currency:
+    `column[i]` is the figure at the close of `dates[i]`. One row per business
+    day (Mon–Fri). `unrealized_gain_pct` is relative to Invested and null when
+    nothing is invested; `weighted_days_open` is in calendar days and null
+    when no Lots remain."""
+
+    currency: str
+    dates: list[date]
+    invested: list[float]
+    portfolio_value: list[float]
+    unrealized_gain: list[float]
+    unrealized_gain_pct: list[float | None]
+    realized_gain: list[float]
+    total_gain: list[float]
+    weighted_days_open: list[float | None]
+
+    model_config = {"from_attributes": True}
+
+
 class PortfolioImportRequest(BaseModel):
     """A CSV of Transactions, sent as text. A header row is required, with
     columns `date, ticker, units, price, fees` and optional `fx_rate` and

@@ -3,6 +3,7 @@ import type { IPortfolioRepository } from './IPortfolioRepository'
 import type {
   ImportResult,
   Portfolio,
+  PortfolioHistory,
   PortfolioSummary,
   PortfolioTransaction,
   TransactionInput,
@@ -26,6 +27,8 @@ export class PortfolioStore {
   transactions$ = observable<PortfolioTransaction[]>([])
   detailLoading$ = observable(false)
   detailError$ = observable<string | null>(null)
+  history$ = observable<PortfolioHistory | null>(null)
+  historyError$ = observable<string | null>(null)
 
   constructor(private readonly repo: IPortfolioRepository) {}
 
@@ -63,6 +66,9 @@ export class PortfolioStore {
     if (this.current$.peek()?.id !== id) this.clearDetail()
     this.detailLoading$.set(true)
     this.detailError$.set(null)
+    // The history is a heavier read: it loads alongside, and a failure there
+    // leaves the rest of the detail usable.
+    const history = this.loadHistory(id)
     try {
       const [portfolio, summary, transactions] = await Promise.all([
         this.repo.fetchPortfolio(id),
@@ -76,6 +82,17 @@ export class PortfolioStore {
       this.detailError$.set(message(err, 'Failed to load Portfolio'))
     } finally {
       this.detailLoading$.set(false)
+    }
+    await history
+  }
+
+  private async loadHistory(id: number): Promise<void> {
+    this.historyError$.set(null)
+    try {
+      this.history$.set(await this.repo.fetchHistory(id))
+    } catch (err) {
+      this.history$.set(null)
+      this.historyError$.set(message(err, 'Failed to load Portfolio history'))
     }
   }
 
@@ -116,5 +133,7 @@ export class PortfolioStore {
     this.current$.set(null)
     this.summary$.set(null)
     this.transactions$.set([])
+    this.history$.set(null)
+    this.historyError$.set(null)
   }
 }

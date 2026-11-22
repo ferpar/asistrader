@@ -1,6 +1,7 @@
 import type {
   ImportResult,
   Portfolio,
+  PortfolioHistory,
   PortfolioSummary,
   PortfolioTransaction,
   TransactionInput,
@@ -23,4 +24,6 @@ export interface IPortfolioRepository {
   importTransactions(portfolioId: number, csv: string): Promise<ImportResult>
   deleteTransaction(portfolioId: number, transactionId: number): Promise<void>
   fetchSummary(portfolioId: number): Promise<PortfolioSummary>
+  /** Daily rows from the first Transaction to today, optionally narrowed (ISO dates). */
+  fetchHistory(portfolioId: number, range?: { from?: string; to?: string }): Promise<PortfolioHistory>
 }

@@ -61,6 +61,19 @@ export type TransactionRequest =
     }
   | { kind: 'split'; date: string; ticker: string; split_ratio: number }
 
+/** Daily rows as parallel columns: `column[i]` is the figure at the close of `dates[i]`. */
+export interface PortfolioHistoryDTO {
+  currency: string
+  dates: string[]
+  invested: number[]
+  portfolio_value: number[]
+  unrealized_gain: number[]
+  unrealized_gain_pct: (number | null)[]
+  realized_gain: number[]
+  total_gain: number[]
+  weighted_days_open: (number | null)[]
+}
+
 export interface PortfolioImportRequest {
   csv: string
 }

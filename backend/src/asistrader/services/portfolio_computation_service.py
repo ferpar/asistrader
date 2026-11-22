@@ -20,6 +20,7 @@ point. Portfolio Value uses each instrument's latest raw close
 """
 
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -199,8 +200,17 @@ def transactions_of(db: Session, portfolio_id: int) -> list[PortfolioTransaction
     )
 
 
-def replay(db: Session, portfolio: Portfolio) -> Ledger:
+def replay(
+    db: Session,
+    portfolio: Portfolio,
+    on_new_date: Callable[[date, Ledger], None] | None = None,
+) -> Ledger:
     """Replay the Portfolio's Transactions in date order into FIFO Lots.
+
+    `on_new_date(d, ledger)`, if given, is called just before the first
+    Transaction dated `d` is applied, so `ledger` is the state at the close
+    of every day before `d`. It lets the daily history walk the replay once
+    instead of replaying again for each day.
 
     Raises a `PortfolioReplayError` subclass when the list can't be replayed.
     """
@@ -211,7 +221,11 @@ def replay(db: Session, portfolio: Portfolio) -> Ledger:
     )
 
     ledger = Ledger(currency=portfolio.currency)
+    replayed_date: date | None = None
     for tx in transactions:
+        if on_new_date is not None and tx.date != replayed_date:
+            on_new_date(tx.date, ledger)
+            replayed_date = tx.date
         ccy = currencies.get(tx.ticker)
         if ccy is None:
             raise InstrumentCurrencyUnknownError(

@@ -6,6 +6,7 @@ import { signClass } from '../../components/portfolio/signClass'
 import type { PortfolioSummary, PortfolioTransaction } from '../../domain/portfolio/types'
 import { CsvImport } from './CsvImport'
 import { HoldingsTable } from './HoldingsTable'
+import { MoneyChart } from './MoneyChart'
 import { TransactionForm } from './TransactionForm'
 import { fmtDate, fmtOptionalPct, fmtPrice, fmtUnits } from './format'
 import styles from './Portfolio.module.css'
@@ -30,6 +31,8 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
   const transactions = store.transactions$.get()
   const loading = store.detailLoading$.get()
   const error = store.detailError$.get()
+  const history = store.history$.get()
+  const historyError = store.historyError$.get()
 
   const [actionError, setActionError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -101,6 +104,12 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
       {actionError && <p className={styles.error}>{actionError}</p>}
 
       {summary && <SummaryKpis summary={summary} />}
+
+      {historyError ? (
+        <p className={styles.error}>{historyError}</p>
+      ) : (
+        history && <MoneyChart rows={history.rows} currency={history.currency} />
+      )}
 
       <h3>Holdings</h3>
       {summary && summary.holdings.length > 0 ? (

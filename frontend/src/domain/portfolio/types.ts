@@ -55,6 +55,30 @@ export interface ImportResult {
   failed: number
 }
 
+/**
+ * One business day of a Portfolio's history, money in Portfolio currency.
+ * Plain numbers rather than Decimal: these rows feed charts, not arithmetic.
+ */
+export interface PortfolioHistoryRow {
+  /** ISO date (YYYY-MM-DD). */
+  date: string
+  invested: number
+  portfolioValue: number
+  unrealizedGain: number
+  unrealizedGainPct: number | null
+  /** Cumulative up to and including this day. */
+  realizedGain: number
+  totalGain: number
+  /** Calendar days; null when no Lots remain. */
+  weightedDaysOpen: number | null
+}
+
+/** A Portfolio's daily history: one row per business day from its first Transaction. */
+export interface PortfolioHistory {
+  currency: string
+  rows: PortfolioHistoryRow[]
+}
+
 /** One instrument's Holding; money in Portfolio currency except `lastPrice`. */
 export interface Holding {
   ticker: string
