@@ -47,14 +47,32 @@ export interface PortfolioTransactionResponseDTO {
   message: string
 }
 
-export interface BuyRequest {
-  kind: 'buy'
+/** Body of POST (create) and PUT (replace) of a Buy or Sell. */
+export interface TransactionRequest {
+  kind: 'buy' | 'sell'
   date: string
   ticker: string
   units: number
   price: number
   fees: number
   fx_rate?: number
+}
+
+export interface PortfolioImportRequest {
+  csv: string
+}
+
+export interface PortfolioImportRowResultDTO {
+  row: number
+  status: 'created' | 'error'
+  transaction: PortfolioTransactionDTO | null
+  error: string | null
+}
+
+export interface PortfolioImportResponseDTO {
+  results: PortfolioImportRowResultDTO[]
+  created: number
+  failed: number
 }
 
 export interface PortfolioHoldingDTO {
@@ -78,5 +96,7 @@ export interface PortfolioSummaryDTO {
   portfolio_value: number
   unrealized_gain: number
   unrealized_gain_pct: number | null
+  realized_gain: number
+  total_gain: number
   holdings: PortfolioHoldingDTO[]
 }

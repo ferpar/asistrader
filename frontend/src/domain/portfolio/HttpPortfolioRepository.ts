@@ -1,17 +1,40 @@
 import type { IPortfolioRepository } from './IPortfolioRepository'
-import type { NewBuy, Portfolio, PortfolioSummary, PortfolioTransaction } from './types'
 import type {
-  BuyRequest,
+  ImportResult,
+  Portfolio,
+  PortfolioSummary,
+  PortfolioTransaction,
+  TransactionInput,
+} from './types'
+import type {
   PortfolioCreateRequest,
   PortfolioDTO,
+  PortfolioImportRequest,
+  PortfolioImportResponseDTO,
   PortfolioListResponseDTO,
   PortfolioResponseDTO,
   PortfolioSummaryDTO,
   PortfolioTransactionListResponseDTO,
   PortfolioTransactionResponseDTO,
+  TransactionRequest,
 } from '../../types/portfolio'
-import { mapPortfolio, mapSummary, mapTransaction } from './mappers'
+import { mapImportResult, mapPortfolio, mapSummary, mapTransaction } from './mappers'
 import { buildHeaders } from '../shared/httpHelpers'
+import { fetchWithTimeout } from '../../api/http'
+
+const IMPORT_TIMEOUT_MS = 5 * 60_000
+
+function toRequest(input: TransactionInput): TransactionRequest {
+  return {
+    kind: input.kind,
+    date: input.date,
+    ticker: input.ticker,
+    units: input.units,
+    price: input.price,
+    fees: input.fees,
+    ...(input.fxRate !== undefined ? { fx_rate: input.fxRate } : {}),
+  }
+}
 
 async function failure(response: Response, fallback: string): Promise<Error> {
   const body = await response.json().catch(() => null)
@@ -83,24 +106,46 @@ export class HttpPortfolioRepository implements IPortfolioRepository {
     return data.transactions.map(mapTransaction)
   }
 
-  async createBuy(portfolioId: number, buy: NewBuy): Promise<PortfolioTransaction> {
-    const body: BuyRequest = {
-      kind: 'buy',
-      date: buy.date,
-      ticker: buy.ticker,
-      units: buy.units,
-      price: buy.price,
-      fees: buy.fees,
-      ...(buy.fxRate !== undefined ? { fx_rate: buy.fxRate } : {}),
-    }
+  async createTransaction(
+    portfolioId: number,
+    input: TransactionInput,
+  ): Promise<PortfolioTransaction> {
     const response = await fetch(this.url(`/${portfolioId}/transactions`), {
       method: 'POST',
       headers: buildHeaders(this.getToken, true),
-      body: JSON.stringify(body),
+      body: JSON.stringify(toRequest(input)),
     })
-    if (!response.ok) throw await failure(response, 'Failed to record Buy')
+    if (!response.ok) throw await failure(response, `Failed to record ${input.kind}`)
     const data: PortfolioTransactionResponseDTO = await response.json()
     return mapTransaction(data.transaction)
+  }
+
+  async updateTransaction(
+    portfolioId: number,
+    transactionId: number,
+    input: TransactionInput,
+  ): Promise<PortfolioTransaction> {
+    const response = await fetch(this.url(`/${portfolioId}/transactions/${transactionId}`), {
+      method: 'PUT',
+      headers: buildHeaders(this.getToken, true),
+      body: JSON.stringify(toRequest(input)),
+    })
+    if (!response.ok) throw await failure(response, 'Failed to update Transaction')
+    const data: PortfolioTransactionResponseDTO = await response.json()
+    return mapTransaction(data.transaction)
+  }
+
+  async importTransactions(portfolioId: number, csv: string): Promise<ImportResult> {
+    const body: PortfolioImportRequest = { csv }
+    // Unknown tickers are validated and loaded from Yahoo row by row: allow time.
+    const response = await fetchWithTimeout(
+      this.url(`/${portfolioId}/transactions/import`),
+      { method: 'POST', headers: buildHeaders(this.getToken, true), body: JSON.stringify(body) },
+      IMPORT_TIMEOUT_MS,
+    )
+    if (!response.ok) throw await failure(response, 'Failed to import Transactions')
+    const data: PortfolioImportResponseDTO = await response.json()
+    return mapImportResult(data)
   }
 
   async deleteTransaction(portfolioId: number, transactionId: number): Promise<void> {

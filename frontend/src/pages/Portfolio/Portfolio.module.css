@@ -56,6 +56,10 @@
   color: var(--color-error-dark);
 }
 
+.iconButton.editButton:hover {
+  color: var(--color-primary);
+}
+
 .error {
   color: var(--color-error-dark);
   margin: 0.5rem 0;
@@ -195,4 +199,35 @@
 
 .buyForm .error {
   flex-basis: 100%;
+}
+
+.csvImport {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.csvImport .error,
+.importResult {
+  flex-basis: 100%;
+}
+
+.importResult p {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  margin: 0.25rem 0;
+}
+
+.importResult .link {
+  margin: 0;
+}
+
+.importErrors {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--color-error-dark);
+  font-size: 0.85rem;
 }

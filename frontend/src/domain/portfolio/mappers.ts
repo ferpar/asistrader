@@ -3,10 +3,19 @@ import { parseDateOnly } from '../../utils/dateOnly'
 import type {
   PortfolioDTO,
   PortfolioHoldingDTO,
+  PortfolioImportResponseDTO,
+  PortfolioImportRowResultDTO,
   PortfolioSummaryDTO,
   PortfolioTransactionDTO,
 } from '../../types/portfolio'
-import type { Holding, Portfolio, PortfolioSummary, PortfolioTransaction } from './types'
+import type {
+  Holding,
+  ImportResult,
+  ImportRowResult,
+  Portfolio,
+  PortfolioSummary,
+  PortfolioTransaction,
+} from './types'
 
 const decimalOrNull = (value: number | null): Decimal | null =>
   value === null ? null : Decimal.from(value)
@@ -34,6 +43,17 @@ export function mapTransaction(dto: PortfolioTransactionDTO): PortfolioTransacti
   }
 }
 
+function mapImportRow(dto: PortfolioImportRowResultDTO): ImportRowResult {
+  if (dto.status === 'created' && dto.transaction) {
+    return { row: dto.row, status: 'created', transaction: mapTransaction(dto.transaction) }
+  }
+  return { row: dto.row, status: 'error', error: dto.error ?? 'Not imported' }
+}
+
+export function mapImportResult(dto: PortfolioImportResponseDTO): ImportResult {
+  return { rows: dto.results.map(mapImportRow), created: dto.created, failed: dto.failed }
+}
+
 function mapHolding(dto: PortfolioHoldingDTO): Holding {
   return {
     ticker: dto.ticker,
@@ -58,6 +78,8 @@ export function mapSummary(dto: PortfolioSummaryDTO): PortfolioSummary {
     portfolioValue: Decimal.from(dto.portfolio_value),
     unrealizedGain: Decimal.from(dto.unrealized_gain),
     unrealizedGainPct: dto.unrealized_gain_pct,
+    realizedGain: Decimal.from(dto.realized_gain),
+    totalGain: Decimal.from(dto.total_gain),
     holdings: dto.holdings.map(mapHolding),
   }
 }
