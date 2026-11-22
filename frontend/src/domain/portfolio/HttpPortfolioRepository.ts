@@ -2,6 +2,7 @@ import type { IPortfolioRepository } from './IPortfolioRepository'
 import type {
   ImportResult,
   Portfolio,
+  PortfolioHistory,
   PortfolioSummary,
   PortfolioTransaction,
   TransactionInput,
@@ -9,6 +10,7 @@ import type {
 import type {
   PortfolioCreateRequest,
   PortfolioDTO,
+  PortfolioHistoryDTO,
   PortfolioImportRequest,
   PortfolioImportResponseDTO,
   PortfolioListResponseDTO,
@@ -18,7 +20,7 @@ import type {
   PortfolioTransactionResponseDTO,
   TransactionRequest,
 } from '../../types/portfolio'
-import { mapImportResult, mapPortfolio, mapSummary, mapTransaction } from './mappers'
+import { mapHistory, mapImportResult, mapPortfolio, mapSummary, mapTransaction } from './mappers'
 import { buildHeaders } from '../shared/httpHelpers'
 import { fetchWithTimeout } from '../../api/http'
 
@@ -163,5 +165,21 @@ export class HttpPortfolioRepository implements IPortfolioRepository {
     if (!response.ok) throw await failure(response, 'Failed to load Portfolio summary')
     const data: PortfolioSummaryDTO = await response.json()
     return mapSummary(data)
+  }
+
+  async fetchHistory(
+    portfolioId: number,
+    range: { from?: string; to?: string } = {},
+  ): Promise<PortfolioHistory> {
+    const params = new URLSearchParams()
+    if (range.from) params.set('from', range.from)
+    if (range.to) params.set('to', range.to)
+    const query = params.toString()
+    const response = await fetch(this.url(`/${portfolioId}/history${query ? `?${query}` : ''}`), {
+      headers: buildHeaders(this.getToken),
+    })
+    if (!response.ok) throw await failure(response, 'Failed to load Portfolio history')
+    const data: PortfolioHistoryDTO = await response.json()
+    return mapHistory(data)
   }
 }

@@ -2,6 +2,7 @@ import { Decimal } from '../shared/Decimal'
 import { parseDateOnly } from '../../utils/dateOnly'
 import type {
   PortfolioDTO,
+  PortfolioHistoryDTO,
   PortfolioHoldingDTO,
   PortfolioImportResponseDTO,
   PortfolioImportRowResultDTO,
@@ -13,6 +14,7 @@ import type {
   ImportResult,
   ImportRowResult,
   Portfolio,
+  PortfolioHistory,
   PortfolioSummary,
   PortfolioTransaction,
 } from './types'
@@ -52,6 +54,23 @@ function mapImportRow(dto: PortfolioImportRowResultDTO): ImportRowResult {
 
 export function mapImportResult(dto: PortfolioImportResponseDTO): ImportResult {
   return { rows: dto.results.map(mapImportRow), created: dto.created, failed: dto.failed }
+}
+
+/** Pivot the columnar wire shape into one row per day. */
+export function mapHistory(dto: PortfolioHistoryDTO): PortfolioHistory {
+  return {
+    currency: dto.currency,
+    rows: dto.dates.map((date, i) => ({
+      date,
+      invested: dto.invested[i],
+      portfolioValue: dto.portfolio_value[i],
+      unrealizedGain: dto.unrealized_gain[i],
+      unrealizedGainPct: dto.unrealized_gain_pct[i],
+      realizedGain: dto.realized_gain[i],
+      totalGain: dto.total_gain[i],
+      weightedDaysOpen: dto.weighted_days_open[i],
+    })),
+  }
 }
 
 function mapHolding(dto: PortfolioHoldingDTO): Holding {
