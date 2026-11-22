@@ -87,3 +87,22 @@ export function buildTickerIndicators(
     error: null,
   }
 }
+
+/**
+ * Indicators for a level series with one value per day — a Basket Index, a
+ * price-index benchmark, later a Performance Index. Such a series is already
+ * what measurement wants (a Basket Index is built from adjusted closes), so
+ * each level is both the close and the adjusted close and the series gets the
+ * full ticker indicator set, Momentum Score included. Days without a level
+ * are dropped.
+ */
+export function buildIndexIndicators(
+  key: string,
+  points: { date: string; value: number | null }[],
+  error: string | null,
+): TickerIndicators {
+  const datedCloses = points
+    .filter((p): p is { date: string; value: number } => p.value !== null)
+    .map((p) => ({ date: p.date, close: p.value, adjClose: p.value }))
+  return buildTickerIndicators(key, datedCloses, error)
+}

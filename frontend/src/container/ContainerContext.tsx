@@ -91,6 +91,10 @@ export function useIrrStore() {
   return useContainer().irrStore
 }
 
+export function useBasketStore() {
+  return useContainer().basketStore
+}
+
 export function usePortfolioStore() {
   return useContainer().portfolioStore
 }

@@ -1,0 +1,16 @@
+{
+  "baskets": [
+    {
+      "slug": "defence-security",
+      "name": "Defence & security",
+      "description": "European defence contractors.",
+      "members": ["RHM.DE", "LDO.MI", "BA.L", "HO.PA", "SAAB-B.ST", "IDR.MC"]
+    },
+    {
+      "slug": "tech-ai",
+      "name": "Tech & AI",
+      "description": "AI chips, semiconductor equipment and hyperscalers.",
+      "members": ["NVDA", "AMD", "AVGO", "ASML", "MSFT", "GOOGL"]
+    }
+  ]
+}
