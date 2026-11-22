@@ -3,9 +3,9 @@
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, StringConstraints
 
 
 class TradeStatus(str, Enum):
@@ -305,6 +305,35 @@ class BasketListResponse(BaseModel):
 
     baskets: list[BasketSchema]
     count: int
+
+
+BasketName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+
+
+class BasketCreateRequest(BaseModel):
+    """Create a Personal Basket for the current user."""
+
+    name: BasketName
+    description: str | None = None
+
+
+class BasketCopyRequest(BaseModel):
+    """Copy a visible Basket into a new Personal one; `name` defaults to "<name> (copy)"."""
+
+    name: BasketName | None = None
+
+
+class BasketMemberAddRequest(BaseModel):
+    """Add a ticker to a Personal Basket by its Yahoo symbol."""
+
+    symbol: str = Field(min_length=1, max_length=32)
+
+
+class BasketUpdateRequest(BaseModel):
+    """Rename a Personal Basket or change its description; omitted fields stay."""
+
+    name: BasketName | None = None
+    description: str | None = None
 
 
 class TickerSchema(BaseModel):
