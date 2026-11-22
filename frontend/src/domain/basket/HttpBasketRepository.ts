@@ -1,9 +1,24 @@
 import type { IBasketRepository } from './IBasketRepository'
 import type { Basket, BasketIndexPoint } from './types'
-import type { BasketListResponse, BulkBasketIndexResponse } from '../../types/basket'
+import type {
+  BasketCopyRequest,
+  BasketCreateRequest,
+  BasketDTO,
+  BasketListResponse,
+  BasketMemberAddRequest,
+  BasketUpdateRequest,
+  BulkBasketIndexResponse,
+} from '../../types/basket'
 import { mapBasket, mapBasketIndex } from './mappers'
 import { buildHeaders } from '../shared/httpHelpers'
 import { fetchWithTimeout, MARKET_DATA_TIMEOUT_MS } from '../../api/http'
+
+/** An Error carrying the API's `detail` (e.g. why Yahoo rejected a symbol). */
+async function failure(response: Response, fallback: string): Promise<Error> {
+  const body = await response.json().catch(() => null)
+  const detail = body?.detail
+  return new Error(typeof detail === 'string' ? detail : fallback)
+}
 
 export class HttpBasketRepository implements IBasketRepository {
   constructor(
@@ -45,5 +60,52 @@ export class HttpBasketRepository implements IBasketRepository {
       errors[Number(id)] = message
     }
     return { data, errors }
+  }
+
+  private async send(path: string, method: string, body: unknown, fallback: string): Promise<Basket> {
+    const response = await fetch(`${this.baseUrl}/api/baskets${path}`, {
+      method,
+      headers: buildHeaders(this.getToken, true),
+      body: JSON.stringify(body),
+    })
+    if (!response.ok) throw await failure(response, fallback)
+    const dto: BasketDTO = await response.json()
+    return mapBasket(dto)
+  }
+
+  private async remove(path: string, fallback: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/baskets${path}`, {
+      method: 'DELETE',
+      headers: buildHeaders(this.getToken),
+    })
+    if (!response.ok) throw await failure(response, fallback)
+  }
+
+  createBasket(name: string): Promise<Basket> {
+    const body: BasketCreateRequest = { name }
+    return this.send('', 'POST', body, 'Failed to create Basket')
+  }
+
+  renameBasket(id: number, name: string): Promise<Basket> {
+    const body: BasketUpdateRequest = { name }
+    return this.send(`/${id}`, 'PATCH', body, 'Failed to rename Basket')
+  }
+
+  deleteBasket(id: number): Promise<void> {
+    return this.remove(`/${id}`, 'Failed to delete Basket')
+  }
+
+  copyBasket(id: number, name?: string): Promise<Basket> {
+    const body: BasketCopyRequest = name ? { name } : {}
+    return this.send(`/${id}/copy`, 'POST', body, 'Failed to copy Basket')
+  }
+
+  addMember(id: number, symbol: string): Promise<Basket> {
+    const body: BasketMemberAddRequest = { symbol }
+    return this.send(`/${id}/members`, 'POST', body, `Failed to add ${symbol}`)
+  }
+
+  removeMember(id: number, symbol: string): Promise<void> {
+    return this.remove(`/${id}/members/${encodeURIComponent(symbol)}`, `Failed to remove ${symbol}`)
   }
 }

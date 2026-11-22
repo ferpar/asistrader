@@ -77,4 +77,53 @@ export class BasketStore {
       return []
     }
   }
+
+  // --- Personal Basket writes ---------------------------------------------
+  //
+  // Each write updates `baskets$` (and drops or renames ranking rows) right
+  // away; callers reload the ranking when they're done, since new Baskets
+  // and member changes move the indexes.
+
+  async createBasket(name: string): Promise<Basket> {
+    const basket = await this.basketRepo.createBasket(name)
+    this.baskets$.set([...this.baskets$.peek(), basket])
+    return basket
+  }
+
+  async renameBasket(id: number, name: string): Promise<Basket> {
+    const basket = await this.basketRepo.renameBasket(id, name)
+    this.replace(basket)
+    this.rows$.set(
+      this.rows$.peek().map((r) => (r.kind !== 'benchmark' && r.id === id ? { ...r, name: basket.name } : r)),
+    )
+    return basket
+  }
+
+  async deleteBasket(id: number): Promise<void> {
+    await this.basketRepo.deleteBasket(id)
+    this.baskets$.set(this.baskets$.peek().filter((b) => b.id !== id))
+    this.rows$.set(this.rows$.peek().filter((r) => r.kind === 'benchmark' || r.id !== id))
+  }
+
+  async copyBasket(id: number, name?: string): Promise<Basket> {
+    const basket = await this.basketRepo.copyBasket(id, name)
+    this.baskets$.set([...this.baskets$.peek(), basket])
+    return basket
+  }
+
+  async addMember(id: number, symbol: string): Promise<Basket> {
+    const basket = await this.basketRepo.addMember(id, symbol)
+    this.replace(basket)
+    return basket
+  }
+
+  async removeMember(id: number, symbol: string): Promise<void> {
+    await this.basketRepo.removeMember(id, symbol)
+    const basket = this.baskets$.peek().find((b) => b.id === id)
+    if (basket) this.replace({ ...basket, members: basket.members.filter((m) => m !== symbol) })
+  }
+
+  private replace(basket: Basket): void {
+    this.baskets$.set(this.baskets$.peek().map((b) => (b.id === basket.id ? basket : b)))
+  }
 }
