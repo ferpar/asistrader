@@ -10,6 +10,7 @@ import { FxStore } from '../domain/fx/FxStore'
 import { RadarStore } from '../domain/radar/RadarStore'
 import { IndicatorStore } from '../domain/radar/IndicatorStore'
 import { BenchmarkStore } from '../domain/benchmark/BenchmarkStore'
+import { BenchmarkOverlayStore } from '../domain/benchmark/BenchmarkOverlayStore'
 import { IrrStore } from '../domain/irr/IrrStore'
 import { AuthStore } from '../domain/auth/AuthStore'
 import { RouterStore } from '../domain/router/RouterStore'
@@ -32,6 +33,7 @@ export interface AppContainer {
   radarStore: RadarStore
   indicatorStore: IndicatorStore
   benchmarkStore: BenchmarkStore
+  benchmarkOverlayStore: BenchmarkOverlayStore
   irrStore: IrrStore
   basketStore: BasketStore
   basketDetailStore: BasketDetailStore

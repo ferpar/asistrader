@@ -2,22 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { observer } from '@legendapp/state/react'
 import { useBasketDetailStore, useBasketStore, useRouterStore } from '../../container/ContainerContext'
 import { RebasedLineChart, type LevelSeries } from '../../components/charts/RebasedLineChart'
+import { BenchmarkOverlayToggles, benchmarkColor } from '../../components/charts/BenchmarkOverlayToggles'
 import { BasketMembersTable } from './BasketMembersTable'
 import { BasketMembersDialog } from './BasketMembersDialog'
 import styles from './Baskets.module.css'
 import detail from './BasketDetail.module.css'
 
 const KIND_LABEL = { curated: 'Curated', personal: 'Personal' } as const
-
-/**
- * Overlay colours follow the benchmark (its place in the benchmark list), not
- * the order it was picked in, so toggling one never repaints the others. The
- * Basket Index takes series 1; past the palette, benchmarks fall back to the
- * muted ink rather than a generated hue.
- */
-function benchmarkColor(position: number): string {
-  return position < 7 ? `var(--series-${position + 2})` : 'var(--color-text-muted)'
-}
 
 /** One Basket: its index against the benchmarks the user picks, and its ranked members. */
 export const BasketDetailPage = observer(function BasketDetailPage({ basketId }: { basketId: number }) {
@@ -103,27 +94,7 @@ export const BasketDetailPage = observer(function BasketDetailPage({ basketId }:
       {error && <p className={styles.error}>{error}</p>}
 
       <div className={detail.section}>
-        {benchmarks.length > 0 && (
-          <div className={detail.overlays} role="group" aria-label="Benchmark overlays">
-            <span className={detail.overlayLabel}>Compare with</span>
-            {benchmarks.map((b, position) => {
-              const on = overlays.includes(b.symbol)
-              return (
-                <button
-                  key={b.symbol}
-                  type="button"
-                  aria-pressed={on}
-                  className={`${detail.chip} ${on ? detail.chipOn : ''}`}
-                  onClick={() => toggle(b.symbol)}
-                  title={b.symbol}
-                >
-                  {on && <span className={detail.chipSwatch} style={{ background: benchmarkColor(position) }} />}
-                  {b.name ?? b.symbol}
-                </button>
-              )
-            })}
-          </div>
-        )}
+        <BenchmarkOverlayToggles benchmarks={benchmarks} selected={overlays} onToggle={toggle} />
         <RebasedLineChart
           series={series}
           title="Basket Index"

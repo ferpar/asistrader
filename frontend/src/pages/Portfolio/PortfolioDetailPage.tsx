@@ -7,6 +7,7 @@ import type { PortfolioSummary, PortfolioTransaction } from '../../domain/portfo
 import { CsvImport } from './CsvImport'
 import { HoldingsTable } from './HoldingsTable'
 import { MoneyChart } from './MoneyChart'
+import { PerformanceSection } from './PerformanceSection'
 import { TransactionForm } from './TransactionForm'
 import { fmtDate, fmtOptionalPct, fmtPrice, fmtUnits } from './format'
 import styles from './Portfolio.module.css'
@@ -110,6 +111,8 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
       ) : (
         history && <MoneyChart rows={history.rows} currency={history.currency} />
       )}
+
+      {history && <PerformanceSection portfolioId={portfolio.id} name={portfolio.name} history={history} />}
 
       <h3>Holdings</h3>
       {summary && summary.holdings.length > 0 ? (
