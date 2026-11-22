@@ -237,7 +237,8 @@ EARLIEST_DATE_BUFFER_DAYS = 14
 
 
 def ensure_rates_for_user(db: Session, user_id: int) -> dict:
-    """Sync FX history covering every currency this user has events or trades in.
+    """Sync FX history covering every currency this user has events, trades or
+    Portfolios in.
 
     Idempotent: gap detection inside `sync_fx_pair` short-circuits when the
     history is already complete. Intended to be called as a best-effort side
@@ -245,7 +246,8 @@ def ensure_rates_for_user(db: Session, user_id: int) -> dict:
     manually trigger an initial FX sync.
 
     The since_date is the earliest date this user has financial data for —
-    the min of fund_events.event_date and trades.date_planned — minus a
+    the min of fund_events.event_date, trades.date_planned and Portfolio
+    Transaction dates — minus a
     14-day buffer so the walk-back in get_rate_to_usd always has a weekday
     rate to find (handles weekend/holiday event dates). If no data exists
     yet, falls back to today − DEFAULT_LOOKBACK_DAYS.
@@ -254,12 +256,15 @@ def ensure_rates_for_user(db: Session, user_id: int) -> dict:
 
     from asistrader.models.db import (
         FundEvent,
+        Portfolio,
+        PortfolioTransaction,
         Ticker,
         Trade,
         UserFundSettings,
     )
 
-    # User's currencies = distinct ticker currencies on their trades + base.
+    # User's currencies = distinct ticker currencies on their trades and
+    # Portfolio Transactions + their Portfolios' currencies + base.
     ticker_currency_rows = (
         db.query(Ticker.currency)
         .join(Trade, Trade.ticker == Ticker.symbol)
@@ -267,7 +272,29 @@ def ensure_rates_for_user(db: Session, user_id: int) -> dict:
         .distinct()
         .all()
     )
-    currencies: set[str] = {row[0] for row in ticker_currency_rows if row[0]}
+    instrument_currency_rows = (
+        db.query(Ticker.currency)
+        .join(PortfolioTransaction, PortfolioTransaction.ticker == Ticker.symbol)
+        .join(Portfolio, Portfolio.id == PortfolioTransaction.portfolio_id)
+        .filter(Portfolio.user_id == user_id, Ticker.currency.isnot(None))
+        .distinct()
+        .all()
+    )
+    portfolio_currency_rows = (
+        db.query(Portfolio.currency)
+        .filter(Portfolio.user_id == user_id)
+        .distinct()
+        .all()
+    )
+    currencies: set[str] = {
+        row[0]
+        for row in (
+            *ticker_currency_rows,
+            *instrument_currency_rows,
+            *portfolio_currency_rows,
+        )
+        if row[0]
+    }
 
     settings = (
         db.query(UserFundSettings)
@@ -288,7 +315,17 @@ def ensure_rates_for_user(db: Session, user_id: int) -> dict:
         .filter(Trade.user_id == user_id)
         .scalar()
     )
-    candidates = [d for d in (earliest_event, earliest_trade) if d is not None]
+    earliest_transaction = (
+        db.query(func.min(PortfolioTransaction.date))
+        .join(Portfolio, Portfolio.id == PortfolioTransaction.portfolio_id)
+        .filter(Portfolio.user_id == user_id)
+        .scalar()
+    )
+    candidates = [
+        d
+        for d in (earliest_event, earliest_trade, earliest_transaction)
+        if d is not None
+    ]
     since_date = (
         min(candidates) - timedelta(days=EARLIEST_DATE_BUFFER_DAYS)
         if candidates
