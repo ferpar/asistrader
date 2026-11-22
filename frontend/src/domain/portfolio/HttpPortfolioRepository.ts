@@ -25,6 +25,9 @@ import { fetchWithTimeout } from '../../api/http'
 const IMPORT_TIMEOUT_MS = 5 * 60_000
 
 function toRequest(input: TransactionInput): TransactionRequest {
+  if (input.kind === 'split') {
+    return { kind: 'split', date: input.date, ticker: input.ticker, split_ratio: input.splitRatio }
+  }
   return {
     kind: input.kind,
     date: input.date,

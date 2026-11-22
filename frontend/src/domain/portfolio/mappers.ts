@@ -40,6 +40,7 @@ export function mapTransaction(dto: PortfolioTransactionDTO): PortfolioTransacti
     price: decimalOrNull(dto.price),
     fees: Decimal.from(dto.fees),
     fxRate: decimalOrNull(dto.fx_rate),
+    splitRatio: decimalOrNull(dto.split_ratio ?? null),
   }
 }
 

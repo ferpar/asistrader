@@ -155,21 +155,32 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
                     <td>{fmtDate(tx.date)}</td>
                     <td>{tx.kind}</td>
                     <td>{tx.ticker}</td>
-                    <td className={styles.num}>{fmtUnits(tx.units)}</td>
-                    <td className={styles.num}>{fmtPrice(tx.price)}</td>
-                    <td className={styles.num}>{fmtPrice(tx.fees)}</td>
-                    <td className={styles.num}>{tx.fxRate === null ? 'stored' : fmtPrice(tx.fxRate)}</td>
+                    {tx.kind === 'split' ? (
+                      <>
+                        <td className={styles.num} title="Split ratio: new units per old unit">
+                          ×{fmtUnits(tx.splitRatio)}
+                        </td>
+                        <td className={styles.num}>—</td>
+                        <td className={styles.num}>—</td>
+                        <td className={styles.num}>—</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className={styles.num}>{fmtUnits(tx.units)}</td>
+                        <td className={styles.num}>{fmtPrice(tx.price)}</td>
+                        <td className={styles.num}>{fmtPrice(tx.fees)}</td>
+                        <td className={styles.num}>{tx.fxRate === null ? 'stored' : fmtPrice(tx.fxRate)}</td>
+                      </>
+                    )}
                     <td className={styles.num}>
-                      {tx.kind !== 'split' && (
-                        <button
-                          type="button"
-                          className={`${styles.iconButton} ${styles.editButton}`}
-                          aria-label={`Edit Transaction ${tx.id}`}
-                          onClick={() => setEditingId(tx.id)}
-                        >
-                          ✎
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        className={`${styles.iconButton} ${styles.editButton}`}
+                        aria-label={`Edit Transaction ${tx.id}`}
+                        onClick={() => setEditingId(tx.id)}
+                      >
+                        ✎
+                      </button>
                       <button
                         type="button"
                         className={styles.iconButton}

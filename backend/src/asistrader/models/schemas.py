@@ -5,7 +5,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 class TradeStatus(str, Enum):
@@ -1203,7 +1203,8 @@ class PortfolioResponse(BaseModel):
 
 class PortfolioTransactionSchema(BaseModel):
     """A dated Buy/Sell/Split in a Portfolio. Price and fees are in the
-    instrument's currency; `fx_rate` converts it into the Portfolio's."""
+    instrument's currency; `fx_rate` converts it into the Portfolio's. A
+    Split has only `split_ratio` (no units, price or FX rate)."""
 
     id: int
     kind: str
@@ -1213,23 +1214,50 @@ class PortfolioTransactionSchema(BaseModel):
     price: float | None
     fees: float
     fx_rate: float | None
+    split_ratio: float | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
 
 
 class PortfolioTransactionCreateRequest(BaseModel):
-    """Record (or, on update, replace) a Buy or Sell. Units may be fractional;
-    `fx_rate` is optional and overrides the stored rate for the date
-    (instrument → Portfolio currency)."""
+    """Record (or, on update, replace) a Buy, Sell or Split.
 
-    kind: Literal["buy", "sell"]
+    A Buy or Sell needs `units` (fractional allowed) and `price`; `fx_rate` is
+    optional and overrides the stored rate for the date (instrument →
+    Portfolio currency). A Split needs only `split_ratio` (new units per old
+    unit, e.g. 2 for a 2-for-1 split, 0.1 for a 1-for-10 reverse split) and
+    takes no units, price, fees or FX rate.
+    """
+
+    kind: Literal["buy", "sell", "split"]
     date: date
     ticker: str = Field(min_length=1)
-    units: Decimal = Field(gt=0)
-    price: Decimal = Field(gt=0)
+    units: Decimal | None = Field(default=None, gt=0)
+    price: Decimal | None = Field(default=None, gt=0)
     fees: Decimal = Field(default=Decimal(0), ge=0)
     fx_rate: Decimal | None = Field(default=None, gt=0)
+    split_ratio: Decimal | None = Field(default=None, gt=0)
+
+    @model_validator(mode="after")
+    def _fields_match_kind(self) -> "PortfolioTransactionCreateRequest":
+        if self.kind == "split":
+            if self.split_ratio is None:
+                raise ValueError("A Split needs a split_ratio")
+            given = [
+                name
+                for name in ("units", "price", "fx_rate")
+                if getattr(self, name) is not None
+            ] + (["fees"] if self.fees else [])
+            if given:
+                raise ValueError(f"A Split takes no {', '.join(given)}")
+        else:
+            missing = [n for n in ("units", "price") if getattr(self, n) is None]
+            if missing:
+                raise ValueError(f"A {self.kind.capitalize()} needs {' and '.join(missing)}")
+            if self.split_ratio is not None:
+                raise ValueError("Only a Split takes a split_ratio")
+        return self
 
 
 class PortfolioTransactionListResponse(BaseModel):

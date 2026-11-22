@@ -16,6 +16,7 @@ from asistrader.services import fx_service
 from asistrader.services.fund_service import get_base_currency
 from asistrader.services.market_data_service import ensure_ticker_with_history
 from asistrader.services.portfolio_computation_service import (
+    NothingHeldError,
     OversellError,
     PortfolioFxUnavailableError,
     PortfolioReplayError,
@@ -148,18 +149,21 @@ def _prepare_instrument(
 ) -> None:
     """Make sure the ticker and the FX rate a Transaction needs are stored.
 
-    A Buy of an unknown ticker creates it and loads its history. A Sell can
-    only be of a ticker already held, so an unknown one is an oversell.
+    A Buy of an unknown ticker creates it and loads its history. A Sell or a
+    Split can only be of a ticker already held, so an unknown one is
+    rejected. A Split converts no money, so it needs no FX rate.
     """
     since = on_date - timedelta(days=fx_service.EARLIEST_DATE_BUFFER_DAYS)
     if kind == TransactionKind.BUY:
         instrument = ensure_ticker_with_history(db, symbol, since)
     else:
         instrument = db.get(Ticker, symbol)
+        if instrument is None and kind == TransactionKind.SPLIT:
+            raise NothingHeldError(f"No units of {symbol} are held to split")
         if instrument is None:
             raise OversellError(f"No units of {symbol} are held to sell")
 
-    if fx_rate is None and instrument.currency:
+    if kind != TransactionKind.SPLIT and fx_rate is None and instrument.currency:
         try:
             fx_service.convert(db, 1.0, instrument.currency, portfolio.currency, on_date)
         except fx_service.FxRateUnavailable:
@@ -174,12 +178,15 @@ def create_transaction(
     kind: TransactionKind,
     on_date: date,
     ticker: str,
-    units: Decimal,
-    price: Decimal,
+    units: Decimal | None,
+    price: Decimal | None,
     fees: Decimal = Decimal(0),
     fx_rate: Decimal | None = None,
+    split_ratio: Decimal | None = None,
 ) -> PortfolioTransaction:
-    """Record a Buy or Sell, validated by replaying the full Transaction list.
+    """Record a Buy, Sell or Split, validated by replaying the full
+    Transaction list. A Split carries only `split_ratio`; a Buy or Sell
+    carries units, price, fees and an optional FX rate.
 
     Raises:
         PortfolioNotFoundError: the Portfolio isn't the user's.
@@ -200,6 +207,7 @@ def create_transaction(
         price=price,
         fees=fees,
         fx_rate=fx_rate,
+        split_ratio=split_ratio,
     )
     db.add(transaction)
     db.flush()
@@ -234,10 +242,11 @@ def update_transaction(
     kind: TransactionKind,
     on_date: date,
     ticker: str,
-    units: Decimal,
-    price: Decimal,
+    units: Decimal | None,
+    price: Decimal | None,
     fees: Decimal = Decimal(0),
     fx_rate: Decimal | None = None,
+    split_ratio: Decimal | None = None,
 ) -> PortfolioTransaction:
     """Replace a Transaction's fields; the whole list must still replay.
 
@@ -257,6 +266,7 @@ def update_transaction(
     transaction.price = price
     transaction.fees = fees
     transaction.fx_rate = fx_rate
+    transaction.split_ratio = split_ratio
     db.flush()
     _validate(db, portfolio)
     db.commit()
