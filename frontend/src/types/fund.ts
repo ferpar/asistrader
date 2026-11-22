@@ -51,10 +51,13 @@ export interface FundSettingsDTO {
   risk_pct: number
   base_currency: string
   detection_margin_pct: number
+  /** ISO-2 country whose listings count as Domestic Stock. */
+  home_market: string
 }
 
 export interface FundSettingsRequest {
   risk_pct?: number
   base_currency?: string
   detection_margin_pct?: number
+  home_market?: string
 }

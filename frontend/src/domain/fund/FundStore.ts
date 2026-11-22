@@ -7,6 +7,7 @@ import type { FxStore } from '../fx/FxStore'
 import { computeBalance } from './computeBalance'
 
 const DEFAULT_BASE_CURRENCY = 'USD'
+const DEFAULT_HOME_MARKET = 'ES'
 
 /**
  * Build a cheap key over the inputs that matter for balance computation.
@@ -31,6 +32,8 @@ export class FundStore {
   readonly riskPct$ = observable<Decimal>(Decimal.from(0.02))
   readonly baseCurrency$ = observable<string>(DEFAULT_BASE_CURRENCY)
   readonly detectionMarginPct$ = observable<number>(0.005)
+  /** ISO-2 country whose listings count as Domestic Stock. */
+  readonly homeMarket$ = observable<string>(DEFAULT_HOME_MARKET)
   readonly fxLoaded$ = observable(false)
 
   /** Latest balance result. `null` until the first compute lands. */
@@ -106,6 +109,7 @@ export class FundStore {
       if (settings.detection_margin_pct != null) {
         this.detectionMarginPct$.set(settings.detection_margin_pct)
       }
+      this.homeMarket$.set(settings.home_market || DEFAULT_HOME_MARKET)
     } catch {
       // Use defaults
     }
@@ -139,6 +143,11 @@ export class FundStore {
   async updateDetectionMargin(marginPct: number): Promise<void> {
     const settings = await this.repo.updateSettings({ detection_margin_pct: marginPct })
     this.detectionMarginPct$.set(settings.detection_margin_pct)
+  }
+
+  async updateHomeMarket(homeMarket: string): Promise<void> {
+    const settings = await this.repo.updateSettings({ home_market: homeMarket })
+    this.homeMarket$.set(settings.home_market)
   }
 
   async updateBaseCurrency(baseCurrency: string): Promise<void> {

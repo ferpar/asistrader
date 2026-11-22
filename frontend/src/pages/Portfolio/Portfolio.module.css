@@ -231,3 +231,29 @@
   color: var(--color-error-dark);
   font-size: 0.85rem;
 }
+
+.table tbody tr.subtotal {
+  background: var(--color-surface);
+  font-weight: 600;
+}
+
+.classSelect {
+  font-size: 0.85rem;
+  padding: 0.1rem 0.25rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.homeMarket {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}

@@ -372,8 +372,45 @@ class TickerSchema(BaseModel):
     horizon: str | None = None
     beta: Beta | None = None
     strategy_id: int | None = None
+    # Asset Class inputs: detected instrument type ("stock", "etf", ...) and
+    # ISO-2 listing country, plus the optional global override.
+    instrument_type: str | None = None
+    listing_country: str | None = None
+    asset_class_override: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class TickerAssetClassRequest(BaseModel):
+    """Set a ticker's Asset Class override (clear it with DELETE)."""
+
+    asset_class: Literal["domestic_stock", "international_stock", "etf"]
+
+
+class BackfillInstrumentMetadataRequest(BaseModel):
+    """Request schema for the instrument-metadata backfill. No symbols = every
+    ticker missing instrument type or listing country."""
+
+    symbols: list[str] | None = None
+
+
+class InstrumentMetadataSchema(BaseModel):
+    instrument_type: str | None
+    listing_country: str | None
+
+
+class BackfillInstrumentMetadataResponse(BaseModel):
+    """Metadata per backfilled symbol, plus per-symbol lookup errors."""
+
+    results: dict[str, InstrumentMetadataSchema]
+    errors: dict[str, str]
+
+
+class TickerResponse(BaseModel):
+    """Response schema for a single-ticker update."""
+
+    ticker: TickerSchema
+    message: str
 
 
 class TickerListResponse(BaseModel):
@@ -1137,6 +1174,8 @@ class RiskSettingsRequest(BaseModel):
     risk_pct: float | None = Field(default=None, gt=0, le=1.0)
     base_currency: str | None = None
     detection_margin_pct: float | None = Field(default=None, gt=0, le=0.1)
+    # ISO 3166-1 alpha-2 country code, case-insensitive ("es" → "ES").
+    home_market: str | None = Field(default=None, pattern=r"^[A-Za-z]{2}$")
 
 
 class RiskSettingsResponse(BaseModel):
@@ -1145,6 +1184,7 @@ class RiskSettingsResponse(BaseModel):
     risk_pct: float
     base_currency: str
     detection_margin_pct: float
+    home_market: str
 
 
 class RepairCurrenciesResponse(BaseModel):
@@ -1336,6 +1376,29 @@ class PortfolioHoldingSchema(BaseModel):
     unrealized_gain_pct: float | None
     last_price: float
     last_price_date: date
+    # domestic_stock | international_stock | etf | unclassified
+    asset_class: str
+    # The ticker's global override when set (asset_class then equals it).
+    asset_class_override: str | None = None
+    weighted_days_open: float | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class PortfolioAssetClassSchema(BaseModel):
+    """Subtotals of a Portfolio's Holdings in one Asset Class, in Portfolio
+    currency. `weight` is the class's share of Portfolio Value; `tickers`
+    lists its Holdings in the order of `holdings`."""
+
+    asset_class: str
+    count: int
+    invested: float
+    portfolio_value: float
+    unrealized_gain: float
+    unrealized_gain_pct: float | None
+    weighted_days_open: float | None
+    weight: float | None
+    tickers: list[str]
 
     model_config = {"from_attributes": True}
 
@@ -1355,6 +1418,9 @@ class PortfolioSummarySchema(BaseModel):
     weighted_days_open: float | None = None
     simple_tir: float | None = None
     xirr: float | None = None
+    # Holdings grouped by Asset Class, one entry per non-empty class in the
+    # order domestic_stock, international_stock, etf, unclassified.
+    asset_classes: list[PortfolioAssetClassSchema] = []
 
     model_config = {"from_attributes": True}
 

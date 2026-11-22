@@ -12,6 +12,7 @@ from asistrader.services import fx_service
 DEFAULT_RISK_PCT = 0.02
 DEFAULT_BASE_CURRENCY = "USD"
 DEFAULT_DETECTION_MARGIN_PCT = 0.005
+DEFAULT_HOME_MARKET = "ES"
 
 logger = logging.getLogger(__name__)
 
@@ -353,6 +354,26 @@ def update_detection_margin(db: Session, user_id: int, margin_pct: float) -> flo
         settings.detection_margin_pct = margin_pct
     db.commit()
     return margin_pct
+
+
+def get_home_market(db: Session, user_id: int) -> str:
+    """Get the user's Home Market as an ISO-2 country code (default 'ES')."""
+    settings = db.query(UserFundSettings).filter(UserFundSettings.user_id == user_id).first()
+    if settings is None or not settings.home_market:
+        return DEFAULT_HOME_MARKET
+    return settings.home_market
+
+
+def update_home_market(db: Session, user_id: int, home_market: str) -> str:
+    """Update the user's Home Market. Creates UserFundSettings if not exists."""
+    settings = db.query(UserFundSettings).filter(UserFundSettings.user_id == user_id).first()
+    if settings is None:
+        settings = UserFundSettings(user_id=user_id, home_market=home_market)
+        db.add(settings)
+    else:
+        settings.home_market = home_market
+    db.commit()
+    return home_market
 
 
 # ── Risk Check ──

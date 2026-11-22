@@ -50,7 +50,7 @@ Relative Unrealized Gain annualised linearly over Weighted Days Open. Kept for c
 _Avoid_: TIR anualizada (when meaning XIRR)
 
 **Asset Class**:
-How a Holding is grouped for reporting: Domestic Stock, International Stock or ETF. Domestic means listed in the user's Home Market.
+How a Holding is grouped for reporting: Domestic Stock, International Stock or ETF. Domestic means listed in the user's Home Market. A Holding whose instrument type, or (for a stock) listing country, is unknown is Unclassified until its metadata is backfilled or its Asset Class overridden.
 _Avoid_: Category, type (alone)
 
 **Home Market**:

@@ -84,6 +84,38 @@ export interface PortfolioHistory {
   rows: PortfolioHistoryRow[]
 }
 
+/** An Asset Class a ticker can be assigned to by override. */
+export type AssetClassChoice = 'domestic_stock' | 'international_stock' | 'etf'
+
+/**
+ * How a Holding is grouped: override, else ETF, else Domestic / International
+ * Stock by listing country vs the user's Home Market. `unclassified` when the
+ * ticker's metadata is unknown and no override is set.
+ */
+export type AssetClass = AssetClassChoice | 'unclassified'
+
+export const ASSET_CLASS_LABELS: Record<AssetClass, string> = {
+  domestic_stock: 'Domestic Stock',
+  international_stock: 'International Stock',
+  etf: 'ETF',
+  unclassified: 'Unclassified',
+}
+
+/** Subtotals of the Holdings in one Asset Class; money in Portfolio currency. */
+export interface AssetClassSubtotal {
+  assetClass: AssetClass
+  count: number
+  invested: Decimal
+  portfolioValue: Decimal
+  unrealizedGain: Decimal
+  unrealizedGainPct: number | null
+  /** Over the class's Lots; null without Lots. */
+  weightedDaysOpen: number | null
+  /** Share of Portfolio Value. */
+  weight: number | null
+  tickers: string[]
+}
+
 /** One instrument's Holding; money in Portfolio currency except `lastPrice`. */
 export interface Holding {
   ticker: string
@@ -97,6 +129,11 @@ export interface Holding {
   unrealizedGainPct: number | null
   lastPrice: Decimal
   lastPriceDate: Date
+  assetClass: AssetClass
+  /** The ticker's global override, when set. */
+  assetClassOverride: AssetClassChoice | null
+  /** Cost-weighted age of this Holding's Lots in calendar days. */
+  weightedDaysOpen: number | null
 }
 
 export interface PortfolioSummary {
@@ -117,4 +154,7 @@ export interface PortfolioSummary {
   simpleTir: number | null
   /** Annualised money-weighted return over Transaction cash flows (fraction). */
   xirr: number | null
+  /** Holdings grouped by Asset Class: one subtotal per non-empty class, in
+   *  the order Domestic Stock, International Stock, ETF, Unclassified. */
+  assetClasses: AssetClassSubtotal[]
 }

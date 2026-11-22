@@ -654,6 +654,8 @@ def ensure_ticker_with_history(db: Session, symbol: str, since: date) -> Ticker:
         name=validation["name"],
         currency=validation["currency"],
         price_hint=validation["price_hint"],
+        instrument_type=validation["instrument_type"],
+        listing_country=validation["listing_country"],
     )
     db.add(ticker)
     db.commit()

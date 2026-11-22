@@ -6,6 +6,7 @@ import { signClass } from '../../components/portfolio/signClass'
 import type { PortfolioSummary, PortfolioTransaction } from '../../domain/portfolio/types'
 import { CsvImport } from './CsvImport'
 import { HoldingsTable } from './HoldingsTable'
+import { HomeMarketSelect } from './HomeMarketSelect'
 import { MoneyChart } from './MoneyChart'
 import { PerformanceSection } from './PerformanceSection'
 import { TransactionForm } from './TransactionForm'
@@ -114,9 +115,22 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
 
       {history && <PerformanceSection portfolioId={portfolio.id} name={portfolio.name} history={history} />}
 
-      <h3>Holdings</h3>
+      <div className={styles.sectionHeader}>
+        <h3>Holdings</h3>
+        <HomeMarketSelect onChanged={() => store.loadDetail(portfolioId)} />
+      </div>
       {summary && summary.holdings.length > 0 ? (
-        <HoldingsTable holdings={summary.holdings} currency={summary.currency} />
+        <HoldingsTable
+          holdings={summary.holdings}
+          assetClasses={summary.assetClasses}
+          currency={summary.currency}
+          onOverride={(symbol, assetClass) =>
+            run(async () => {
+              await tickerStore.setAssetClassOverride(symbol, assetClass)
+              await store.loadDetail(portfolioId)
+            }, 'Failed to set Asset Class')
+          }
+        />
       ) : (
         <p className={styles.empty}>No Holdings. Record a Buy below.</p>
       )}
