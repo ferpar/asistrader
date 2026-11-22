@@ -51,33 +51,30 @@ class FxRateUnavailable(Exception):
 # ── Reads ──
 
 
-def get_rate_to_usd(db: Session, currency: str, on_date: date) -> float:
+def get_rate_to_usd(
+    db: Session,
+    currency: str,
+    on_date: date,
+    max_fallback_days: int | None = MAX_FALLBACK_DAYS,
+) -> float:
     """Most-recent rate at or before `on_date`.
 
     Returns 1.0 for USD. Sub-unit currencies (e.g., 'GBp') are normalized to
     their parent and the rate divided by the parent's sub-unit factor.
-    Raises `FxRateUnavailable` if no rate within `MAX_FALLBACK_DAYS` — that's
-    a signal the FX sync hasn't been run.
+    Raises `FxRateUnavailable` if no rate within `max_fallback_days` (None:
+    any earlier rate will do) — that's a signal the FX sync hasn't been run.
     """
     canonical, divisor = _normalize_currency(currency)
     if canonical == "USD":
         return 1.0 / divisor
 
-    cutoff = on_date - timedelta(days=MAX_FALLBACK_DAYS)
-    row = (
-        db.query(FxRate)
-        .filter(
-            FxRate.currency == canonical,
-            FxRate.date <= on_date,
-            FxRate.date >= cutoff,
-        )
-        .order_by(FxRate.date.desc())
-        .first()
-    )
+    query = db.query(FxRate).filter(FxRate.currency == canonical, FxRate.date <= on_date)
+    if max_fallback_days is not None:
+        query = query.filter(FxRate.date >= on_date - timedelta(days=max_fallback_days))
+    row = query.order_by(FxRate.date.desc()).first()
     if row is None:
-        raise FxRateUnavailable(
-            f"No FX rate for {canonical} on or before {on_date} within {MAX_FALLBACK_DAYS} days"
-        )
+        window = f" within {max_fallback_days} days" if max_fallback_days is not None else ""
+        raise FxRateUnavailable(f"No FX rate for {canonical} on or before {on_date}{window}")
     return row.rate_to_usd / divisor
 
 
@@ -87,12 +84,14 @@ def convert(
     from_ccy: str,
     to_ccy: str,
     on_date: date,
+    max_fallback_days: int | None = MAX_FALLBACK_DAYS,
 ) -> float:
-    """Convert `amount` from `from_ccy` to `to_ccy` using the rate at `on_date`."""
+    """Convert `amount` from `from_ccy` to `to_ccy` using the rate at `on_date`
+    (see `get_rate_to_usd` for `max_fallback_days`)."""
     if from_ccy == to_ccy:
         return amount
-    from_rate = get_rate_to_usd(db, from_ccy, on_date)
-    to_rate = get_rate_to_usd(db, to_ccy, on_date)
+    from_rate = get_rate_to_usd(db, from_ccy, on_date, max_fallback_days)
+    to_rate = get_rate_to_usd(db, to_ccy, on_date, max_fallback_days)
     return amount * from_rate / to_rate
 
 

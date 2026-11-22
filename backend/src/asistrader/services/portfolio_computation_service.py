@@ -164,10 +164,22 @@ class SummaryFigures:
 
 
 def _to_portfolio_currency(
-    db: Session, amount: float, from_ccy: str, to_ccy: str, on_date: date
+    db: Session,
+    amount: float,
+    from_ccy: str,
+    to_ccy: str,
+    on_date: date,
+    carry_forward: bool = False,
 ) -> float:
+    """Convert at the stored rate for `on_date`. A Transaction's date only
+    accepts a recent rate (fx_service's fallback window); a valuation day
+    (`carry_forward`) takes the latest stored rate however old, as the
+    history does."""
+    max_fallback = None if carry_forward else fx_service.MAX_FALLBACK_DAYS
     try:
-        return fx_service.convert(db, amount, from_ccy, to_ccy, on_date)
+        return fx_service.convert(
+            db, amount, from_ccy, to_ccy, on_date, max_fallback_days=max_fallback
+        )
     except fx_service.FxRateUnavailable as e:
         raise PortfolioFxUnavailableError(
             f"No {from_ccy}→{to_ccy} FX rate for {on_date.isoformat()}; "
@@ -419,11 +431,15 @@ def compute_summary(
     db: Session, portfolio: Portfolio, as_of: date | None = None
 ) -> SummaryFigures:
     """Invested, Portfolio Value, Unrealized / Realized / Total Gain,
-    Weighted Days Open, Simple TIR, XIRR and Holdings as of `as_of`.
+    Weighted Days Open, Simple TIR, XIRR and Holdings as of `as_of` (today
+    by default).
 
-    A Holding is valued at its latest raw close on or before `as_of`; an
+    A Holding is valued at its latest stored close on or before `as_of`; an
     instrument with no stored close yet is valued at its latest Transaction
-    price, so a fresh Buy still shows up instead of vanishing.
+    price, so a fresh Buy still shows up instead of vanishing. Values are
+    converted at the valuation day's FX rate — the latest stored one on or
+    before `as_of`, however old, exactly like the history — so the money
+    figures equal the history's last row.
     """
     as_of = as_of or date.today()
     ledger = replay(db, portfolio)
@@ -441,7 +457,7 @@ def compute_summary(
         price_date, price = _latest_close(db, symbol, as_of) or ledger.last_price[symbol]
         ccy = ledger.instrument_currency[symbol]
         value = _to_portfolio_currency(
-            db, float(units) * price, ccy, portfolio.currency, price_date
+            db, float(units) * price, ccy, portfolio.currency, as_of, carry_forward=True
         )
         rows.append(
             dict(

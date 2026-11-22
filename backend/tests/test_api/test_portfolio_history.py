@@ -5,7 +5,7 @@ record Transactions through the API, and assert only on the columnar history
 the API returns.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -180,6 +180,39 @@ class TestValuation:
         # 1000 USD / 1.25, the 01-02 rate carried to 01-03, then / 1.0.
         assert history["portfolio_value"] == pytest.approx([800.0, 800.0, 1000.0])
         assert history["unrealized_gain"] == pytest.approx([0.0, 0.0, 200.0])
+
+    def test_the_summary_matches_the_last_history_row(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        """The summary values at the valuation day's FX rate, as the history
+        does, not at the rate of the latest close's date. (Weighted Days Open
+        is as of today in the summary, so it differs on weekends.)"""
+        last_business_day = date.today()
+        while last_business_day.weekday() >= 5:
+            last_business_day -= timedelta(days=1)
+        _seed_ticker(db_session, "SPY", "USD", {date(2024, 1, 2): 100.0})
+        db_session.add_all([
+            FxRate(currency="EUR", date=date(2024, 1, 2), rate_to_usd=1.25),
+            FxRate(currency="EUR", date=last_business_day, rate_to_usd=1.0),
+        ])
+        db_session.commit()
+        pid = _create_portfolio(client, "Broker EUR", "EUR")
+        _record(
+            client, pid, "buy", date="2024-01-02", ticker="SPY", units=10, price=100.0,
+            fx_rate=0.8,
+        )
+
+        history = _history(client, pid)
+        summary = client.get(f"/api/portfolios/{pid}/summary").json()
+
+        last = _row(history, history["dates"][-1])
+        assert history["dates"][-1] == last_business_day.isoformat()
+        assert summary["portfolio_value"] == pytest.approx(1000.0)
+        for key in (
+            "invested", "portfolio_value", "unrealized_gain", "unrealized_gain_pct",
+            "realized_gain", "total_gain",
+        ):
+            assert summary[key] == pytest.approx(last[key]), key
 
     @patch("asistrader.services.fx_service.fetch_from_yfinance")
     def test_missing_fx_rates_are_synced_on_read(
