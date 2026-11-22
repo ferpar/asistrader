@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { observer } from '@legendapp/state/react'
-import { usePortfolioStore, useRouterStore } from '../../container/ContainerContext'
+import { usePortfolioStore, useRouterStore, useTickerStore } from '../../container/ContainerContext'
 import { fmtMoney, fmtPct } from '../../components/portfolio/format'
 import { signClass } from '../../components/portfolio/signClass'
 import type { Decimal } from '../../domain/shared/Decimal'
 import type { Holding, PortfolioSummary, PortfolioTransaction } from '../../domain/portfolio/types'
 import { BuyForm } from './BuyForm'
+import { CsvImport } from './CsvImport'
 import styles from './Portfolio.module.css'
 
 const fmtUnits = (units: Decimal | null) =>
@@ -26,6 +27,7 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
 }) {
   const store = usePortfolioStore()
   const router = useRouterStore()
+  const tickerStore = useTickerStore()
 
   useEffect(() => {
     store.loadDetail(portfolioId)
@@ -62,6 +64,13 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
       await store.deletePortfolio(portfolio.id)
       router.navigate('/portfolio')
     }, 'Failed to delete Portfolio')
+  }
+
+  const handleImport = async (csv: string) => {
+    const result = await store.importCsv(portfolioId, csv)
+    // Imported rows may have created unknown tickers: let the rest of the app see them.
+    if (result.created > 0) tickerStore.loadTickers()
+    return result
   }
 
   const handleDeleteTransaction = (tx: PortfolioTransaction) => {
@@ -108,6 +117,7 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
 
       <h3>Transactions</h3>
       <BuyForm portfolio={portfolio} onSubmit={(buy) => store.addBuy(portfolio.id, buy)} />
+      <CsvImport onImport={handleImport} />
       {transactions.length === 0 ? (
         <p className={styles.empty}>No Transactions yet.</p>
       ) : (

@@ -1,6 +1,12 @@
 import { observable } from '@legendapp/state'
 import type { IPortfolioRepository } from './IPortfolioRepository'
-import type { NewBuy, Portfolio, PortfolioSummary, PortfolioTransaction } from './types'
+import type {
+  ImportResult,
+  NewBuy,
+  Portfolio,
+  PortfolioSummary,
+  PortfolioTransaction,
+} from './types'
 
 const message = (err: unknown, fallback: string) =>
   err instanceof Error ? err.message : fallback
@@ -77,6 +83,16 @@ export class PortfolioStore {
   async addBuy(portfolioId: number, buy: NewBuy): Promise<void> {
     await this.repo.createBuy(portfolioId, buy)
     await this.loadDetail(portfolioId)
+  }
+
+  /**
+   * Import Buys from CSV text and reload the detail. Throws only when the file
+   * as a whole is rejected; per-row failures come back in the result.
+   */
+  async importCsv(portfolioId: number, csv: string): Promise<ImportResult> {
+    const result = await this.repo.importTransactions(portfolioId, csv)
+    if (result.created > 0) await this.loadDetail(portfolioId)
+    return result
   }
 
   async deleteTransaction(portfolioId: number, transactionId: number): Promise<void> {

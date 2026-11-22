@@ -3,10 +3,19 @@ import { parseDateOnly } from '../../utils/dateOnly'
 import type {
   PortfolioDTO,
   PortfolioHoldingDTO,
+  PortfolioImportResponseDTO,
+  PortfolioImportRowResultDTO,
   PortfolioSummaryDTO,
   PortfolioTransactionDTO,
 } from '../../types/portfolio'
-import type { Holding, Portfolio, PortfolioSummary, PortfolioTransaction } from './types'
+import type {
+  Holding,
+  ImportResult,
+  ImportRowResult,
+  Portfolio,
+  PortfolioSummary,
+  PortfolioTransaction,
+} from './types'
 
 const decimalOrNull = (value: number | null): Decimal | null =>
   value === null ? null : Decimal.from(value)
@@ -32,6 +41,17 @@ export function mapTransaction(dto: PortfolioTransactionDTO): PortfolioTransacti
     fees: Decimal.from(dto.fees),
     fxRate: decimalOrNull(dto.fx_rate),
   }
+}
+
+function mapImportRow(dto: PortfolioImportRowResultDTO): ImportRowResult {
+  if (dto.status === 'created' && dto.transaction) {
+    return { row: dto.row, status: 'created', transaction: mapTransaction(dto.transaction) }
+  }
+  return { row: dto.row, status: 'error', error: dto.error ?? 'Not imported' }
+}
+
+export function mapImportResult(dto: PortfolioImportResponseDTO): ImportResult {
+  return { rows: dto.results.map(mapImportRow), created: dto.created, failed: dto.failed }
 }
 
 function mapHolding(dto: PortfolioHoldingDTO): Holding {

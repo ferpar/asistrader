@@ -57,6 +57,23 @@ export interface BuyRequest {
   fx_rate?: number
 }
 
+export interface PortfolioImportRequest {
+  csv: string
+}
+
+export interface PortfolioImportRowResultDTO {
+  row: number
+  status: 'created' | 'error'
+  transaction: PortfolioTransactionDTO | null
+  error: string | null
+}
+
+export interface PortfolioImportResponseDTO {
+  results: PortfolioImportRowResultDTO[]
+  created: number
+  failed: number
+}
+
 export interface PortfolioHoldingDTO {
   ticker: string
   name: string | null
