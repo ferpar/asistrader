@@ -48,6 +48,29 @@ def list_portfolios(db: Session, user_id: int) -> list[Portfolio]:
     )
 
 
+def portfolios_holding(
+    db: Session, user_id: int, symbols: set[str]
+) -> dict[str, list[Portfolio]]:
+    """For each symbol, the user's Portfolios whose current Holdings include it.
+
+    Holdings come from replaying each Portfolio (the one place they are
+    derived), so a fully sold ticker isn't held. Only this user's Portfolios
+    are looked at, in name order. A Portfolio whose Transactions can't be
+    replayed holds nothing here rather than failing the caller.
+    """
+    held: dict[str, list[Portfolio]] = {s: [] for s in symbols}
+    for portfolio in list_portfolios(db, user_id):
+        try:
+            open_tickers = replay(db, portfolio).open_tickers()
+        except PortfolioReplayError:
+            logger.warning("Portfolio %s can't be replayed; skipped", portfolio.id)
+            continue
+        for symbol in open_tickers:
+            if symbol in held:
+                held[symbol].append(portfolio)
+    return held
+
+
 def get_portfolio(db: Session, user_id: int, portfolio_id: int) -> Portfolio:
     portfolio = (
         db.query(Portfolio)
