@@ -17,6 +17,13 @@ A Split multiplies the units of every open Lot of its ticker by its ratio,
 leaving their cost unchanged, and is rejected when no units are held at that
 point. Portfolio Value uses each instrument's latest raw close
 (never the adjusted close — ADR 0002) converted at that close's date.
+
+Each Holding has an Asset Class: its ticker's override if set; else ETF when
+the instrument type is ETF; else Domestic Stock when the listing country is
+the owner's Home Market, International Stock when it is another country.
+A ticker whose instrument type is unknown, or a stock whose listing country
+is unknown, is Unclassified until its metadata is backfilled or overridden.
+The summary subtotals Holdings per Asset Class.
 """
 
 from collections import defaultdict
@@ -28,13 +35,15 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from asistrader.models.db import (
+    AssetClass,
+    InstrumentType,
     MarketData,
     Portfolio,
     PortfolioTransaction,
     Ticker,
     TransactionKind,
 )
-from asistrader.services import fx_service
+from asistrader.services import fund_service, fx_service
 from asistrader.services.irr_service import _simple_tir, _xirr
 
 
@@ -102,6 +111,24 @@ class HoldingFigures:
     unrealized_gain_pct: float | None
     last_price: float
     last_price_date: date
+    asset_class: str
+    weighted_days_open: float | None
+
+
+@dataclass
+class AssetClassFigures:
+    """Subtotals of the Holdings in one Asset Class. `weight` is the class's
+    share of Portfolio Value; `weighted_days_open` is over the class's Lots."""
+
+    asset_class: str
+    count: int
+    invested: float
+    portfolio_value: float
+    unrealized_gain: float
+    unrealized_gain_pct: float | None
+    weighted_days_open: float | None
+    weight: float | None
+    tickers: list[str]
 
 
 @dataclass
@@ -118,6 +145,7 @@ class SummaryFigures:
     weighted_days_open: float | None = None
     simple_tir: float | None = None
     xirr: float | None = None
+    asset_classes: list[AssetClassFigures] = field(default_factory=list)
 
 
 def _to_portfolio_currency(
@@ -289,6 +317,55 @@ def portfolio_xirr(
     return _xirr([*flows, (as_of, portfolio_value)])
 
 
+def classify(
+    instrument_type: str | None,
+    listing_country: str | None,
+    override: str | None,
+    home_market: str,
+) -> AssetClass:
+    """A ticker's Asset Class for a user with the given Home Market."""
+    if override:
+        return AssetClass(override)
+    if instrument_type is None:
+        return AssetClass.UNCLASSIFIED
+    if instrument_type == InstrumentType.ETF.value:
+        return AssetClass.ETF
+    if listing_country is None:
+        return AssetClass.UNCLASSIFIED
+    if listing_country == home_market:
+        return AssetClass.DOMESTIC_STOCK
+    return AssetClass.INTERNATIONAL_STOCK
+
+
+def _asset_class_subtotals(
+    holdings: list[HoldingFigures], ledger: Ledger, as_of: date, portfolio_value: float
+) -> list[AssetClassFigures]:
+    """One subtotal per Asset Class that has Holdings, in `AssetClass` order."""
+    subtotals = []
+    for asset_class in AssetClass:
+        members = [h for h in holdings if h.asset_class == asset_class.value]
+        if not members:
+            continue
+        invested = sum(h.cost for h in members)
+        value = sum(h.value for h in members)
+        subtotals.append(
+            AssetClassFigures(
+                asset_class=asset_class.value,
+                count=len(members),
+                invested=invested,
+                portfolio_value=value,
+                unrealized_gain=value - invested,
+                unrealized_gain_pct=(value - invested) / invested if invested else None,
+                weighted_days_open=weighted_days_open(
+                    [lot for h in members for lot in ledger.lots[h.ticker]], as_of
+                ),
+                weight=value / portfolio_value if portfolio_value else None,
+                tickers=[h.ticker for h in members],
+            )
+        )
+    return subtotals
+
+
 def _latest_close(db: Session, symbol: str, as_of: date) -> tuple[date, float] | None:
     row = (
         db.query(MarketData.date, MarketData.close)
@@ -315,11 +392,11 @@ def compute_summary(
     """
     as_of = as_of or date.today()
     ledger = replay(db, portfolio)
-    names = dict(
-        db.query(Ticker.symbol, Ticker.name)
-        .filter(Ticker.symbol.in_(ledger.open_tickers()))
-        .all()
-    )
+    tickers = {
+        t.symbol: t
+        for t in db.query(Ticker).filter(Ticker.symbol.in_(ledger.open_tickers()))
+    }
+    home_market = fund_service.get_home_market(db, portfolio.user_id)
 
     rows: list[dict] = []
     for symbol in ledger.open_tickers():
@@ -334,13 +411,20 @@ def compute_summary(
         rows.append(
             dict(
                 ticker=symbol,
-                name=names.get(symbol),
+                name=tickers[symbol].name,
                 currency=ccy,
                 units=float(units),
                 cost=cost,
                 value=value,
                 last_price=price,
                 last_price_date=price_date,
+                asset_class=classify(
+                    tickers[symbol].instrument_type,
+                    tickers[symbol].listing_country,
+                    tickers[symbol].asset_class_override,
+                    home_market,
+                ).value,
+                weighted_days_open=weighted_days_open(lots, as_of),
             )
         )
 
@@ -373,4 +457,5 @@ def compute_summary(
         weighted_days_open=wdo,
         simple_tir=simple_tir(unrealized_pct, wdo),
         xirr=portfolio_xirr(ledger.cash_flows, as_of, portfolio_value),
+        asset_classes=_asset_class_subtotals(holdings, ledger, as_of, portfolio_value),
     )

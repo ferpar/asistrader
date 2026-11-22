@@ -178,6 +178,31 @@ class Strategy(Base):
     trades = relationship("Trade", back_populates="strategy_rel")
 
 
+class InstrumentType(str, PyEnum):
+    """What kind of instrument a ticker is, from yfinance's `quoteType`.
+
+    Only stocks and ETFs are classified; anything else Yahoo reports
+    (mutual funds, indexes...) is stored as its lower-cased quoteType.
+    """
+
+    STOCK = "stock"
+    ETF = "etf"
+
+
+class AssetClass(str, PyEnum):
+    """How a Holding is grouped for reporting (see GLOSSARY.md).
+
+    UNCLASSIFIED is never stored or chosen: it is what a Holding falls into
+    when its ticker lacks the metadata to classify it (unknown instrument
+    type, or a stock with unknown listing country) and has no override.
+    """
+
+    DOMESTIC_STOCK = "domestic_stock"
+    INTERNATIONAL_STOCK = "international_stock"
+    ETF = "etf"
+    UNCLASSIFIED = "unclassified"
+
+
 class Ticker(Base):
     """Ticker model representing a stock/asset."""
 
@@ -205,6 +230,16 @@ class Ticker(Base):
     # sync, forever. Cleared whenever a backfill does land rows; re-probed
     # after BACKFILL_RETRY_DAYS in case the upstream history is extended.
     backfill_exhausted_at = Column(DateTime, nullable=True)
+    # Instrument metadata for Asset Classes, from yfinance `.info`: the
+    # instrument type (an `InstrumentType` value, or another lower-cased
+    # quoteType) and the ISO-2 country of the listing venue (from
+    # `info["market"]`, e.g. "es_market" → "ES" — not `info["country"]`, which
+    # is the company's domicile). NULL until detected or backfilled.
+    instrument_type = Column(String(16), nullable=True)
+    listing_country = Column(String(2), nullable=True)
+    # Global (tickers are shared): an `AssetClass` value except UNCLASSIFIED
+    # that wins over detection when set.
+    asset_class_override = Column(String(32), nullable=True)
 
     trades = relationship("Trade", back_populates="ticker_rel")
     strategy_rel = relationship("Strategy", back_populates="tickers")
@@ -472,6 +507,9 @@ class UserFundSettings(Base):
     detection_margin_pct = Column(
         Float, nullable=False, default=0.005, server_default="0.005"
     )
+    # ISO 3166-1 alpha-2 country the user considers domestic: a stock listed
+    # there is a Domestic Stock, any other stock an International Stock.
+    home_market = Column(String(2), nullable=False, default="ES", server_default="ES")
 
     user_rel = relationship("User", back_populates="fund_settings")
 

@@ -65,6 +65,10 @@ class TickerValidationError(Exception):
     pass
 
 
+class TickerNotFoundError(Exception):
+    """Raised when a ticker doesn't exist."""
+
+
 def get_all_tickers(db: Session) -> list[Ticker]:
     """Get all tickers from the database ordered by symbol."""
     return db.query(Ticker).order_by(Ticker.symbol).all()
@@ -81,6 +85,28 @@ def get_existing_symbols(db: Session) -> set[str]:
     return {t.symbol for t in tickers}
 
 
+# yfinance quoteType → our instrument type; other quoteTypes are lower-cased.
+_QUOTE_TYPES = {"EQUITY": "stock", "ETF": "etf"}
+
+
+def instrument_metadata(info: dict) -> dict:
+    """Instrument type and listing country from a yfinance `.info` dict.
+
+    The listing country is the venue's, read from `info["market"]`
+    ("es_market" → "ES"). `info["country"]` is the company's domicile (ASML
+    on Nasdaq says Netherlands) and must not be used. Either is None when
+    Yahoo doesn't say.
+    """
+    quote_type = info.get("quoteType")
+    instrument_type = _QUOTE_TYPES.get(quote_type, quote_type.lower()) if quote_type else None
+    market = info.get("market") or ""
+    prefix, _, suffix = market.partition("_")
+    listing_country = (
+        prefix.upper() if suffix == "market" and len(prefix) == 2 and prefix.isalpha() else None
+    )
+    return {"instrument_type": instrument_type, "listing_country": listing_country}
+
+
 def validate_ticker_with_yfinance(symbol: str) -> dict:
     """Validate ticker exists via yfinance.
 
@@ -88,24 +114,34 @@ def validate_ticker_with_yfinance(symbol: str) -> dict:
         symbol: The ticker symbol to validate
 
     Returns:
-        dict with 'name', 'currency', 'price_hint', and 'valid' keys
+        dict with 'name', 'currency', 'price_hint', 'instrument_type',
+        'listing_country' and 'valid' keys
     """
+    invalid = {
+        "name": None,
+        "currency": None,
+        "price_hint": None,
+        "instrument_type": None,
+        "listing_country": None,
+        "valid": False,
+    }
     try:
         ticker = yf.Ticker(symbol)
         info = ticker.info
         # Check if we got valid data (yfinance returns empty dict for invalid tickers)
         if not info or info.get("quoteType") is None:
-            return {"name": None, "currency": None, "price_hint": None, "valid": False}
+            return invalid
         name = info.get("shortName") or info.get("longName")
         return {
             "name": name,
             "currency": info.get("currency"),
             "price_hint": info.get("priceHint"),
+            **instrument_metadata(info),
             "valid": True,
         }
     except Exception:
         logger.exception("Failed to validate ticker %s with yfinance", symbol)
-        return {"name": None, "currency": None, "price_hint": None, "valid": False}
+        return invalid
 
 
 def create_ticker(db: Session, symbol: str) -> Ticker:
@@ -140,6 +176,8 @@ def create_ticker(db: Session, symbol: str) -> Ticker:
         name=validation["name"],
         currency=validation["currency"],
         price_hint=validation["price_hint"],
+        instrument_type=validation["instrument_type"],
+        listing_country=validation["listing_country"],
     )
     db.add(ticker)
     db.commit()
@@ -148,10 +186,27 @@ def create_ticker(db: Session, symbol: str) -> Ticker:
     return ticker
 
 
+def _fill_instrument_metadata(ticker: Ticker, info: dict) -> bool:
+    """Set instrument type / listing country from `info` where still missing."""
+    detected = instrument_metadata(info)
+    updated = False
+    for field in ("instrument_type", "listing_country"):
+        if getattr(ticker, field) is None and detected[field] is not None:
+            setattr(ticker, field, detected[field])
+            updated = True
+    return updated
+
+
 def backfill_ticker_metadata(db: Session, ticker: Ticker) -> bool:
     """Fill missing currency/price_hint on an existing ticker from yfinance.
 
-    Returns True if any field was updated, False if both were already populated
+    Only looks Yahoo up when currency or price_hint is missing, so regular
+    syncs don't call `.info` for every ticker forever; when it does, missing
+    instrument type / listing country are filled too. Tickers that already
+    have currency and price hint get those from
+    `backfill_instrument_metadata` instead.
+
+    Returns True if any field was updated, False if all were already populated
     or the yfinance lookup failed.
     """
     if ticker.currency is not None and ticker.price_hint is not None:
@@ -166,7 +221,7 @@ def backfill_ticker_metadata(db: Session, ticker: Ticker) -> bool:
     if not info or info.get("quoteType") is None:
         return False
 
-    updated = False
+    updated = _fill_instrument_metadata(ticker, info)
     if ticker.currency is None:
         currency = info.get("currency")
         if currency:
@@ -182,6 +237,57 @@ def backfill_ticker_metadata(db: Session, ticker: Ticker) -> bool:
         db.commit()
         db.refresh(ticker)
     return updated
+
+
+def backfill_instrument_metadata(db: Session, symbols: list[str] | None = None) -> dict:
+    """Fill instrument type and listing country on tickers created before they
+    were recorded (or whose detection failed), from yfinance `.info`.
+
+    Only tickers missing either field are looked up, so rerunning is cheap.
+    Existing values are never overwritten. Meant as a one-off after the
+    columns were added (see `asistrader.cli.backfill_instrument_metadata`).
+
+    Returns:
+        Dict with 'results' (symbol -> {instrument_type, listing_country} after
+        the backfill) and 'errors' (symbol -> message).
+    """
+    query = db.query(Ticker).filter(
+        (Ticker.instrument_type.is_(None)) | (Ticker.listing_country.is_(None))
+    )
+    if symbols is not None:
+        query = query.filter(Ticker.symbol.in_([s.upper().strip() for s in symbols]))
+    tickers = query.order_by(Ticker.symbol).all()
+
+    results: dict[str, dict] = {}
+    errors: dict[str, str] = {}
+    for ticker in tickers:
+        try:
+            info = yf.Ticker(ticker.symbol).info
+        except Exception as e:
+            logger.exception("Failed to backfill instrument metadata for %s", ticker.symbol)
+            errors[ticker.symbol] = str(e) or type(e).__name__
+            continue
+        if not info or info.get("quoteType") is None:
+            errors[ticker.symbol] = "Yahoo returned no metadata"
+            continue
+        _fill_instrument_metadata(ticker, info)
+        db.commit()
+        results[ticker.symbol] = {
+            "instrument_type": ticker.instrument_type,
+            "listing_country": ticker.listing_country,
+        }
+    return {"results": results, "errors": errors}
+
+
+def set_asset_class_override(db: Session, symbol: str, asset_class: str | None) -> Ticker:
+    """Set (or clear, with None) the ticker's global Asset Class override."""
+    ticker = get_ticker_by_symbol(db, symbol.upper().strip())
+    if ticker is None:
+        raise TickerNotFoundError(f"Ticker {symbol} not found")
+    ticker.asset_class_override = asset_class
+    db.commit()
+    db.refresh(ticker)
+    return ticker
 
 
 def get_current_price(symbol: str) -> dict:
