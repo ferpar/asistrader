@@ -103,6 +103,10 @@ export function useBasketDetailStore() {
   return useContainer().basketDetailStore
 }
 
+export function useBasketOverlayStore() {
+  return useContainer().basketOverlayStore
+}
+
 export function usePortfolioStore() {
   return useContainer().portfolioStore
 }
