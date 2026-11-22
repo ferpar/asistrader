@@ -1272,3 +1272,26 @@ class PortfolioSummarySchema(BaseModel):
     holdings: list[PortfolioHoldingSchema]
 
     model_config = {"from_attributes": True}
+
+
+class PortfolioImportRequest(BaseModel):
+    """A CSV of Transactions, sent as text. A header row is required, with
+    columns `date, ticker, units, price, fees` and optional `fx_rate`."""
+
+    csv: str
+
+
+class PortfolioImportRowResult(BaseModel):
+    """What happened to one data row. `row` is its line number in the file,
+    the header being line 1."""
+
+    row: int
+    status: Literal["created", "error"]
+    transaction: PortfolioTransactionSchema | None = None
+    error: str | None = None
+
+
+class PortfolioImportResponse(BaseModel):
+    results: list[PortfolioImportRowResult]
+    created: int
+    failed: int

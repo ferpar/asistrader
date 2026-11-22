@@ -34,6 +34,18 @@ export interface NewBuy {
   fxRate?: number
 }
 
+/** What happened to one CSV data row; `row` is its line number (header = 1). */
+export type ImportRowResult =
+  | { row: number; status: 'created'; transaction: PortfolioTransaction }
+  | { row: number; status: 'error'; error: string }
+
+/** Outcome of a CSV import: each row is created or fails on its own. */
+export interface ImportResult {
+  rows: ImportRowResult[]
+  created: number
+  failed: number
+}
+
 /** One instrument's Holding; money in Portfolio currency except `lastPrice`. */
 export interface Holding {
   ticker: string

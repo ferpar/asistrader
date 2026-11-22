@@ -1,17 +1,28 @@
 import type { IPortfolioRepository } from './IPortfolioRepository'
-import type { NewBuy, Portfolio, PortfolioSummary, PortfolioTransaction } from './types'
+import type {
+  ImportResult,
+  NewBuy,
+  Portfolio,
+  PortfolioSummary,
+  PortfolioTransaction,
+} from './types'
 import type {
   BuyRequest,
   PortfolioCreateRequest,
   PortfolioDTO,
+  PortfolioImportRequest,
+  PortfolioImportResponseDTO,
   PortfolioListResponseDTO,
   PortfolioResponseDTO,
   PortfolioSummaryDTO,
   PortfolioTransactionListResponseDTO,
   PortfolioTransactionResponseDTO,
 } from '../../types/portfolio'
-import { mapPortfolio, mapSummary, mapTransaction } from './mappers'
+import { mapImportResult, mapPortfolio, mapSummary, mapTransaction } from './mappers'
 import { buildHeaders } from '../shared/httpHelpers'
+import { fetchWithTimeout } from '../../api/http'
+
+const IMPORT_TIMEOUT_MS = 5 * 60_000
 
 async function failure(response: Response, fallback: string): Promise<Error> {
   const body = await response.json().catch(() => null)
@@ -101,6 +112,19 @@ export class HttpPortfolioRepository implements IPortfolioRepository {
     if (!response.ok) throw await failure(response, 'Failed to record Buy')
     const data: PortfolioTransactionResponseDTO = await response.json()
     return mapTransaction(data.transaction)
+  }
+
+  async importTransactions(portfolioId: number, csv: string): Promise<ImportResult> {
+    const body: PortfolioImportRequest = { csv }
+    // Unknown tickers are validated and loaded from Yahoo row by row: allow time.
+    const response = await fetchWithTimeout(
+      this.url(`/${portfolioId}/transactions/import`),
+      { method: 'POST', headers: buildHeaders(this.getToken, true), body: JSON.stringify(body) },
+      IMPORT_TIMEOUT_MS,
+    )
+    if (!response.ok) throw await failure(response, 'Failed to import Transactions')
+    const data: PortfolioImportResponseDTO = await response.json()
+    return mapImportResult(data)
   }
 
   async deleteTransaction(portfolioId: number, transactionId: number): Promise<void> {
