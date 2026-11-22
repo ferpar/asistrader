@@ -133,7 +133,9 @@ def fetch_from_yfinance(symbol: str, start_date: date, end_date: date) -> pd.Dat
         lowers historical lows below the user's entry/SL levels and causes
         false-positive auto-detect hits. Yahoo still adjusts these prices for
         splits (ADR 0002); split events come in "Stock Splits" and are stored
-        by `store_market_data` so Portfolios can apply them.
+        by `store_market_data` so Portfolios can apply them. Yahoo restates
+        earlier bars on every new split or dividend, so the sync re-fetches the
+        stored range when one arrives (see `_fetch_and_store_forward`).
     """
     ticker = yf.Ticker(symbol)
     # yfinance end is exclusive, so add 1 day
@@ -252,6 +254,61 @@ def store_splits(db: Session, symbol: str, df: pd.DataFrame) -> int:
         else:
             existing.ratio = value
         stored += 1
+    return stored
+
+
+def _brings_new_corporate_action(db: Session, symbol: str, df: pd.DataFrame) -> bool:
+    """True if a fetched frame has a dividend, or a split not yet stored.
+
+    Missing "Dividends"/"Stock Splits" columns count as no event.
+    """
+    if df.empty:
+        return False
+    if "Dividends" in df.columns and (df["Dividends"].fillna(0) > 0).any():
+        return True
+    if "Stock Splits" not in df.columns:
+        return False
+    for idx, ratio in df["Stock Splits"].items():
+        if pd.isna(ratio) or float(ratio) <= 0:
+            continue
+        day = idx.date() if hasattr(idx, "date") else idx
+        stored = (
+            db.query(TickerSplit.ratio)
+            .filter(TickerSplit.ticker == symbol, TickerSplit.date == day)
+            .scalar()
+        )
+        if stored is None or float(stored) != float(ratio):
+            return True
+    return False
+
+
+def _fetch_and_store_forward(
+    db: Session, symbol: str, earliest: date, start_date: date, end_date: date
+) -> int:
+    """Fill the forward gap from `start_date`, keeping the series in one basis.
+
+    Yahoo restates every earlier bar when a split or dividend happens: `Close`
+    (and open/high/low) by the split ratio, `Adj Close` by splits and
+    dividends. Gap filling alone would leave the stored rows in the old basis
+    next to new rows in the new one (a fake jump in raw closes, Portfolio
+    Value and indexes). So when the new bars bring a split not yet in
+    `ticker_splits` or a dividend, the whole stored range (`earliest` on) is
+    re-fetched and overwritten, keeping the stored series fully restated to
+    the latest basis (ADR 0002). Syncs without a new event fetch the gap only.
+
+    Known limitation, out of scope: a Trade spanning a split compares its
+    exit-level prices (entered in pre-split terms) against restated highs and
+    lows after the re-fetch.
+
+    Returns:
+        Number of new-gap rows stored
+    """
+    ensure_ticker_exists(db, symbol)
+    df = fetch_from_yfinance(symbol, start_date, end_date)
+    restate = _brings_new_corporate_action(db, symbol, df)
+    stored = store_market_data(db, symbol, df)
+    if restate:
+        store_market_data(db, symbol, fetch_from_yfinance(symbol, earliest, end_date))
     return stored
 
 
@@ -403,7 +460,8 @@ def extend_series(db: Session, symbol: str, direction: str, target_date: date) -
         elif target_date > latest:
             # Fetch from day after latest to target
             start = latest + pd.Timedelta(days=1)
-            return fetch_and_store(db, symbol, start.date() if hasattr(start, "date") else start, target_date)
+            start_date = start.date() if hasattr(start, "date") else start
+            return _fetch_and_store_forward(db, symbol, earliest, start_date, target_date)
     elif direction == "backward":
         if earliest is None:
             # No data yet, fetch from target_date to today
@@ -678,9 +736,9 @@ def sync_ticker(
         if latest < last_trading_day:
             forward_start = latest + pd.Timedelta(days=1)
             forward_start_date = forward_start.date() if hasattr(forward_start, "date") else forward_start
-            ensure_ticker_exists(db, symbol)
-            df = fetch_from_yfinance(symbol, forward_start_date, today)
-            fetched += store_market_data(db, symbol, df)
+            # The backward fill above may have moved the earliest stored day.
+            earliest, _ = get_data_bounds(db, symbol)
+            fetched += _fetch_and_store_forward(db, symbol, earliest, forward_start_date, today)
 
     skipped = fetched == 0
     return {"fetched": fetched, "skipped": skipped}

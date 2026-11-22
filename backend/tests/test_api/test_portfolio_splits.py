@@ -229,3 +229,33 @@ class TestSyncedSplits:
         _record(client, pid, kind="buy", date="2024-01-02", ticker="NVDA", units=10, price=120)
 
         assert _summary(client, pid)["holdings"][0]["units"] == pytest.approx(20.0)
+
+    @patch("asistrader.services.market_data_service.fetch_from_yfinance")
+    def test_a_newly_synced_split_restates_the_stored_closes(
+        self, mock_fetch: MagicMock, client: TestClient, db_session: Session
+    ) -> None:
+        # Stored before the split happened: the real pre-split price, 120.
+        _seed_ticker(db_session, "NVDA", {date(2024, 1, 2): 120.0, date(2024, 1, 3): 120.0})
+
+        def fake_fetch(symbol: str, start: date, end: date) -> pd.DataFrame:
+            if start == date(2024, 1, 2):
+                # The full stored range, which Yahoo now reports split-adjusted.
+                return _frame(list(FLAT_ADJUSTED), [60.0] * 4, [0.0, 0.0, 2.0, 0.0])
+            # The forward gap brings in the split bar.
+            return _frame([SPLIT_DAY, date(2024, 1, 5)], [60.0, 60.0], [2.0, 0.0])
+
+        mock_fetch.side_effect = fake_fetch
+        response = client.post(
+            "/api/market-data/sync-all", json={"start_date": "2024-01-02", "symbols": ["NVDA"]}
+        )
+        assert response.status_code == 200
+        pid = _portfolio(client)
+        _record(client, pid, kind="buy", date="2024-01-02", ticker="NVDA", units=10, price=120)
+
+        series = client.post(
+            "/api/market-data/bulk", json={"symbols": ["NVDA"], "start_date": "2024-01-01"}
+        ).json()["data"]["NVDA"]
+        assert series["close"] == pytest.approx([60.0] * 4)
+        assert _summary(client, pid)["holdings"][0]["units"] == pytest.approx(20.0)
+        history = _history(client, pid, to="2024-01-05")
+        assert history["portfolio_value"] == pytest.approx([1200.0] * 4)

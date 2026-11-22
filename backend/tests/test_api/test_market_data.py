@@ -398,3 +398,77 @@ def test_sync_all_stores_adjusted_close_next_to_raw_close(
     }
 
 
+def _seed_ko(db_session: Session) -> None:
+    db_session.add(Ticker(symbol="KO", currency="USD", price_hint=2))
+    db_session.commit()
+    db_session.add_all(
+        [
+            MarketData(ticker="KO", date=date(2024, 1, 2), close=100.0, adj_close=100.0),
+            MarketData(ticker="KO", date=date(2024, 1, 3), close=102.0, adj_close=102.0),
+        ]
+    )
+    db_session.commit()
+
+
+def _sync_ko(client: TestClient) -> dict:
+    response = client.post(
+        "/api/market-data/sync-all", json={"start_date": "2024-01-02", "symbols": ["KO"]}
+    )
+    assert response.status_code == 200
+    return client.post(
+        "/api/market-data/bulk", json={"symbols": ["KO"], "start_date": "2024-01-01"}
+    ).json()["data"]["KO"]
+
+
+@patch("asistrader.services.market_data_service.fetch_from_yfinance")
+def test_sync_all_restates_stored_adjusted_closes_after_a_new_dividend(
+    mock_fetch: MagicMock, client: TestClient, db_session: Session
+) -> None:
+    """A dividend in the newly synced bars lowers every earlier adjusted close."""
+    _seed_ko(db_session)
+
+    def fake_fetch(symbol: str, start: date, end: date) -> pd.DataFrame:
+        if start == date(2024, 1, 2):
+            # Yahoo now reports the earlier adjusted closes net of the dividend.
+            return _frame_with_adj_close(
+                [date(2024, 1, 2), date(2024, 1, 3), date(2024, 1, 4)],
+                [100.0, 102.0, 101.0],
+                [99.0, 101.0, 101.0],
+            )
+        frame = _frame_with_adj_close([date(2024, 1, 4)], [101.0], [101.0])
+        frame["Dividends"] = [1.0]
+        return frame
+
+    mock_fetch.side_effect = fake_fetch
+
+    series = _sync_ko(client)
+
+    assert series["close"] == [100.0, 102.0, 101.0]
+    assert series["adj_close"] == [99.0, 101.0, 101.0]
+
+
+@patch("asistrader.services.market_data_service.fetch_from_yfinance")
+def test_sync_all_leaves_stored_rows_alone_without_a_new_corporate_action(
+    mock_fetch: MagicMock, client: TestClient, db_session: Session
+) -> None:
+    """Only the gap is fetched when the new bars carry no split or dividend."""
+    _seed_ko(db_session)
+
+    def fake_fetch(symbol: str, start: date, end: date) -> pd.DataFrame:
+        if start == date(2024, 1, 2):
+            return _frame_with_adj_close(
+                [date(2024, 1, 2), date(2024, 1, 3), date(2024, 1, 4)],
+                [1.0, 1.0, 101.0],
+                [1.0, 1.0, 101.0],
+            )
+        # No Dividends/Stock Splits columns at all, as in some mocks and bulk frames.
+        return _frame_with_adj_close([date(2024, 1, 4)], [101.0], [101.0])
+
+    mock_fetch.side_effect = fake_fetch
+
+    series = _sync_ko(client)
+
+    assert series["close"] == [100.0, 102.0, 101.0]
+    assert series["adj_close"] == [100.0, 102.0, 101.0]
+
+
