@@ -307,6 +307,28 @@ class BasketListResponse(BaseModel):
     count: int
 
 
+class HoldingPortfolioSchema(BaseModel):
+    """One of the current user's Portfolios, as a place a ticker is held."""
+
+    id: int
+    name: str
+
+
+class BasketMemberSchema(BaseModel):
+    """A Basket member and the user's Portfolios that currently hold it."""
+
+    symbol: str
+    name: str | None = None
+    held_in: list[HoldingPortfolioSchema]
+
+
+class BasketMembersResponse(BaseModel):
+    """Response schema for the Basket members endpoint."""
+
+    members: list[BasketMemberSchema]
+    count: int
+
+
 class TickerSchema(BaseModel):
     """Schema for ticker data."""
 
@@ -1273,6 +1295,9 @@ class PortfolioSummarySchema(BaseModel):
     realized_gain: float
     total_gain: float
     holdings: list[PortfolioHoldingSchema]
+    weighted_days_open: float | None = None
+    simple_tir: float | None = None
+    xirr: float | None = None
 
     model_config = {"from_attributes": True}
 

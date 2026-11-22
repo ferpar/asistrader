@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { observer } from '@legendapp/state/react'
 import { useBasketStore, useRouterStore } from '../../container/ContainerContext'
 import { BasketRankingTable } from './BasketRankingTable'
+import { BasketDetailPage } from './BasketDetailPage'
 import styles from './Baskets.module.css'
 
 interface BasketsPageProps {
@@ -9,15 +10,18 @@ interface BasketsPageProps {
   basketId: string | null
 }
 
-/** The Baskets ranking, or (placeholder for now) one Basket's detail page. */
+/** The Baskets ranking, or one Basket's detail page. */
 export function BasketsPage({ basketId }: BasketsPageProps) {
   if (basketId !== null) {
-    return (
-      <section>
-        <h2>Basket {basketId}</h2>
-        <p>Coming soon.</p>
-      </section>
-    )
+    const id = Number(basketId)
+    if (!Number.isInteger(id) || id <= 0) {
+      return (
+        <section>
+          <h2>Basket not found</h2>
+        </section>
+      )
+    }
+    return <BasketDetailPage basketId={id} />
   }
   return <BasketRanking />
 }

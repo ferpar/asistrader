@@ -12,7 +12,8 @@ Transaction's own FX rate when one was entered, else the stored rate for the
 Transaction's date. A Sell consumes the oldest Lots first (FIFO) and is
 rejected if it exceeds the units held at that point of the replay; its
 proceeds net of fees, converted the same way, minus the consumed Lots' cost
-accumulate into Realized Gain. Portfolio Value uses each instrument's latest raw close
+accumulate into Realized Gain. Both are recorded as dated cash flows for XIRR.
+Portfolio Value uses each instrument's latest raw close
 (never the adjusted close — ADR 0002) converted at that close's date.
 """
 
@@ -32,6 +33,7 @@ from asistrader.models.db import (
     TransactionKind,
 )
 from asistrader.services import fx_service
+from asistrader.services.irr_service import _simple_tir, _xirr
 
 
 class PortfolioReplayError(Exception):
@@ -66,14 +68,16 @@ class Lot:
 
 @dataclass
 class Ledger:
-    """The state a Transaction list leaves a Portfolio in: open Lots per ticker
-    and the Realized Gain accumulated by Sells."""
+    """The state a Transaction list leaves a Portfolio in: open Lots per ticker,
+    the Realized Gain accumulated by Sells, and the dated cash flows in
+    Portfolio currency (Buys negative incl. fees, Sells positive net of fees)."""
 
     currency: str
     realized_gain: float = 0.0
     lots: dict[str, list[Lot]] = field(default_factory=lambda: defaultdict(list))
     instrument_currency: dict[str, str] = field(default_factory=dict)
     last_price: dict[str, tuple[date, float]] = field(default_factory=dict)
+    cash_flows: list[tuple[date, float]] = field(default_factory=list)
 
     def open_tickers(self) -> list[str]:
         return sorted(t for t, lots in self.lots.items() if lots)
@@ -105,6 +109,9 @@ class SummaryFigures:
     realized_gain: float
     total_gain: float
     holdings: list[HoldingFigures]
+    weighted_days_open: float | None = None
+    simple_tir: float | None = None
+    xirr: float | None = None
 
 
 def _to_portfolio_currency(
@@ -212,6 +219,7 @@ def replay(
             ledger.lots[tx.ticker].append(
                 Lot(ticker=tx.ticker, date=tx.date, units=units, cost=cost)
             )
+            ledger.cash_flows.append((tx.date, -cost))
             ledger.last_price[tx.ticker] = (tx.date, float(tx.price))
         elif tx.kind == TransactionKind.SELL.value:
             units = Decimal(tx.units)
@@ -221,11 +229,41 @@ def replay(
                 db, tx, native_proceeds, ccy, portfolio.currency
             )
             ledger.realized_gain += proceeds - consumed_cost
+            ledger.cash_flows.append((tx.date, proceeds))
             ledger.last_price[tx.ticker] = (tx.date, float(tx.price))
         else:
             raise PortfolioReplayError(f"Unsupported Transaction kind: {tx.kind}")
 
     return ledger
+
+
+def weighted_days_open(lots: list[Lot], as_of: date) -> float | None:
+    """Calendar-day age of the remaining Lots on `as_of`, weighted by cost.
+
+    Σ(age × cost) / Σ cost; None when there are no Lots (or no cost to weigh).
+    A partly sold Lot counts with its original date and remaining cost.
+    """
+    total_cost = sum(lot.cost for lot in lots)
+    if not lots or not total_cost:
+        return None
+    return sum((as_of - lot.date).days * lot.cost for lot in lots) / total_cost
+
+
+def simple_tir(unrealized_gain_pct: float | None, wdo: float | None) -> float | None:
+    """Relative Unrealized Gain annualised linearly over Weighted Days Open,
+    as the user's spreadsheet does. None when either is undefined or WDO is 0."""
+    if unrealized_gain_pct is None or not wdo:
+        return None
+    return _simple_tir(unrealized_gain_pct, wdo)
+
+
+def portfolio_xirr(
+    cash_flows: list[tuple[date, float]], as_of: date, portfolio_value: float
+) -> float | None:
+    """XIRR of the cash flows up to `as_of`, with the Portfolio Value on that
+    day as terminal inflow. None when undefined (see `irr_service._xirr`)."""
+    flows = [(d, cf) for d, cf in cash_flows if d <= as_of]
+    return _xirr([*flows, (as_of, portfolio_value)])
 
 
 def _latest_close(db: Session, symbol: str, as_of: date) -> tuple[date, float] | None:
@@ -245,8 +283,8 @@ def _latest_close(db: Session, symbol: str, as_of: date) -> tuple[date, float] |
 def compute_summary(
     db: Session, portfolio: Portfolio, as_of: date | None = None
 ) -> SummaryFigures:
-    """Invested, Portfolio Value, Unrealized / Realized / Total Gain and
-    Holdings as of `as_of`.
+    """Invested, Portfolio Value, Unrealized / Realized / Total Gain,
+    Weighted Days Open, Simple TIR, XIRR and Holdings as of `as_of`.
 
     A Holding is valued at its latest raw close on or before `as_of`; an
     instrument with no stored close yet is valued at its latest Transaction
@@ -295,14 +333,21 @@ def compute_summary(
         for r in rows
     ]
     unrealized = portfolio_value - invested
+    unrealized_pct = unrealized / invested if invested else None
+    wdo = weighted_days_open(
+        [lot for lots in ledger.lots.values() for lot in lots], as_of
+    )
     return SummaryFigures(
         currency=portfolio.currency,
         as_of=as_of,
         invested=invested,
         portfolio_value=portfolio_value,
         unrealized_gain=unrealized,
-        unrealized_gain_pct=unrealized / invested if invested else None,
+        unrealized_gain_pct=unrealized_pct,
         realized_gain=ledger.realized_gain,
         total_gain=unrealized + ledger.realized_gain,
         holdings=holdings,
+        weighted_days_open=wdo,
+        simple_tir=simple_tir(unrealized_pct, wdo),
+        xirr=portfolio_xirr(ledger.cash_flows, as_of, portfolio_value),
     )

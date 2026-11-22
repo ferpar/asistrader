@@ -81,5 +81,8 @@ export function mapSummary(dto: PortfolioSummaryDTO): PortfolioSummary {
     realizedGain: Decimal.from(dto.realized_gain),
     totalGain: Decimal.from(dto.total_gain),
     holdings: dto.holdings.map(mapHolding),
+    weightedDaysOpen: dto.weighted_days_open,
+    simpleTir: dto.simple_tir,
+    xirr: dto.xirr,
   }
 }

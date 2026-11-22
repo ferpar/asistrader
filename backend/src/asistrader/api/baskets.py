@@ -16,11 +16,14 @@ from asistrader.db.database import get_db
 from asistrader.models.db import Basket, User
 from asistrader.models.schemas import (
     BasketListResponse,
+    BasketMemberSchema,
+    BasketMembersResponse,
     BasketSchema,
     BulkMarketDataResponse,
+    HoldingPortfolioSchema,
     CloseSeriesSchema,
 )
-from asistrader.services import basket_service
+from asistrader.services import basket_service, portfolio_service
 from asistrader.services.basket_service import BasketNotFoundError, IndexSeries
 
 router = APIRouter(prefix="/api/baskets", tags=["baskets"])
@@ -101,3 +104,30 @@ def get_basket_index(
     except BasketNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return JSONResponse(_columnar(series))
+
+
+@router.get("/{basket_id}/members", response_model=BasketMembersResponse)
+def get_basket_members(
+    basket_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> BasketMembersResponse:
+    """A Basket's members, each with the user's Portfolios that currently hold it.
+
+    Held-in comes from the user's own Portfolios only (current Holdings, via
+    replay); a Basket the user can't see is 404.
+    """
+    try:
+        members = basket_service.get_members(db, current_user.id, basket_id)
+    except BasketNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    held = portfolio_service.portfolios_holding(db, current_user.id, {s for s, _ in members})
+    items = [
+        BasketMemberSchema(
+            symbol=symbol,
+            name=name,
+            held_in=[HoldingPortfolioSchema(id=p.id, name=p.name) for p in held[symbol]],
+        )
+        for symbol, name in members
+    ]
+    return BasketMembersResponse(members=items, count=len(items))

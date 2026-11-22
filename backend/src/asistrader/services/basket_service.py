@@ -10,7 +10,7 @@ from datetime import date, timedelta
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from asistrader.models.db import Basket, BasketKind, MarketData
+from asistrader.models.db import Basket, BasketKind, MarketData, Ticker
 
 
 class BasketNotFoundError(Exception):
@@ -138,3 +138,11 @@ def get_visible_basket_indexes(
         b.id: _trim(_index_from_closes({m.ticker: closes[m.ticker] for m in b.members}), start_date)
         for b in baskets
     }
+
+
+def get_members(db: Session, user_id: int, basket_id: int) -> list[tuple[str, str | None]]:
+    """A visible Basket's members as (symbol, ticker name), in symbol order."""
+    basket = get_visible_basket(db, user_id, basket_id)
+    symbols = sorted(m.ticker for m in basket.members)
+    names = dict(db.query(Ticker.symbol, Ticker.name).filter(Ticker.symbol.in_(symbols)).all())
+    return [(s, names.get(s)) for s in symbols]
