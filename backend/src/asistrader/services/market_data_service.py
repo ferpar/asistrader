@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
 import yfinance as yf
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -229,6 +229,35 @@ def get_market_data(
         query = query.filter(MarketData.date <= end_date)
 
     return query.order_by(MarketData.date).all()
+
+
+def get_bulk_closes(
+    db: Session, symbols: list[str], start_date: date
+) -> dict[str, tuple[list[date], list[float]]]:
+    """Stored closes for many tickers from `start_date`, as (dates, closes).
+
+    Serves the radar, which reads every ticker at once and only uses the
+    close. One query for all symbols over just those columns, gathered into
+    two parallel lists per symbol instead of one object per row — the
+    per-row path was the backend's heaviest request (~100MB peak, see
+    scripts/profile_memory.py). Rows without a close are skipped; symbols
+    without data map to empty lists.
+    """
+    rows = db.execute(
+        select(MarketData.ticker, MarketData.date, MarketData.close)
+        .where(
+            MarketData.ticker.in_(symbols),
+            MarketData.date >= start_date,
+            MarketData.close.isnot(None),
+        )
+        .order_by(MarketData.ticker, MarketData.date)
+    )
+    out: dict[str, tuple[list[date], list[float]]] = {symbol: ([], []) for symbol in symbols}
+    for ticker, day, close in rows:
+        dates, closes = out[ticker]
+        dates.append(day)
+        closes.append(close)
+    return out
 
 
 def get_data_bounds(db: Session, symbol: str) -> tuple[date | None, date | None]:

@@ -32,6 +32,9 @@ services:
       WEB_THREADPOOL_SIZE: "${WEB_THREADPOOL_SIZE:-24}"
       DB_POOL_SIZE: "${DB_POOL_SIZE:-20}"
       DB_MAX_OVERFLOW: "${DB_MAX_OVERFLOW:-10}"
+      # Requests that grow the process by more than this get logged and the
+      # heap trimmed — see asistrader/memory.py.
+      MEMORY_LOG_THRESHOLD_MB: "${MEMORY_LOG_THRESHOLD_MB:-20}"
     # Not published: the frontend's nginx proxies /api and /health to
     # backend:8005 over the compose network.
     depends_on:

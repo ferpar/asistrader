@@ -3,6 +3,7 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from asistrader.db.database import get_db
@@ -165,18 +166,18 @@ def sync_all_market_data(
 def get_bulk_market_data(
     request: BulkMarketDataRequest,
     db: Session = Depends(get_db),
-) -> BulkMarketDataResponse:
-    """Get stored market data for multiple tickers in a single request."""
-    data: dict[str, list[MarketDataSchema]] = {}
-    errors: dict[str, str] = {}
+) -> JSONResponse:
+    """Get stored closes for multiple tickers in a single request.
 
-    for symbol in request.symbols:
-        try:
-            rows = market_data_service.get_market_data(
-                db, symbol, start_date=request.start_date
-            )
-            data[symbol] = [MarketDataSchema.model_validate(r) for r in rows]
-        except Exception as e:
-            errors[symbol] = str(e)
-
-    return BulkMarketDataResponse(data=data, errors=errors)
+    Each symbol maps to parallel `dates` and `close` arrays — what the radar
+    consumes — rather than a list of full OHLCV rows. Returns a JSONResponse
+    built from plain lists: FastAPI passes a Response through untouched, so
+    nothing is re-validated per value. `response_model` still documents the
+    shape.
+    """
+    series = market_data_service.get_bulk_closes(db, request.symbols, request.start_date)
+    data = {
+        symbol: {"dates": [d.isoformat() for d in dates], "close": closes}
+        for symbol, (dates, closes) in series.items()
+    }
+    return JSONResponse({"data": data, "errors": {}})

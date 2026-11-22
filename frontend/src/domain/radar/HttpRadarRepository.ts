@@ -1,6 +1,8 @@
 import type { IRadarRepository } from './IRadarRepository'
-import type { MarketDataRowDTO, BulkMarketDataResponse } from '../../types/radar'
+import type { BulkMarketDataResponse } from '../../types/radar'
 import type { SyncResponseDTO } from '../../types/marketData'
+import type { DatedClose } from './types'
+import { mapCloseSeries } from './mappers'
 import { buildHeaders } from '../shared/httpHelpers'
 import { fetchWithTimeout, MARKET_DATA_TIMEOUT_MS, SYNC_TIMEOUT_MS } from '../../api/http'
 
@@ -29,7 +31,7 @@ export class HttpRadarRepository implements IRadarRepository {
   }
 
   async fetchBulkMarketData(symbols: string[], startDate: string): Promise<{
-    data: Record<string, MarketDataRowDTO[]>
+    data: Record<string, DatedClose[]>
     errors: Record<string, string>
   }> {
     const response = await fetchWithTimeout(
@@ -45,6 +47,10 @@ export class HttpRadarRepository implements IRadarRepository {
       throw new Error(`Failed to fetch bulk market data: ${response.statusText}`)
     }
     const result: BulkMarketDataResponse = await response.json()
-    return { data: result.data, errors: result.errors }
+    const data: Record<string, DatedClose[]> = {}
+    for (const [symbol, series] of Object.entries(result.data)) {
+      data[symbol] = mapCloseSeries(series)
+    }
+    return { data, errors: result.errors }
   }
 }

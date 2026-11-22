@@ -578,10 +578,17 @@ class BulkMarketDataRequest(BaseModel):
     start_date: date
 
 
+class CloseSeriesSchema(BaseModel):
+    """A ticker's closes as parallel arrays: close[i] is the close on dates[i]."""
+
+    dates: list[date]
+    close: list[float]
+
+
 class BulkMarketDataResponse(BaseModel):
     """Response schema for bulk market data retrieval."""
 
-    data: dict[str, list[MarketDataSchema]]
+    data: dict[str, CloseSeriesSchema]
     errors: dict[str, str]
 
 
