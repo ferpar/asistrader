@@ -8,14 +8,12 @@ So a multi-year history costs one replay plus one pass over the days, not a
 replay per day. Nothing is persisted; editing a Transaction changes the next
 request.
 
-Valuation of a day:
-- Each instrument is valued at its latest raw close on or before that day
-  (ADR 0002), so a market holiday carries the last close forward. Before an
-  instrument's first stored close it is valued at its latest Transaction
-  price, the same fallback the summary uses.
-- Values are converted into the Portfolio currency at that day's stored FX
-  rate; a day without a stored rate (weekend, FX holiday, sync gap) uses the
-  latest earlier one. Only a day with no earlier rate at all is an error.
+Each day is valued by `portfolio_computation_service.Valuation`, the same
+valuation the summary uses: each instrument at its latest stored close on or
+before that day (so a market holiday carries it forward), or its latest
+Transaction price before its first close, converted at the latest stored FX
+rate on or before that day. Only a day with no earlier rate at all is an
+error.
 
 Performance Index (time-weighted, so Buys and Sells don't look like
 performance): each day's return is (Value_t − net flow_t) / Value_{t−1} − 1,
@@ -29,18 +27,18 @@ has no base to earn on, so the index carries flat. It is always chained from
 the first Transaction, so narrowing the range with `start` doesn't rebase it.
 """
 
-from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from asistrader.models.db import FxRate, MarketData, Portfolio
-from asistrader.services.fx_service import _normalize_currency
+from asistrader.models.db import Portfolio
+from asistrader.services.daily_series import business_days
 from asistrader.services.portfolio_computation_service import (
     Ledger,
-    PortfolioFxUnavailableError,
+    Valuation,
+    gain,
     replay,
     weighted_days_open,
 )
@@ -62,99 +60,20 @@ class HistoryFigures:
     performance_index: list[float] = field(default_factory=list)
 
 
-class _CarriedSeries:
-    """A dated series read on increasing days: `at(day)` is the latest value
-    on or before `day`, or None before the first one."""
-
-    def __init__(self, points: list[tuple[date, float]]) -> None:
-        self._points = points
-        self._next = 0
-        self._current: float | None = None
-
-    def at(self, day: date) -> float | None:
-        while self._next < len(self._points) and self._points[self._next][0] <= day:
-            self._current = self._points[self._next][1]
-            self._next += 1
-        return self._current
-
-
-@dataclass
-class _HoldingState:
-    """One instrument's open Lots, frozen between two Transaction dates."""
-
-    ticker: str
-    currency: str
-    units: float
-    fallback_price: float
-
-
-def _business_days(start: date, end: date) -> Iterator[date]:
-    day = start
-    while day <= end:
-        if day.weekday() < 5:
-            yield day
-        day += timedelta(days=1)
-
-
 class _HistoryBuilder:
     def __init__(
         self, db: Session, portfolio: Portfolio, start: date | None, end: date
     ) -> None:
-        self.db = db
         self.start = start
         self.end = end
-        self.currency = portfolio.currency
         self.history = HistoryFigures(currency=portfolio.currency)
+        self.valuation = Valuation(db, portfolio.currency, end)
         self.next_day: date | None = None
-        self._closes: dict[str, _CarriedSeries] = {}
-        self._fx: dict[str, _CarriedSeries] = {}
         # Performance Index state, chained over every business day from the
         # first Transaction (also the days before `start`, which aren't emitted).
         self._index: float | None = None
         self._previous_value = 0.0
         self._flows_applied = 0
-
-    def _rate_to_usd(self, currency: str, day: date) -> float:
-        """USD per unit of `currency` on `day`, carried forward from the
-        latest stored rate (mirrors `fx_service.get_rate_to_usd`, preloaded)."""
-        canonical, divisor = _normalize_currency(currency)
-        if canonical == "USD":
-            return 1.0 / divisor
-        if canonical not in self._fx:
-            rows = (
-                self.db.query(FxRate.date, FxRate.rate_to_usd)
-                .filter(FxRate.currency == canonical, FxRate.date <= self.end)
-                .order_by(FxRate.date)
-                .all()
-            )
-            self._fx[canonical] = _CarriedSeries([(d, r) for d, r in rows])
-        rate = self._fx[canonical].at(day)
-        if rate is None:
-            raise PortfolioFxUnavailableError(
-                f"No {canonical} FX rate on or before {day.isoformat()}"
-            )
-        return rate / divisor
-
-    def _close_series(self, symbol: str) -> _CarriedSeries:
-        if symbol not in self._closes:
-            rows = (
-                self.db.query(MarketData.date, MarketData.close)
-                .filter(
-                    MarketData.ticker == symbol,
-                    MarketData.date <= self.end,
-                    MarketData.close.isnot(None),
-                )
-                .order_by(MarketData.date)
-                .all()
-            )
-            self._closes[symbol] = _CarriedSeries([(d, c) for d, c in rows])
-        return self._closes[symbol]
-
-    def _fx_factor(self, currency: str, day: date) -> float:
-        """Portfolio-currency units per unit of `currency` on `day`."""
-        if currency == self.currency:
-            return 1.0
-        return self._rate_to_usd(currency, day) / self._rate_to_usd(self.currency, day)
 
     def _chain_index(self, day: date, value: float, ledger: Ledger) -> float:
         """The Performance Index at the close of `day`, given its Portfolio Value.
@@ -188,41 +107,32 @@ class _HistoryBuilder:
         valued from the same Ledger."""
         if self.next_day is None or stop < self.next_day:
             return
-        holdings = []
-        invested = 0.0
-        for symbol in ledger.open_tickers():
-            lots = ledger.lots[symbol]
-            invested += sum(lot.cost for lot in lots)
-            holdings.append(
-                _HoldingState(
-                    ticker=symbol,
-                    currency=ledger.instrument_currency[symbol],
-                    units=float(sum((lot.units for lot in lots), Decimal(0))),
-                    fallback_price=ledger.last_price[symbol][1],
-                )
-            )
+        symbols = ledger.open_tickers()
+        units = {
+            s: float(sum((lot.units for lot in ledger.lots[s]), Decimal(0))) for s in symbols
+        }
+        invested = sum(lot.cost for s in symbols for lot in ledger.lots[s])
         realized = ledger.realized_gain
-        lots = [lot for symbol in ledger.open_tickers() for lot in ledger.lots[symbol]]
+        lots = [lot for s in symbols for lot in ledger.lots[s]]
 
-        for day in _business_days(self.next_day, stop):
+        for day in business_days(self.next_day, stop):
             value = 0.0
-            for h in holdings:
-                close = self._close_series(h.ticker).at(day)
-                price = close if close is not None else h.fallback_price
-                value += h.units * price * self._fx_factor(h.currency, day)
+            for s in symbols:
+                _, price = self.valuation.price(ledger, s, day)
+                value += units[s] * price * self.valuation.fx_factor(
+                    ledger.instrument_currency[s], day
+                )
             index = self._chain_index(day, value, ledger)
             if self.start is not None and day < self.start:
                 continue
-            unrealized = value - invested
+            g = gain(value, invested, realized)
             self.history.dates.append(day)
             self.history.invested.append(invested)
             self.history.portfolio_value.append(value)
-            self.history.unrealized_gain.append(unrealized)
-            self.history.unrealized_gain_pct.append(
-                unrealized / invested if invested else None
-            )
+            self.history.unrealized_gain.append(g.unrealized)
+            self.history.unrealized_gain_pct.append(g.unrealized_pct)
             self.history.realized_gain.append(realized)
-            self.history.total_gain.append(unrealized + realized)
+            self.history.total_gain.append(g.total)
             self.history.weighted_days_open.append(weighted_days_open(lots, day))
             self.history.performance_index.append(index)
         self.next_day = stop + timedelta(days=1)

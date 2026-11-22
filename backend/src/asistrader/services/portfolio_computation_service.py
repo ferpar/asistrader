@@ -51,6 +51,7 @@ from asistrader.models.db import (
     TransactionKind,
 )
 from asistrader.services import fund_service, fx_service
+from asistrader.services.daily_series import CarriedSeries
 from asistrader.services.irr_service import _simple_tir, _xirr
 
 
@@ -164,22 +165,12 @@ class SummaryFigures:
 
 
 def _to_portfolio_currency(
-    db: Session,
-    amount: float,
-    from_ccy: str,
-    to_ccy: str,
-    on_date: date,
-    carry_forward: bool = False,
+    db: Session, amount: float, from_ccy: str, to_ccy: str, on_date: date
 ) -> float:
-    """Convert at the stored rate for `on_date`. A Transaction's date only
-    accepts a recent rate (fx_service's fallback window); a valuation day
-    (`carry_forward`) takes the latest stored rate however old, as the
-    history does."""
-    max_fallback = None if carry_forward else fx_service.MAX_FALLBACK_DAYS
+    """Convert a Transaction's amount at the stored rate for its date (within
+    fx_service's fallback window)."""
     try:
-        return fx_service.convert(
-            db, amount, from_ccy, to_ccy, on_date, max_fallback_days=max_fallback
-        )
+        return fx_service.convert(db, amount, from_ccy, to_ccy, on_date)
     except fx_service.FxRateUnavailable as e:
         raise PortfolioFxUnavailableError(
             f"No {from_ccy}→{to_ccy} FX rate for {on_date.isoformat()}; "
@@ -364,6 +355,76 @@ def portfolio_xirr(
     return _xirr([*flows, (as_of, portfolio_value)])
 
 
+@dataclass(frozen=True)
+class Gain:
+    """Unrealized Gain (absolute and relative to Invested) and Total Gain."""
+
+    unrealized: float
+    unrealized_pct: float | None
+    total: float
+
+
+def gain(value: float, invested: float, realized: float = 0.0) -> Gain:
+    """The one Gain computation: Unrealized = value − invested (relative to
+    invested, None when nothing is invested); Total = Unrealized + realized."""
+    unrealized = value - invested
+    return Gain(
+        unrealized=unrealized,
+        unrealized_pct=unrealized / invested if invested else None,
+        total=unrealized + realized,
+    )
+
+
+class Valuation:
+    """Values a Portfolio's Holdings on non-decreasing days, the same way for
+    the summary and every history row.
+
+    An instrument is priced at its latest stored close on or before the day
+    (so a market holiday carries it forward); before its first stored close,
+    at its latest Transaction price (split-adjusted, from the Ledger). Money
+    is converted into the Portfolio currency at the day's FX rate: the latest
+    stored rate on or before it, however old. Closes and rates are read from
+    the database once per instrument / currency, up to `end`.
+    """
+
+    def __init__(self, db: Session, currency: str, end: date) -> None:
+        self._db = db
+        self._currency = currency
+        self._end = end
+        self._closes: dict[str, CarriedSeries] = {}
+        self._rates = fx_service.RateTable(db, end)
+
+    def _close_series(self, symbol: str) -> CarriedSeries:
+        if symbol not in self._closes:
+            rows = (
+                self._db.query(MarketData.date, MarketData.close)
+                .filter(
+                    MarketData.ticker == symbol,
+                    MarketData.date <= self._end,
+                    MarketData.close.isnot(None),
+                )
+                .order_by(MarketData.date)
+                .all()
+            )
+            self._closes[symbol] = CarriedSeries([(d, c) for d, c in rows])
+        return self._closes[symbol]
+
+    def price(self, ledger: Ledger, symbol: str, day: date) -> tuple[date, float]:
+        """The instrument's (date, price) used on `day`."""
+        series = self._close_series(symbol)
+        close = series.at(day)
+        if close is None:
+            return ledger.last_price[symbol]
+        return series.date, close
+
+    def fx_factor(self, currency: str, day: date) -> float:
+        """Portfolio-currency units per unit of `currency` on `day`."""
+        try:
+            return self._rates.factor(currency, self._currency, day)
+        except fx_service.FxRateUnavailable as e:
+            raise PortfolioFxUnavailableError(str(e)) from e
+
+
 def classify(
     instrument_type: str | None,
     listing_country: str | None,
@@ -395,14 +456,15 @@ def _asset_class_subtotals(
             continue
         invested = sum(h.cost for h in members)
         value = sum(h.value for h in members)
+        g = gain(value, invested)
         subtotals.append(
             AssetClassFigures(
                 asset_class=asset_class.value,
                 count=len(members),
                 invested=invested,
                 portfolio_value=value,
-                unrealized_gain=value - invested,
-                unrealized_gain_pct=(value - invested) / invested if invested else None,
+                unrealized_gain=g.unrealized,
+                unrealized_gain_pct=g.unrealized_pct,
                 weighted_days_open=weighted_days_open(
                     [lot for h in members for lot in ledger.lots[h.ticker]], as_of
                 ),
@@ -413,20 +475,6 @@ def _asset_class_subtotals(
     return subtotals
 
 
-def _latest_close(db: Session, symbol: str, as_of: date) -> tuple[date, float] | None:
-    row = (
-        db.query(MarketData.date, MarketData.close)
-        .filter(
-            MarketData.ticker == symbol,
-            MarketData.date <= as_of,
-            MarketData.close.isnot(None),
-        )
-        .order_by(MarketData.date.desc())
-        .first()
-    )
-    return (row[0], row[1]) if row else None
-
-
 def compute_summary(
     db: Session, portfolio: Portfolio, as_of: date | None = None
 ) -> SummaryFigures:
@@ -434,12 +482,10 @@ def compute_summary(
     Weighted Days Open, Simple TIR, XIRR and Holdings as of `as_of` (today
     by default).
 
-    A Holding is valued at its latest stored close on or before `as_of`; an
-    instrument with no stored close yet is valued at its latest Transaction
-    price, so a fresh Buy still shows up instead of vanishing. Values are
-    converted at the valuation day's FX rate — the latest stored one on or
-    before `as_of`, however old, exactly like the history — so the money
-    figures equal the history's last row.
+    Holdings are valued by `Valuation` on `as_of`, exactly like the history
+    rows, so the money figures equal the history's last row. An instrument
+    with no stored close yet is valued at its latest Transaction price, so a
+    fresh Buy still shows up instead of vanishing.
     """
     as_of = as_of or date.today()
     ledger = replay(db, portfolio)
@@ -448,17 +494,16 @@ def compute_summary(
         for t in db.query(Ticker).filter(Ticker.symbol.in_(ledger.open_tickers()))
     }
     home_market = fund_service.get_home_market(db, portfolio.user_id)
+    valuation = Valuation(db, portfolio.currency, as_of)
 
     rows: list[dict] = []
     for symbol in ledger.open_tickers():
         lots = ledger.lots[symbol]
         units = sum((lot.units for lot in lots), Decimal(0))
         cost = sum(lot.cost for lot in lots)
-        price_date, price = _latest_close(db, symbol, as_of) or ledger.last_price[symbol]
+        price_date, price = valuation.price(ledger, symbol, as_of)
         ccy = ledger.instrument_currency[symbol]
-        value = _to_portfolio_currency(
-            db, float(units) * price, ccy, portfolio.currency, as_of, carry_forward=True
-        )
+        value = float(units) * price * valuation.fx_factor(ccy, as_of)
         rows.append(
             dict(
                 ticker=symbol,
@@ -482,17 +527,18 @@ def compute_summary(
 
     invested = sum(r["cost"] for r in rows)
     portfolio_value = sum(r["value"] for r in rows)
-    holdings = [
-        HoldingFigures(
-            **r,
-            weight=r["value"] / portfolio_value if portfolio_value else None,
-            unrealized_gain=r["value"] - r["cost"],
-            unrealized_gain_pct=(r["value"] - r["cost"]) / r["cost"] if r["cost"] else None,
+    holdings = []
+    for r in rows:
+        g = gain(r["value"], r["cost"])
+        holdings.append(
+            HoldingFigures(
+                **r,
+                weight=r["value"] / portfolio_value if portfolio_value else None,
+                unrealized_gain=g.unrealized,
+                unrealized_gain_pct=g.unrealized_pct,
+            )
         )
-        for r in rows
-    ]
-    unrealized = portfolio_value - invested
-    unrealized_pct = unrealized / invested if invested else None
+    total = gain(portfolio_value, invested, ledger.realized_gain)
     wdo = weighted_days_open(
         [lot for lots in ledger.lots.values() for lot in lots], as_of
     )
@@ -501,13 +547,13 @@ def compute_summary(
         as_of=as_of,
         invested=invested,
         portfolio_value=portfolio_value,
-        unrealized_gain=unrealized,
-        unrealized_gain_pct=unrealized_pct,
+        unrealized_gain=total.unrealized,
+        unrealized_gain_pct=total.unrealized_pct,
         realized_gain=ledger.realized_gain,
-        total_gain=unrealized + ledger.realized_gain,
+        total_gain=total.total,
         holdings=holdings,
         weighted_days_open=wdo,
-        simple_tir=simple_tir(unrealized_pct, wdo),
+        simple_tir=simple_tir(total.unrealized_pct, wdo),
         xirr=portfolio_xirr(ledger.cash_flows, as_of, portfolio_value),
         asset_classes=_asset_class_subtotals(holdings, ledger, as_of, portfolio_value),
     )

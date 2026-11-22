@@ -11,6 +11,11 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from asistrader.models.db import Basket, BasketKind, BasketMember, MarketData, Ticker
+from asistrader.services.daily_series import (
+    CarriedSeries,
+    business_days,
+    business_days_after,
+)
 from asistrader.services.market_data_service import ensure_ticker_with_history
 
 
@@ -221,16 +226,6 @@ def _adjusted_closes(db: Session, symbols: set[str]) -> dict[str, list[tuple[dat
     return out
 
 
-def _business_days(start: date, end: date) -> list[date]:
-    days = []
-    day = start
-    while day <= end:
-        if day.weekday() < 5:
-            days.append(day)
-        day += timedelta(days=1)
-    return days
-
-
 # A member whose latest close is more than this many business days before
 # the index day stops contributing (delisted, renamed, data gone), instead of
 # being carried forward forever as a 0% return. Holidays are shorter.
@@ -249,30 +244,24 @@ def _index_from_closes(closes: dict[str, list[tuple[date, float]]]) -> IndexSeri
     business day — a late-joining member counts from the day after its first
     close.
     """
-    series = {s: rows for s, rows in closes.items() if rows}
+    series = {s: CarriedSeries(rows) for s, rows in closes.items() if rows}
     if not series:
         return [], []
-    start = min(rows[0][0] for rows in series.values())
-    end = max(rows[-1][0] for rows in series.values())
+    start = min(rows[0][0] for rows in closes.values() if rows)
+    end = max(rows[-1][0] for rows in closes.values() if rows)
 
-    cursor = {s: 0 for s in series}
-    last: dict[str, float] = {}
-    last_seen: dict[str, int] = {}  # business-day number of the latest close
     previous: dict[str, float] = {}
     dates: list[date] = []
     values: list[float] = []
     level = 100.0
-    for k, day in enumerate(_business_days(start, end)):
-        for symbol, rows in series.items():
-            i = cursor[symbol]
-            while i < len(rows) and rows[i][0] <= day:
-                last[symbol] = rows[i][1]
-                last_seen[symbol] = k
-                i += 1
-            cursor[symbol] = i
-        current = {
-            s: c for s, c in last.items() if k - last_seen[s] <= STALE_AFTER_BUSINESS_DAYS
-        }
+    for day in business_days(start, end):
+        current = {}
+        for symbol, carried in series.items():
+            close = carried.at(day)
+            if close is None or carried.date is None:
+                continue
+            if business_days_after(carried.date, day) <= STALE_AFTER_BUSINESS_DAYS:
+                current[symbol] = close
         returns = [current[s] / p - 1 for s, p in previous.items() if p and s in current]
         if returns:
             level *= 1 + sum(returns) / len(returns)

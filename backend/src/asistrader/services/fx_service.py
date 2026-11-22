@@ -18,6 +18,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from asistrader.models.db import FxRate
+from asistrader.services.daily_series import CarriedSeries
 from asistrader.services.market_data_service import (
     fetch_from_yfinance,
     get_last_trading_day,
@@ -51,30 +52,33 @@ class FxRateUnavailable(Exception):
 # ── Reads ──
 
 
-def get_rate_to_usd(
-    db: Session,
-    currency: str,
-    on_date: date,
-    max_fallback_days: int | None = MAX_FALLBACK_DAYS,
-) -> float:
+def get_rate_to_usd(db: Session, currency: str, on_date: date) -> float:
     """Most-recent rate at or before `on_date`.
 
     Returns 1.0 for USD. Sub-unit currencies (e.g., 'GBp') are normalized to
     their parent and the rate divided by the parent's sub-unit factor.
-    Raises `FxRateUnavailable` if no rate within `max_fallback_days` (None:
-    any earlier rate will do) — that's a signal the FX sync hasn't been run.
+    Raises `FxRateUnavailable` if no rate within `MAX_FALLBACK_DAYS` — that's
+    a signal the FX sync hasn't been run. (`RateTable` carries rates forward
+    without that window, for valuing Holdings day by day.)
     """
     canonical, divisor = _normalize_currency(currency)
     if canonical == "USD":
         return 1.0 / divisor
 
-    query = db.query(FxRate).filter(FxRate.currency == canonical, FxRate.date <= on_date)
-    if max_fallback_days is not None:
-        query = query.filter(FxRate.date >= on_date - timedelta(days=max_fallback_days))
-    row = query.order_by(FxRate.date.desc()).first()
+    row = (
+        db.query(FxRate)
+        .filter(
+            FxRate.currency == canonical,
+            FxRate.date <= on_date,
+            FxRate.date >= on_date - timedelta(days=MAX_FALLBACK_DAYS),
+        )
+        .order_by(FxRate.date.desc())
+        .first()
+    )
     if row is None:
-        window = f" within {max_fallback_days} days" if max_fallback_days is not None else ""
-        raise FxRateUnavailable(f"No FX rate for {canonical} on or before {on_date}{window}")
+        raise FxRateUnavailable(
+            f"No FX rate for {canonical} on or before {on_date} within {MAX_FALLBACK_DAYS} days"
+        )
     return row.rate_to_usd / divisor
 
 
@@ -84,15 +88,51 @@ def convert(
     from_ccy: str,
     to_ccy: str,
     on_date: date,
-    max_fallback_days: int | None = MAX_FALLBACK_DAYS,
 ) -> float:
-    """Convert `amount` from `from_ccy` to `to_ccy` using the rate at `on_date`
-    (see `get_rate_to_usd` for `max_fallback_days`)."""
+    """Convert `amount` from `from_ccy` to `to_ccy` using the rate at `on_date`."""
     if from_ccy == to_ccy:
         return amount
-    from_rate = get_rate_to_usd(db, from_ccy, on_date, max_fallback_days)
-    to_rate = get_rate_to_usd(db, to_ccy, on_date, max_fallback_days)
+    from_rate = get_rate_to_usd(db, from_ccy, on_date)
+    to_rate = get_rate_to_usd(db, to_ccy, on_date)
     return amount * from_rate / to_rate
+
+
+class RateTable:
+    """`get_rate_to_usd` with no fallback window, preloaded for a day-by-day walk.
+
+    Each currency's stored rates up to `end` are read once, on first use;
+    rates must then be asked for on non-decreasing days, and each is the
+    latest stored rate on or before that day, however old. Raises
+    `FxRateUnavailable` for a day with no earlier rate at all.
+    """
+
+    def __init__(self, db: Session, end: date) -> None:
+        self._db = db
+        self._end = end
+        self._series: dict[str, CarriedSeries] = {}
+
+    def rate_to_usd(self, currency: str, day: date) -> float:
+        canonical, divisor = _normalize_currency(currency)
+        if canonical == "USD":
+            return 1.0 / divisor
+        if canonical not in self._series:
+            rows = (
+                self._db.query(FxRate.date, FxRate.rate_to_usd)
+                .filter(FxRate.currency == canonical, FxRate.date <= self._end)
+                .order_by(FxRate.date)
+                .all()
+            )
+            self._series[canonical] = CarriedSeries([(d, r) for d, r in rows])
+        rate = self._series[canonical].at(day)
+        if rate is None:
+            raise FxRateUnavailable(f"No {canonical} FX rate on or before {day.isoformat()}")
+        return rate / divisor
+
+    def factor(self, from_ccy: str, to_ccy: str, day: date) -> float:
+        """Units of `to_ccy` per unit of `from_ccy` on `day`."""
+        if from_ccy == to_ccy:
+            return 1.0
+        return self.rate_to_usd(from_ccy, day) / self.rate_to_usd(to_ccy, day)
 
 
 # ── Writes / sync ──
