@@ -3,6 +3,7 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from asistrader.db.database import get_db
@@ -165,11 +166,17 @@ def sync_all_market_data(
 def get_bulk_market_data(
     request: BulkMarketDataRequest,
     db: Session = Depends(get_db),
-) -> BulkMarketDataResponse:
-    """Get stored market data for multiple tickers in a single request."""
+) -> JSONResponse:
+    """Get stored market data for multiple tickers in a single request.
+
+    Returns a JSONResponse built from plain dicts: FastAPI passes a Response
+    through untouched, so this skips validating a Pydantic model per row —
+    tens of thousands of them for a full radar load. `response_model` still
+    documents the shape.
+    """
     rows = market_data_service.get_bulk_market_data(db, request.symbols, request.start_date)
     data = {
-        symbol: [MarketDataSchema.model_validate(r) for r in symbol_rows]
+        symbol: [{**r._asdict(), "date": r.date.isoformat()} for r in symbol_rows]
         for symbol, symbol_rows in rows.items()
     }
-    return BulkMarketDataResponse(data=data, errors={})
+    return JSONResponse({"data": data, "errors": {}})
