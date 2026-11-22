@@ -90,3 +90,7 @@ export function useBenchmarkStore() {
 export function useIrrStore() {
   return useContainer().irrStore
 }
+
+export function usePortfolioStore() {
+  return useContainer().portfolioStore
+}

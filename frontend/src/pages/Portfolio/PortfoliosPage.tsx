@@ -1,14 +1,13 @@
+import { PortfolioListPage } from './PortfolioListPage'
+import { PortfolioDetailPage } from './PortfolioDetailPage'
+
 interface PortfoliosPageProps {
   /** The Portfolio to show, or null for the list of Portfolios. */
   portfolioId: string | null
 }
 
-/** Placeholder for the Portfolios list and Portfolio detail pages. */
+/** `/portfolio` (list) and `/portfolio/portfolios/:id` (detail). */
 export function PortfoliosPage({ portfolioId }: PortfoliosPageProps) {
-  return (
-    <section>
-      <h2>{portfolioId === null ? 'Portfolios' : `Portfolio ${portfolioId}`}</h2>
-      <p>Coming soon.</p>
-    </section>
-  )
+  const id = portfolioId === null ? NaN : Number(portfolioId)
+  return Number.isInteger(id) ? <PortfolioDetailPage portfolioId={id} /> : <PortfolioListPage />
 }

@@ -13,6 +13,7 @@ import { BenchmarkStore } from '../domain/benchmark/BenchmarkStore'
 import { IrrStore } from '../domain/irr/IrrStore'
 import { AuthStore } from '../domain/auth/AuthStore'
 import { RouterStore } from '../domain/router/RouterStore'
+import { PortfolioStore } from '../domain/portfolio/PortfolioStore'
 
 export interface AppContainer {
   authStore: AuthStore
@@ -30,4 +31,5 @@ export interface AppContainer {
   indicatorStore: IndicatorStore
   benchmarkStore: BenchmarkStore
   irrStore: IrrStore
+  portfolioStore: PortfolioStore
 }
