@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from dataclasses import asdict
 
+from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
 from asistrader.models.schemas import (
     StrategyCreateRequest,
@@ -30,7 +31,11 @@ from asistrader.services.strategy_service import (
     update_strategy,
 )
 
-router = APIRouter(prefix="/api/strategies", tags=["strategies"])
+router = APIRouter(
+    prefix="/api/strategies",
+    tags=["strategies"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("", response_model=StrategyListResponse)

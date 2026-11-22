@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
+from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
 from asistrader.models.schemas import (
     BulkExtendRequest,
@@ -23,7 +24,11 @@ from asistrader.models.schemas import (
 )
 from asistrader.services import market_data_service
 
-router = APIRouter(prefix="/api/market-data", tags=["market-data"])
+router = APIRouter(
+    prefix="/api/market-data",
+    tags=["market-data"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("/{symbol}", response_model=MarketDataListResponse)

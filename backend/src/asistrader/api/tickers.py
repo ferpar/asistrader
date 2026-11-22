@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
 from asistrader.models.schemas import (
     BatchPriceRequest,
@@ -27,7 +28,11 @@ from asistrader.services.ticker_service import (
 )
 from asistrader.services.yahoo_search_service import search_yahoo_tickers
 
-router = APIRouter(prefix="/api/tickers", tags=["tickers"])
+router = APIRouter(
+    prefix="/api/tickers",
+    tags=["tickers"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("", response_model=TickerListResponse)
