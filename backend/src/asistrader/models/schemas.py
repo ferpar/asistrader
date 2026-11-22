@@ -1324,6 +1324,9 @@ class PortfolioSummarySchema(BaseModel):
     realized_gain: float
     total_gain: float
     holdings: list[PortfolioHoldingSchema]
+    weighted_days_open: float | None = None
+    simple_tir: float | None = None
+    xirr: float | None = None
 
     model_config = {"from_attributes": True}
 

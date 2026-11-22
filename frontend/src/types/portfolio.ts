@@ -99,4 +99,7 @@ export interface PortfolioSummaryDTO {
   realized_gain: number
   total_gain: number
   holdings: PortfolioHoldingDTO[]
+  weighted_days_open: number | null
+  simple_tir: number | null
+  xirr: number | null
 }
