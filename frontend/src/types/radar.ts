@@ -3,18 +3,13 @@ export interface BulkMarketDataRequest {
   start_date: string
 }
 
-export interface MarketDataRowDTO {
-  id: number
-  ticker: string
-  date: string
-  open: number | null
-  high: number | null
-  low: number | null
-  close: number | null
-  volume: number | null
+/** A ticker's closes as parallel arrays: close[i] is the close on dates[i]. */
+export interface CloseSeriesDTO {
+  dates: string[]
+  close: number[]
 }
 
 export interface BulkMarketDataResponse {
-  data: Record<string, MarketDataRowDTO[]>
+  data: Record<string, CloseSeriesDTO>
   errors: Record<string, string>
 }

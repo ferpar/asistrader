@@ -1,10 +1,9 @@
 /**
- * Low-level shared pieces for turning raw market-data rows into TickerIndicators.
+ * Low-level shared pieces for turning dated closes into TickerIndicators.
  * Extracted so both the IndicatorStore (ticker pipeline) and RadarStore
  * (benchmark pipeline) can reuse the empty-state constants and builders.
  */
-import type { MarketDataRowDTO } from '../../types/radar'
-import type { TickerIndicators, RsiIndicator } from './types'
+import type { DatedClose, TickerIndicators, RsiIndicator } from './types'
 import {
   computeSmaStructure,
   computePriceChanges,
@@ -32,10 +31,10 @@ export function startDate(): string {
 
 export const SYNC_THROTTLE_MS = 5 * 60 * 1000
 
-/** Build one ticker's indicators from its market-data rows (or an error). */
+/** Build one ticker's indicators from its dated closes (or an error). */
 export function buildTickerIndicators(
   symbol: string,
-  rows: MarketDataRowDTO[],
+  datedCloses: DatedClose[],
   error: string | null,
 ): TickerIndicators {
   if (error) {
@@ -51,9 +50,6 @@ export function buildTickerIndicators(
       error,
     }
   }
-  const datedCloses = rows
-    .filter((r): r is typeof r & { close: number } => r.close !== null)
-    .map((r) => ({ date: r.date, close: r.close }))
   const closes = datedCloses.map((r) => r.close)
   if (closes.length === 0) {
     return {

@@ -167,16 +167,17 @@ def get_bulk_market_data(
     request: BulkMarketDataRequest,
     db: Session = Depends(get_db),
 ) -> JSONResponse:
-    """Get stored market data for multiple tickers in a single request.
+    """Get stored closes for multiple tickers in a single request.
 
-    Returns a JSONResponse built from plain dicts: FastAPI passes a Response
-    through untouched, so this skips validating a Pydantic model per row —
-    tens of thousands of them for a full radar load. `response_model` still
-    documents the shape.
+    Each symbol maps to parallel `dates` and `close` arrays — what the radar
+    consumes — rather than a list of full OHLCV rows. Returns a JSONResponse
+    built from plain lists: FastAPI passes a Response through untouched, so
+    nothing is re-validated per value. `response_model` still documents the
+    shape.
     """
-    rows = market_data_service.get_bulk_market_data(db, request.symbols, request.start_date)
+    series = market_data_service.get_bulk_closes(db, request.symbols, request.start_date)
     data = {
-        symbol: [{**r._asdict(), "date": r.date.isoformat()} for r in symbol_rows]
-        for symbol, symbol_rows in rows.items()
+        symbol: {"dates": [d.isoformat() for d in dates], "close": closes}
+        for symbol, (dates, closes) in series.items()
     }
     return JSONResponse({"data": data, "errors": {}})

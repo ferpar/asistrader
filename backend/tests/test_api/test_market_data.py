@@ -241,23 +241,24 @@ def test_bulk_market_data_with_data(
     )
     assert response.status_code == 200
     data = response.json()
-    assert sample_ticker.symbol in data["data"]
-    assert len(data["data"][sample_ticker.symbol]) == 3
-    assert data["data"][sample_ticker.symbol][0]["close"] == 104.0
+    series = data["data"][sample_ticker.symbol]
+    assert series["dates"] == ["2024-01-02", "2024-01-03", "2024-01-04"]
+    assert len(series["close"]) == 3
+    assert series["close"][0] == 104.0
     assert data["errors"] == {}
 
 
 def test_bulk_market_data_empty(
     client: TestClient, db_session: Session, sample_ticker: Ticker
 ) -> None:
-    """Test bulk market data for a ticker with no data returns empty list."""
+    """Test bulk market data for a ticker with no data returns empty arrays."""
     response = client.post(
         "/api/market-data/bulk",
         json={"symbols": [sample_ticker.symbol], "start_date": "2024-01-01"},
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["data"][sample_ticker.symbol] == []
+    assert data["data"][sample_ticker.symbol] == {"dates": [], "close": []}
 
 
 def test_bulk_market_data_unknown_symbol(
@@ -270,7 +271,7 @@ def test_bulk_market_data_unknown_symbol(
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["data"]["ZZZZZ"] == []
+    assert data["data"]["ZZZZZ"] == {"dates": [], "close": []}
 
 
 def test_bulk_market_data_with_date_filter(
@@ -283,10 +284,7 @@ def test_bulk_market_data_with_date_filter(
     )
     assert response.status_code == 200
     data = response.json()
-    rows = data["data"][sample_ticker.symbol]
-    assert len(rows) == 2
-    assert rows[0]["date"] == "2024-01-03"
-    assert rows[1]["date"] == "2024-01-04"
+    assert data["data"][sample_ticker.symbol]["dates"] == ["2024-01-03", "2024-01-04"]
 
 
 def test_bulk_market_data_multiple_symbols(
@@ -308,6 +306,22 @@ def test_bulk_market_data_multiple_symbols(
     )
     assert response.status_code == 200
     data = response.json()["data"]
-    assert [r["date"] for r in data[sample_ticker.symbol]] == ["2024-01-02", "2024-01-03", "2024-01-04"]
-    assert [r["close"] for r in data["NVDA"]] == [1.5, 2.0]
-    assert data["ZZZZZ"] == []
+    assert data[sample_ticker.symbol]["dates"] == ["2024-01-02", "2024-01-03", "2024-01-04"]
+    assert data["NVDA"] == {"dates": ["2024-01-03", "2024-01-04"], "close": [1.5, 2.0]}
+    assert data["ZZZZZ"] == {"dates": [], "close": []}
+
+
+def test_bulk_market_data_skips_missing_closes(
+    client: TestClient, db_session: Session, sample_ticker: Ticker, sample_market_data: list[MarketData]
+) -> None:
+    """A row without a close is left out so dates and close stay aligned."""
+    db_session.add(MarketData(ticker=sample_ticker.symbol, date=date(2024, 1, 5), close=None))
+    db_session.commit()
+
+    response = client.post(
+        "/api/market-data/bulk",
+        json={"symbols": [sample_ticker.symbol], "start_date": "2024-01-01"},
+    )
+    series = response.json()["data"][sample_ticker.symbol]
+    assert series["dates"] == ["2024-01-02", "2024-01-03", "2024-01-04"]
+    assert len(series["close"]) == 3

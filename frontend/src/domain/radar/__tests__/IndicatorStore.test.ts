@@ -4,13 +4,13 @@ import type { IRadarRepository } from '../IRadarRepository'
 import type { IPriceProvider } from '../../trade/ITradeRepository'
 import type { PriceData } from '../../trade/types'
 import { Decimal } from '../../shared/Decimal'
-import type { MarketDataRowDTO } from '../../../types/radar'
+import type { DatedClose } from '../types'
 
-const ROWS: MarketDataRowDTO[] = [
+const ROWS: DatedClose[] = [
   { date: '2026-01-01', close: 100 },
   { date: '2026-01-02', close: 101 },
   { date: '2026-01-03', close: 102 },
-] as MarketDataRowDTO[]
+]
 
 class FakeRepo implements IRadarRepository {
   syncCalls = 0
