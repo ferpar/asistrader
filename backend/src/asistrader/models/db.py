@@ -675,3 +675,62 @@ class PortfolioTransaction(Base):
     )
 
     portfolio_rel = relationship("Portfolio", back_populates="transactions")
+
+
+class BasketKind(str, PyEnum):
+    """Who maintains a Basket: us (curated, visible to all, read-only) or one user."""
+
+    CURATED = "curated"
+    PERSONAL = "personal"
+
+
+class Basket(Base):
+    """A named group of instruments measured as one unit (see GLOSSARY.md).
+
+    Curated Baskets have no owner and a stable `slug` the seed file reconciles
+    by (db/seed_baskets.py); Personal Baskets belong to `owner_user_id`.
+    `kind` is a plain string holding a BasketKind value.
+    """
+
+    __tablename__ = "baskets"
+
+    id = Column(Integer, primary_key=True)
+    kind = Column(String(16), nullable=False)
+    owner_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    slug = Column(String, nullable=True, unique=True)
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (Index("ix_baskets_owner_user_id", "owner_user_id"),)
+
+    members = relationship(
+        "BasketMember",
+        back_populates="basket_rel",
+        cascade="all, delete-orphan",
+        order_by="BasketMember.ticker",
+    )
+
+
+class BasketMember(Base):
+    """A ticker's current membership in a Basket (no membership history)."""
+
+    __tablename__ = "basket_members"
+
+    id = Column(Integer, primary_key=True)
+    basket_id = Column(Integer, ForeignKey("baskets.id", ondelete="CASCADE"), nullable=False)
+    ticker = Column(String, ForeignKey("tickers.symbol"), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("basket_id", "ticker", name="uq_basket_members_basket_ticker"),
+        Index("ix_basket_members_basket_id", "basket_id"),
+    )
+
+    basket_rel = relationship("Basket", back_populates="members")

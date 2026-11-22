@@ -45,6 +45,6 @@ ENV MALLOC_ARENA_MAX=2
 # requests can be in flight before everything queues behind them.
 ENV WEB_CONCURRENCY=1
 
-# Run migrations, ensure default strategies exist (idempotent), then start.
+# Run migrations, ensure default strategies and Curated Baskets exist (idempotent), then start.
 # Demo data (tickers/trades) is seeded separately via scripts/seed_data.py, not here.
-CMD ["sh", "-c", "alembic upgrade head && python -m asistrader.db.seed_strategies && uvicorn asistrader.main:app --host 0.0.0.0 --port 8005 --workers ${WEB_CONCURRENCY}"]
+CMD ["sh", "-c", "alembic upgrade head && python -m asistrader.db.seed_strategies && python -m asistrader.db.seed_baskets && uvicorn asistrader.main:app --host 0.0.0.0 --port 8005 --workers ${WEB_CONCURRENCY}"]
