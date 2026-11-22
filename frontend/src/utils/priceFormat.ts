@@ -1,3 +1,8 @@
+/** GBp/GBX: British pence, which Intl.NumberFormat doesn't know as a currency. */
+export function isPence(currency: string | null | undefined): boolean {
+  return currency === 'GBp' || currency === 'GBX'
+}
+
 export function formatPrice(
   value: number,
   currency: string | null | undefined,
@@ -6,7 +11,7 @@ export function formatPrice(
   const digits = priceHint ?? 2
 
   // GBp (British pence) isn't a valid ISO currency for Intl.NumberFormat.
-  if (currency === 'GBp' || currency === 'GBX') {
+  if (isPence(currency)) {
     return `${value.toFixed(digits)} GBp`
   }
 

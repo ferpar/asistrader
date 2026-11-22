@@ -21,7 +21,7 @@ import type {
   TransactionRequest,
 } from '../../types/portfolio'
 import { mapHistory, mapImportResult, mapPortfolio, mapSummary, mapTransaction } from './mappers'
-import { buildHeaders } from '../shared/httpHelpers'
+import { buildHeaders, failure } from '../shared/httpHelpers'
 import { fetchWithTimeout } from '../../api/http'
 
 const IMPORT_TIMEOUT_MS = 5 * 60_000
@@ -36,12 +36,6 @@ function toRequest(input: TransactionInput): TransactionRequest {
     fees: input.fees,
     ...(input.fxRate !== undefined ? { fx_rate: input.fxRate } : {}),
   }
-}
-
-async function failure(response: Response, fallback: string): Promise<Error> {
-  const body = await response.json().catch(() => null)
-  const detail = body?.detail
-  return new Error(typeof detail === 'string' ? detail : fallback)
 }
 
 export class HttpPortfolioRepository implements IPortfolioRepository {

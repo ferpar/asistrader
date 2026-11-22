@@ -24,20 +24,6 @@ export const EMPTY_RSI: RsiIndicator = {
 }
 export const EMPTY_MOMENTUM: MomentumScore = { r1m: null, r3m: null, r6m: null, r1y: null, score: null }
 
-/**
- * Sync/fetch window, ISO date. 400 calendar days covers the 253 trading days
- * the Momentum Score's 1-year return needs, with room for holidays.
- */
-const INDICATOR_WINDOW_DAYS = 400
-
-export function startDate(): string {
-  const d = new Date()
-  d.setDate(d.getDate() - INDICATOR_WINDOW_DAYS)
-  return d.toISOString().split('T')[0]
-}
-
-export const SYNC_THROTTLE_MS = 5 * 60 * 1000
-
 /** Build one ticker's indicators from its dated closes (or an error). */
 export function buildTickerIndicators(
   symbol: string,

@@ -1,8 +1,9 @@
 import { observable } from '@legendapp/state'
 import type { IBasketRepository } from './IBasketRepository'
-import type { IBenchmarkRepository } from '../benchmark/IBenchmarkRepository'
+import type { BenchmarkOverlayStore } from '../benchmark/BenchmarkOverlayStore'
 import type { Basket, RankingRow } from './types'
-import { buildIndexIndicators, startDate, SYNC_THROTTLE_MS } from '../radar/indicatorBuild'
+import { buildIndexIndicators } from '../radar/indicatorBuild'
+import { startDate } from '../shared/marketDataWindow'
 
 /**
  * The Baskets ranking: every visible Basket measured on its Basket Index, plus
@@ -10,19 +11,24 @@ import { buildIndexIndicators, startDate, SYNC_THROTTLE_MS } from '../radar/indi
  * the radar uses for tickers.
  *
  * Benchmarks are price indices with no adjusted close, so their close stands
- * in for it and they get a Momentum Score too (a price return, not a total
- * return — for an index like ^GSPC the two coincide).
+ * in for it and they get a Momentum Score too. Note the asymmetry: Basket
+ * Indexes are built from dividend-adjusted closes (total return), while a
+ * benchmark is a price return (Yahoo has no dividend-adjusted series for
+ * indices), so a Basket gets a dividend-yield edge over its benchmark.
+ *
+ * Benchmark closes come from the shared BenchmarkOverlayStore, so the
+ * ranking, the Basket detail page and the Portfolio performance chart share
+ * one sync throttle.
  */
 export class BasketStore {
   readonly baskets$ = observable<Basket[]>([])
   readonly rows$ = observable<RankingRow[]>([])
   readonly loading$ = observable(false)
   readonly error$ = observable<string | null>(null)
-  private lastBenchmarkSync = 0
 
   constructor(
     private readonly basketRepo: IBasketRepository,
-    private readonly benchmarkRepo: IBenchmarkRepository,
+    private readonly benchmarks: BenchmarkOverlayStore,
   ) {}
 
   async loadRanking(): Promise<void> {
@@ -53,29 +59,16 @@ export class BasketStore {
 
   /** Benchmark reference rows; a benchmark failure never hides the Baskets. */
   private async loadBenchmarkRows(start: string): Promise<RankingRow[]> {
-    try {
-      const benchmarks = await this.benchmarkRepo.fetchBenchmarks()
-      if (benchmarks.length === 0) return []
-      const symbols = benchmarks.map((b) => b.symbol)
-      if (Date.now() - this.lastBenchmarkSync > SYNC_THROTTLE_MS) {
-        await this.benchmarkRepo.syncBenchmarkData(symbols, start).catch(() => undefined)
-        this.lastBenchmarkSync = Date.now()
-      }
-      const result = await this.benchmarkRepo.fetchBulkBenchmarkData(symbols, start)
-      return benchmarks.map((b) => ({
-        kind: 'benchmark' as const,
-        id: b.symbol,
-        name: b.name ?? b.symbol,
-        memberCount: null,
-        indicators: buildIndexIndicators(
-          b.symbol,
-          (result.data[b.symbol] ?? []).map((r) => ({ date: r.date, value: r.close })),
-          result.errors[b.symbol] ?? null,
-        ),
-      }))
-    } catch {
-      return []
-    }
+    await this.benchmarks.load(start)
+    const series = this.benchmarks.series$.peek()
+    const errors = this.benchmarks.errors$.peek()
+    return this.benchmarks.benchmarks$.peek().map((b) => ({
+      kind: 'benchmark' as const,
+      id: b.symbol,
+      name: b.name ?? b.symbol,
+      memberCount: null,
+      indicators: buildIndexIndicators(b.symbol, series[b.symbol] ?? [], errors[b.symbol] ?? null),
+    }))
   }
 
   // --- Personal Basket writes ---------------------------------------------

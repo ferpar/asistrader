@@ -3,7 +3,8 @@ import type { IRadarPresetRepository } from './IRadarPresetRepository'
 import type { RadarPreset } from './types'
 import type { IBenchmarkRepository } from '../benchmark/IBenchmarkRepository'
 import type { BenchmarkIndicators } from '../benchmark/types'
-import { buildTickerIndicators, startDate, SYNC_THROTTLE_MS } from './indicatorBuild'
+import { buildTickerIndicators } from './indicatorBuild'
+import { startDate, SYNC_THROTTLE_MS } from '../shared/marketDataWindow'
 import {
   DEFAULT_VIEW_STATE,
   diffFromDefault,

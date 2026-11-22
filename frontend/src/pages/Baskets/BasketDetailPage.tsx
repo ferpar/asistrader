@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { observer } from '@legendapp/state/react'
-import { useBasketDetailStore, useBasketStore, useRouterStore } from '../../container/ContainerContext'
+import {
+  useBasketDetailStore,
+  useBasketStore,
+  useBenchmarkOverlayStore,
+  useRouterStore,
+} from '../../container/ContainerContext'
 import { RebasedLineChart, type LevelSeries } from '../../components/charts/RebasedLineChart'
-import { BenchmarkOverlayToggles, benchmarkColor } from '../../components/charts/BenchmarkOverlayToggles'
+import { BenchmarkOverlayToggles } from '../../components/charts/BenchmarkOverlayToggles'
+import { overlaySeries } from '../../components/charts/overlaySeries'
 import { BasketMembersTable } from './BasketMembersTable'
 import { BasketMembersDialog } from './BasketMembersDialog'
 import styles from './Baskets.module.css'
@@ -14,6 +20,7 @@ const KIND_LABEL = { curated: 'Curated', personal: 'Personal' } as const
 export const BasketDetailPage = observer(function BasketDetailPage({ basketId }: { basketId: number }) {
   const store = useBasketDetailStore()
   const basketStore = useBasketStore()
+  const benchmarkStore = useBenchmarkOverlayStore()
   const router = useRouterStore()
   const [overlays, setOverlays] = useState<string[]>([])
   const [editingMembers, setEditingMembers] = useState(false)
@@ -25,23 +32,17 @@ export const BasketDetailPage = observer(function BasketDetailPage({ basketId }:
   const basket = store.basket$.get()
   const index = store.index$.get()
   const members = store.members$.get()
-  const benchmarks = store.benchmarks$.get()
-  const benchmarkSeries = store.benchmarkSeries$.get()
+  const benchmarks = benchmarkStore.benchmarks$.get()
+  const benchmarkSeries = benchmarkStore.series$.get()
   const loading = store.loading$.get()
   const error = store.error$.get()
 
   const series = useMemo<LevelSeries[]>(() => {
     if (!basket) return []
-    const picked = benchmarks
-      .map((b, position) => ({ b, position }))
-      .filter(({ b }) => overlays.includes(b.symbol))
-      .map(({ b, position }) => ({
-        key: b.symbol,
-        label: b.name ?? b.symbol,
-        color: benchmarkColor(position),
-        points: benchmarkSeries[b.symbol] ?? [],
-      }))
-    return [{ key: `basket:${basket.id}`, label: basket.name, color: 'var(--series-1)', points: index }, ...picked]
+    return overlaySeries(
+      { key: `basket:${basket.id}`, label: basket.name, color: 'var(--series-1)', points: index },
+      { benchmarks, benchmarkSeries, selectedBenchmarks: overlays },
+    )
   }, [basket, index, benchmarks, benchmarkSeries, overlays])
 
   const openMembersDialog = () => {

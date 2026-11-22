@@ -12,12 +12,6 @@ export interface Basket {
   members: string[]
 }
 
-/** One business day of a Basket Index (chained from 100). */
-export interface BasketIndexPoint {
-  date: string
-  value: number
-}
-
 /** A row of the Baskets ranking: a Basket, or a benchmark shown for reference. */
 export type RankingRow =
   | { kind: BasketKind; id: number; name: string; memberCount: number; indicators: TickerIndicators }

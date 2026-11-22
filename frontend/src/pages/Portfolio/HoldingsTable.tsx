@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { observer } from '@legendapp/state/react'
 import { useIndicatorStore } from '../../container/ContainerContext'
-import { fmtMoney } from '../../components/portfolio/format'
+import { fmtMoney, fmtPct, fmtPct1 } from '../../components/portfolio/format'
 import { signClass } from '../../components/portfolio/signClass'
 import { getRsiTone } from '../../components/radar/rsiHelpers'
 import { SortableTh } from '../../components/table/SortableTh'
@@ -46,8 +46,6 @@ const MEASURE_COLUMNS = 6
 
 const OVERRIDE_CHOICES: AssetClassChoice[] = ['domestic_stock', 'international_stock', 'etf']
 
-const fmtPct1 = (v: number) => `${(v * 100).toFixed(1)}%`
-const fmtPct2 = (v: number) => `${(v * 100).toFixed(2)}%`
 const fmtDays = (v: number | null) => (v === null ? '—' : v.toFixed(0))
 
 function rowValue(row: Row, key: SortKey): Sortable {
@@ -176,7 +174,7 @@ export const HoldingsTable = observer(function HoldingsTable({
         </td>
         {measure(row, m.momentum, fmtPct1, signClass(m.momentum ?? 0))}
         {measure(row, m.bullishScore, (v) => `${v}/10`)}
-        {measure(row, m.lrSlopePct, fmtPct2, signClass(m.lrSlopePct ?? 0))}
+        {measure(row, m.lrSlopePct, fmtPct, signClass(m.lrSlopePct ?? 0))}
         {measure(row, m.lrR2, (v) => v.toFixed(2))}
         {measure(row, m.tir, fmtPct1, signClass(m.tir ?? 0))}
         {measure(row, m.rsi, (v) => v.toFixed(1), getRsiTone(m.rsi))}

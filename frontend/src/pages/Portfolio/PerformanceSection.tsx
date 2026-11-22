@@ -2,11 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { observer } from '@legendapp/state/react'
 import { useBasketOverlayStore, useBenchmarkOverlayStore } from '../../container/ContainerContext'
 import { RebasedLineChart, type LevelSeries } from '../../components/charts/RebasedLineChart'
-import {
-  BenchmarkOverlayToggles,
-  basketColor,
-  benchmarkColor,
-} from '../../components/charts/BenchmarkOverlayToggles'
+import { BenchmarkOverlayToggles } from '../../components/charts/BenchmarkOverlayToggles'
+import { overlaySeries } from '../../components/charts/overlaySeries'
+import { fmtPct, fmtPct1 } from '../../components/portfolio/format'
 import { signClass } from '../../components/portfolio/signClass'
 import { getRsiTone } from '../../components/radar/rsiHelpers'
 import { buildPerformanceIndicators } from '../../domain/portfolio/performanceIndicators'
@@ -14,8 +12,6 @@ import { holdingMeasures } from '../../domain/portfolio/holdingMeasures'
 import type { PortfolioHistory } from '../../domain/portfolio/types'
 import styles from './PerformanceSection.module.css'
 
-const fmtPct1 = (v: number) => `${(v * 100).toFixed(1)}%`
-const fmtPct2 = (v: number) => `${(v * 100).toFixed(2)}%`
 
 /**
  * The Portfolio measured like an instrument: its Performance Index charted
@@ -63,31 +59,18 @@ export const PerformanceSection = observer(function PerformanceSection({
   const measures = holdingMeasures(indicators)
 
   const series = useMemo<LevelSeries[]>(() => {
-    const picked = benchmarks
-      .map((b, position) => ({ b, position }))
-      .filter(({ b }) => overlays.includes(b.symbol))
-      .map(({ b, position }) => ({
-        key: b.symbol,
-        label: b.name ?? b.symbol,
-        color: benchmarkColor(position),
-        points: benchmarkSeries[b.symbol] ?? [],
-      }))
-    const pickedBaskets = baskets
-      .map((b, position) => ({ b, position }))
-      .filter(({ b }) => basketOverlays.includes(b.id))
-      .map(({ b, position }) => ({
-        key: `basket:${b.id}`,
-        label: b.name,
-        color: basketColor(position),
-        dashed: true,
-        points: basketSeries[b.id] ?? [],
-      }))
     const index = history.rows.map((r) => ({ date: r.date, value: r.performanceIndex }))
-    return [
+    return overlaySeries(
       { key: `portfolio:${portfolioId}`, label: name, color: 'var(--series-1)', points: index },
-      ...picked,
-      ...pickedBaskets,
-    ]
+      {
+        benchmarks,
+        benchmarkSeries,
+        selectedBenchmarks: overlays,
+        baskets,
+        basketSeries,
+        selectedBaskets: basketOverlays,
+      },
+    )
   }, [portfolioId, name, history, benchmarks, benchmarkSeries, overlays, baskets, basketSeries, basketOverlays])
 
   const toggle = (symbol: string) =>
@@ -124,7 +107,7 @@ export const PerformanceSection = observer(function PerformanceSection({
           'LR 50d slope',
           '50-day linear-regression slope, % per day',
           measures.lrSlopePct,
-          fmtPct2,
+          fmtPct,
           signClass(measures.lrSlopePct ?? 0),
         )}
         {measure('R²', 'Fit of the 50-day linear regression', measures.lrR2, (v) => v.toFixed(2))}

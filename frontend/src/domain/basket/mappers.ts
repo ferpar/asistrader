@@ -1,6 +1,7 @@
 import type { BasketDTO, BasketMemberDTO } from '../../types/basket'
 import type { CloseSeriesDTO } from '../../types/radar'
-import type { Basket, BasketIndexPoint, BasketMember } from './types'
+import type { Basket, BasketMember } from './types'
+import type { LevelPoint } from '../shared/rebase'
 
 export function mapBasket(dto: BasketDTO): Basket {
   return {
@@ -14,7 +15,7 @@ export function mapBasket(dto: BasketDTO): Basket {
 }
 
 /** A Basket Index series: its `close` column is the index level. */
-export function mapBasketIndex(dto: CloseSeriesDTO): BasketIndexPoint[] {
+export function mapBasketIndex(dto: CloseSeriesDTO): LevelPoint[] {
   return dto.dates.map((date, i) => ({ date, value: dto.close[i] }))
 }
 

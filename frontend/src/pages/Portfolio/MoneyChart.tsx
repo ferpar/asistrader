@@ -3,6 +3,7 @@ import { bisector, extent, line, scaleLinear, scaleTime, timeFormat } from 'd3'
 import { XAxis, YAxis } from '../../components/charts/Axes'
 import { ChartTooltip, useTooltip } from '../../components/charts/ChartTooltip'
 import { fmtMoney } from '../../components/portfolio/format'
+import { isPence } from '../../utils/priceFormat'
 import type { PortfolioHistoryRow } from '../../domain/portfolio/types'
 import styles from '../../components/charts/charts.module.css'
 
@@ -22,7 +23,7 @@ type Point = PortfolioHistoryRow & { t: Date }
 const byTime = bisector<Point, Date>((p) => p.t).center
 
 function compactMoney(value: number, ccy: string): string {
-  if (ccy === 'GBp' || ccy === 'GBX') return `${value.toFixed(0)}p`
+  if (isPence(ccy)) return `${value.toFixed(0)}p`
   return value.toLocaleString('en-US', {
     style: 'currency',
     currency: ccy || 'USD',
