@@ -14,6 +14,9 @@ from asistrader.db.database import get_db
 from asistrader.models.db import User
 from asistrader.models.schemas import (
     PortfolioCreateRequest,
+    PortfolioImportRequest,
+    PortfolioImportResponse,
+    PortfolioImportRowResult,
     PortfolioListResponse,
     PortfolioResponse,
     PortfolioSchema,
@@ -24,8 +27,9 @@ from asistrader.models.schemas import (
     PortfolioTransactionSchema,
     PortfolioUpdateRequest,
 )
-from asistrader.services import portfolio_service
+from asistrader.services import portfolio_import_service, portfolio_service
 from asistrader.services.portfolio_computation_service import PortfolioReplayError
+from asistrader.services.portfolio_import_service import ImportFileError
 from asistrader.services.portfolio_service import (
     PortfolioNameExistsError,
     PortfolioNotFoundError,
@@ -162,6 +166,44 @@ def create_transaction(
     return PortfolioTransactionResponse(
         transaction=PortfolioTransactionSchema.model_validate(transaction),
         message=f"Buy of {transaction.ticker} recorded",
+    )
+
+
+@router.post(
+    "/{portfolio_id}/transactions/import", response_model=PortfolioImportResponse
+)
+def import_transactions(
+    portfolio_id: int,
+    request: PortfolioImportRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PortfolioImportResponse:
+    """Import Buys from CSV text. Each row succeeds or fails on its own: valid
+    rows are recorded, failing rows are reported with a reason."""
+    try:
+        results = portfolio_import_service.import_csv(
+            db, current_user.id, portfolio_id, request.csv
+        )
+    except PortfolioNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ImportFileError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    rows = [
+        PortfolioImportRowResult(
+            row=r.row,
+            status=r.status,
+            transaction=(
+                PortfolioTransactionSchema.model_validate(r.transaction)
+                if r.transaction is not None
+                else None
+            ),
+            error=r.error,
+        )
+        for r in results
+    ]
+    created = sum(1 for r in rows if r.status == "created")
+    return PortfolioImportResponse(
+        results=rows, created=created, failed=len(rows) - created
     )
 
 
