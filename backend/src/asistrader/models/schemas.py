@@ -285,6 +285,28 @@ class RadarPresetResponse(BaseModel):
     message: str
 
 
+class BasketSchema(BaseModel):
+    """A Basket visible to the current user, with its members' symbols.
+
+    `kind` is "curated" (ours, read-only, `slug` set) or "personal" (the
+    user's own).
+    """
+
+    id: int
+    kind: str
+    name: str
+    description: str | None = None
+    slug: str | None = None
+    members: list[str]
+
+
+class BasketListResponse(BaseModel):
+    """Response schema for the Basket list endpoint."""
+
+    baskets: list[BasketSchema]
+    count: int
+
+
 class TickerSchema(BaseModel):
     """Schema for ticker data."""
 
