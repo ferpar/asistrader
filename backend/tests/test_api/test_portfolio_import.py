@@ -1,8 +1,9 @@
 """CSV import of Transactions into a Portfolio.
 
 The CSV is sent as text in a JSON body. Each data row is imported on its own:
-valid rows are recorded as Buys through the same validation as a manual
-Transaction, failing rows are reported with a reason and leave nothing behind.
+valid rows are recorded as Buys or Sells through the same validation as a
+manual Transaction (so an oversell fails its row); failing rows are reported
+with a reason and leave nothing behind.
 Tests stay at the HTTP seam and seed tickers, market data and FX directly.
 """
 
@@ -98,20 +99,44 @@ class TestImportSuccess:
             "2024-01-02", 1.5, 400.25, 4.0
         )
 
-    def test_a_kind_column_may_mark_rows_as_buys(
+    def test_a_kind_column_may_mark_rows_as_sells(
         self, client: TestClient, spy_and_qqq: None
     ) -> None:
         pid = _create_portfolio(client)
         csv = (
             "date,kind,ticker,units,price,fees\n"
-            "2024-01-02,Buy,SPY,1,400,0\n"
-            "2024-01-03,sell,SPY,1,410,0\n"
+            "2024-01-02,Buy,SPY,2,400,0\n"
+            "2024-01-05,sell,spy,1,420,1\n"
+            "2024-01-03,,QQQ,10,100,0\n"
+        )
+
+        body = _import(client, pid, csv).json()
+
+        assert body["created"] == 3, body
+        assert body["results"][1]["transaction"]["kind"] == "sell"
+        assert [(t["kind"], t["ticker"], t["units"]) for t in _transactions(client, pid)] == [
+            ("buy", "SPY", 2.0),
+            ("buy", "QQQ", 10.0),
+            ("sell", "SPY", 1.0),
+        ]
+        summary = client.get(f"/api/portfolios/{pid}/summary").json()
+        # FIFO: the Sell consumes 1 of the Lot bought at 400; 420 - 400 - 1 fee.
+        assert summary["realized_gain"] == pytest.approx(19.0)
+
+    def test_an_unsupported_kind_fails_its_row(
+        self, client: TestClient, spy_and_qqq: None
+    ) -> None:
+        pid = _create_portfolio(client)
+        csv = (
+            "date,kind,ticker,units,price,fees\n"
+            "2024-01-02,buy,SPY,1,400,0\n"
+            "2024-01-03,split,SPY,1,410,0\n"
         )
 
         body = _import(client, pid, csv).json()
 
         assert body["created"] == 1
-        assert "sell" in _errors(body)[3].lower()
+        assert "split" in _errors(body)[3].lower()
         assert [t["kind"] for t in _transactions(client, pid)] == ["buy"]
 
 
@@ -140,6 +165,31 @@ class TestRowErrors:
         assert "date" in errors[2].lower()
         assert "units" in errors[3].lower()
         assert [t["ticker"] for t in _transactions(client, pid)] == ["QQQ"]
+
+    def test_an_oversell_row_fails_and_the_other_rows_are_still_recorded(
+        self, client: TestClient, spy_and_qqq: None
+    ) -> None:
+        pid = _create_portfolio(client)
+        csv = (
+            "date,kind,ticker,units,price,fees\n"
+            "2024-01-02,buy,SPY,1,400,0\n"
+            "2024-01-05,sell,SPY,2,420,0\n"
+            "2024-01-05,sell,QQQ,1,99,0\n"
+            "2024-01-05,sell,SPY,1,420,0\n"
+        )
+
+        body = _import(client, pid, csv).json()
+
+        assert body["created"] == 2
+        assert body["failed"] == 2
+        errors = _errors(body)
+        assert set(errors) == {3, 4}
+        assert "exceeds" in errors[3] and "held" in errors[3]
+        assert "QQQ" in errors[4] and "held" in errors[4]
+        assert [(t["kind"], t["units"]) for t in _transactions(client, pid)] == [
+            ("buy", 1.0),
+            ("sell", 1.0),
+        ]
 
     @pytest.mark.parametrize(
         ("row", "mentions"),

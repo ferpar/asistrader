@@ -7,13 +7,14 @@ interface CsvImportProps {
 }
 
 const FORMAT_HINT =
-  'Header row with date, ticker, units, price, fees and optional fx_rate. ' +
-  'Separator , or ; — dates YYYY-MM-DD or DD/MM/YYYY — decimal point or comma. Buys only.'
+  'Header row with date, ticker, units, price, fees and optional fx_rate and kind ' +
+  '(buy, the default, or sell). Separator , or ; — dates YYYY-MM-DD or DD/MM/YYYY — ' +
+  'decimal point or comma. Rows are recorded in file order, so list a Sell after its Buys.'
 
 /**
- * Import Buys from a CSV file. The file is read in the browser and sent as
- * text; each row is recorded or reported on its own, so a failing row never
- * blocks the valid ones. Fix the failing rows and import just those again.
+ * Import Buys and Sells from a CSV file. The file is read in the browser and
+ * sent as text; each row is recorded or reported on its own (an oversell
+ * included), so a failing row never blocks the valid ones. Fix the failing rows and import just those again.
  */
 export function CsvImport({ onImport }: CsvImportProps) {
   const input = useRef<HTMLInputElement>(null)

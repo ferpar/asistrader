@@ -98,8 +98,8 @@ export class PortfolioStore {
   }
 
   /**
-   * Import Buys and Sells from CSV text and reload the detail. Throws only when the file
-   * as a whole is rejected; per-row failures come back in the result.
+   * Import Buys and Sells from CSV text and reload the detail. Throws only when
+   * the file as a whole is rejected; per-row failures come back in the result.
    */
   async importCsv(portfolioId: number, csv: string): Promise<ImportResult> {
     const result = await this.repo.importTransactions(portfolioId, csv)

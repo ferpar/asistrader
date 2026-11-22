@@ -10,8 +10,11 @@ Format: a header row naming the columns `date, ticker, units, price, fees`
 and optionally `fx_rate` and `kind` (case-insensitive, any order). Separator
 `,` or `;` (detected from the header), so a Spanish-locale spreadsheet export
 works as-is: dates `YYYY-MM-DD` or `DD/MM/YYYY`, decimal point or decimal
-comma, no thousands separators. Only Buys are imported: a row whose `kind`
-is anything but empty or `buy` is reported as an error.
+comma, no thousands separators. `kind` is `buy` (the default when the
+column or cell is empty) or `sell`; anything else fails its row. Rows are
+recorded in file order and each is validated against the full Transaction
+list so far, so a Sell exceeding the units held fails its row, and a Sell
+must come after (in the file) the Buys it sells from.
 """
 
 import csv
@@ -74,16 +77,16 @@ def _parse_number(column: str, value: str) -> Decimal:
     return number
 
 
-def _parse_buy(record: dict[str | None, str | None]) -> PortfolioTransactionCreateRequest:
-    """Parse a row into the same request a manual Buy is validated with."""
-    kind = _cell(record, "kind").lower()
-    if kind not in ("", "buy"):
-        raise RowError(f"Unsupported kind '{kind}': only Buys can be imported")
+def _parse_row(record: dict[str | None, str | None]) -> PortfolioTransactionCreateRequest:
+    """Parse a row into the same request a manual Transaction is validated with."""
+    kind = _cell(record, "kind").lower() or "buy"
+    if kind not in ("buy", "sell"):
+        raise RowError(f"Unsupported kind '{kind}': only Buys and Sells can be imported")
     fees = _cell(record, "fees")
     fx_rate = _cell(record, "fx_rate")
     try:
-        buy = PortfolioTransactionCreateRequest(
-            kind="buy",
+        request = PortfolioTransactionCreateRequest(
+            kind=kind,
             date=_parse_date(_cell(record, "date")),
             ticker=_cell(record, "ticker"),
             units=_parse_number("units", _cell(record, "units")),
@@ -93,9 +96,9 @@ def _parse_buy(record: dict[str | None, str | None]) -> PortfolioTransactionCrea
         )
     except ValidationError as e:
         raise RowError("; ".join(f"{err['loc'][0]}: {err['msg']}" for err in e.errors()))
-    if buy.date > date.today():
+    if request.date > date.today():
         raise RowError("A Transaction can't be in the future")
-    return buy
+    return request
 
 
 def _reader(text: str) -> csv.DictReader:
@@ -108,7 +111,7 @@ def _reader(text: str) -> csv.DictReader:
 def import_csv(
     db: Session, user_id: int, portfolio_id: int, text: str
 ) -> list[ImportRowResult]:
-    """Import each data row of `text` as a Buy, in file order.
+    """Import each data row of `text` as a Buy or Sell, in file order.
 
     Raises:
         PortfolioNotFoundError: the Portfolio isn't the user's.
@@ -130,18 +133,18 @@ def import_csv(
     results = []
     for line, record in records:
         try:
-            buy = _parse_buy(record)
+            request = _parse_row(record)
             transaction = portfolio_service.create_transaction(
                 db,
                 user_id,
                 portfolio_id,
-                kind=TransactionKind.BUY,
-                on_date=buy.date,
-                ticker=buy.ticker,
-                units=buy.units,
-                price=buy.price,
-                fees=buy.fees,
-                fx_rate=buy.fx_rate,
+                kind=TransactionKind(request.kind),
+                on_date=request.date,
+                ticker=request.ticker,
+                units=request.units,
+                price=request.price,
+                fees=request.fees,
+                fx_rate=request.fx_rate,
             )
         except (RowError, TickerValidationError, PortfolioReplayError) as e:
             results.append(ImportRowResult(line, "error", error=str(e)))
