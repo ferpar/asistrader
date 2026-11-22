@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { observer } from '@legendapp/state/react'
-import { useBasketDetailStore, useRouterStore } from '../../container/ContainerContext'
+import { useBasketDetailStore, useBasketStore, useRouterStore } from '../../container/ContainerContext'
 import { RebasedLineChart, type LevelSeries } from '../../components/charts/RebasedLineChart'
 import { BasketMembersTable } from './BasketMembersTable'
+import { BasketMembersDialog } from './BasketMembersDialog'
 import styles from './Baskets.module.css'
 import detail from './BasketDetail.module.css'
 
@@ -21,8 +22,10 @@ function benchmarkColor(position: number): string {
 /** One Basket: its index against the benchmarks the user picks, and its ranked members. */
 export const BasketDetailPage = observer(function BasketDetailPage({ basketId }: { basketId: number }) {
   const store = useBasketDetailStore()
+  const basketStore = useBasketStore()
   const router = useRouterStore()
   const [overlays, setOverlays] = useState<string[]>([])
+  const [editingMembers, setEditingMembers] = useState(false)
 
   useEffect(() => {
     store.load(basketId)
@@ -49,6 +52,17 @@ export const BasketDetailPage = observer(function BasketDetailPage({ basketId }:
       }))
     return [{ key: `basket:${basket.id}`, label: basket.name, color: 'var(--series-1)', points: index }, ...picked]
   }, [basket, index, benchmarks, benchmarkSeries, overlays])
+
+  const openMembersDialog = () => {
+    if (!basket) return
+    basketStore.remember(basket)
+    setEditingMembers(true)
+  }
+  // Member changes move the index and the members table: reload both.
+  const closeMembersDialog = () => {
+    setEditingMembers(false)
+    store.load(basketId)
+  }
 
   const toggle = (symbol: string) =>
     setOverlays((current) => (current.includes(symbol) ? current.filter((s) => s !== symbol) : [...current, symbol]))
@@ -79,6 +93,11 @@ export const BasketDetailPage = observer(function BasketDetailPage({ basketId }:
           <span className={detail.muted}>{basket.members.length} members</span>
         </div>
         {loading && <span className={styles.hint}>Loading…</span>}
+        {basket.kind === 'personal' && (
+          <button type="button" className={styles.newButton} onClick={openMembersDialog}>
+            Edit members
+          </button>
+        )}
       </div>
       {basket.description && <p className={styles.hint}>{basket.description}</p>}
       {error && <p className={styles.error}>{error}</p>}
@@ -119,6 +138,8 @@ export const BasketDetailPage = observer(function BasketDetailPage({ basketId }:
           onOpenPortfolio={(id) => router.navigate(`/portfolio/portfolios/${id}`)}
         />
       </div>
+
+      {editingMembers && <BasketMembersDialog basketId={basket.id} onClose={closeMembersDialog} />}
     </section>
   )
 })

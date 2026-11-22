@@ -1,5 +1,5 @@
-import { useCallback } from 'react'
-import type { RankingRow } from '../../domain/basket/types'
+import { useCallback, type ReactNode } from 'react'
+import type { BasketKind, RankingRow } from '../../domain/basket/types'
 import { annualizedTir } from '../../domain/radar/indicators'
 import { useMultiSort, useSortedRows } from '../../hooks/useMultiSort'
 import { SortableTh } from '../../components/table/SortableTh'
@@ -63,12 +63,21 @@ function value(row: RankingRow, key: RankingKey): string | number | null {
 const pct = (v: number | null) => (v === null ? '—' : fmtPct(v))
 const PctCell = ({ v }: { v: number | null }) => <td className={`${styles.num} ${signClass(v ?? 0)}`}>{pct(v)}</td>
 
+type BasketRow = Extract<RankingRow, { kind: BasketKind }>
+
+interface BasketRankingTableProps {
+  rows: RankingRow[]
+  onOpen: (id: number) => void
+  /** Per-Basket actions (copy, rename…) in a trailing column; benchmarks get none. */
+  renderActions?: (row: BasketRow) => ReactNode
+}
+
 /**
  * Baskets and benchmark reference rows measured on their index series, sorted
  * by Momentum Score by default. Every column sorts; shift-click adds a
- * tie-breaker.
+ * tie-breaker. The Kind column marks Curated, Personal and benchmark rows.
  */
-export function BasketRankingTable({ rows, onOpen }: { rows: RankingRow[]; onOpen: (id: number) => void }) {
+export function BasketRankingTable({ rows, onOpen, renderActions }: BasketRankingTableProps) {
   const sort = useMultiSort<RankingKey>([{ key: 'momentum', dir: 'desc' }])
   const getValue = useCallback(value, [])
   const sorted = useSortedRows(rows, sort.terms, getValue)
@@ -95,6 +104,7 @@ export function BasketRankingTable({ rows, onOpen }: { rows: RankingRow[]; onOpe
             {th('LR50 R²', 'lrR2', '50-day linear regression fit')}
             {th('TIR', 'tir', 'Annualised TIR = 50-day slope %/day × 365')}
             {th('RSI', 'rsi', '14-day RSI')}
+            {renderActions && <th aria-label="Actions" />}
           </tr>
         </thead>
         <tbody>
@@ -131,6 +141,9 @@ export function BasketRankingTable({ rows, onOpen }: { rows: RankingRow[]; onOpe
                 </td>
                 <PctCell v={tir} />
                 <td className={styles.num}>{rsi.latest === null ? '—' : rsi.latest.toFixed(0)}</td>
+                {renderActions && (
+                  <td className={styles.rowActions}>{row.kind !== 'benchmark' && renderActions(row)}</td>
+                )}
               </tr>
             )
           })}
