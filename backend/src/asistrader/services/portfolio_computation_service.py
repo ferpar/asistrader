@@ -13,7 +13,9 @@ Transaction's date. A Sell consumes the oldest Lots first (FIFO) and is
 rejected if it exceeds the units held at that point of the replay; its
 proceeds net of fees, converted the same way, minus the consumed Lots' cost
 accumulate into Realized Gain. Both are recorded as dated cash flows for XIRR.
-Portfolio Value uses each instrument's latest raw close
+A Split multiplies the units of every open Lot of its ticker by its ratio,
+leaving their cost unchanged, and is rejected when no units are held at that
+point. Portfolio Value uses each instrument's latest raw close
 (never the adjusted close — ADR 0002) converted at that close's date.
 """
 
@@ -49,6 +51,10 @@ class InstrumentCurrencyUnknownError(PortfolioReplayError):
 
 class OversellError(PortfolioReplayError):
     """A Sell exceeds the units held at that point of the replay (long-only)."""
+
+
+class NothingHeldError(PortfolioReplayError):
+    """A Split of a ticker with no units held at that point of the replay."""
 
 
 @dataclass
@@ -168,6 +174,21 @@ def _consume_fifo(lots: list[Lot], units: Decimal, tx: PortfolioTransaction) -> 
     return consumed
 
 
+def _apply_split(ledger: Ledger, tx: PortfolioTransaction) -> None:
+    """Multiply the units of every open Lot of the ticker by the ratio; cost
+    is unchanged. Raises `NothingHeldError` when no units are held then."""
+    lots = ledger.lots[tx.ticker]
+    if not lots:
+        raise NothingHeldError(
+            f"No units of {tx.ticker} are held on {tx.date.isoformat()} to split"
+        )
+    ratio = Decimal(tx.split_ratio)
+    for lot in lots:
+        lot.units *= ratio
+    price_date, price = ledger.last_price[tx.ticker]
+    ledger.last_price[tx.ticker] = (price_date, price / float(ratio))
+
+
 def transactions_of(db: Session, portfolio_id: int) -> list[PortfolioTransaction]:
     """A Portfolio's Transactions in replay order (date, then entry order)."""
     return (
@@ -217,6 +238,8 @@ def replay(db: Session, portfolio: Portfolio) -> Ledger:
             ledger.realized_gain += proceeds - consumed_cost
             ledger.cash_flows.append((tx.date, proceeds))
             ledger.last_price[tx.ticker] = (tx.date, float(tx.price))
+        elif tx.kind == TransactionKind.SPLIT.value:
+            _apply_split(ledger, tx)
         else:
             raise PortfolioReplayError(f"Unsupported Transaction kind: {tx.kind}")
 

@@ -132,6 +132,7 @@ def _transaction_fields(request: PortfolioTransactionCreateRequest) -> dict:
         price=request.price,
         fees=request.fees,
         fx_rate=request.fx_rate,
+        split_ratio=request.split_ratio,
     )
 
 
