@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
 import yfinance as yf
-from sqlalchemy import func
+from sqlalchemy import Row, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -229,6 +229,37 @@ def get_market_data(
         query = query.filter(MarketData.date <= end_date)
 
     return query.order_by(MarketData.date).all()
+
+
+def get_bulk_market_data(
+    db: Session, symbols: list[str], start_date: date
+) -> dict[str, list[Row]]:
+    """Stored market data for many tickers from `start_date`, keyed by symbol.
+
+    One query for all symbols, selecting plain columns rather than ORM
+    entities: the radar reads every ticker at once, and materialising tens of
+    thousands of tracked MarketData objects was the backend's heaviest
+    request (~100MB peak, see scripts/profile_memory.py). Symbols without
+    data map to an empty list.
+    """
+    rows = db.execute(
+        select(
+            MarketData.id,
+            MarketData.ticker,
+            MarketData.date,
+            MarketData.open,
+            MarketData.high,
+            MarketData.low,
+            MarketData.close,
+            MarketData.volume,
+        )
+        .where(MarketData.ticker.in_(symbols), MarketData.date >= start_date)
+        .order_by(MarketData.ticker, MarketData.date)
+    )
+    out: dict[str, list[Row]] = {symbol: [] for symbol in symbols}
+    for row in rows:
+        out[row.ticker].append(row)
+    return out
 
 
 def get_data_bounds(db: Session, symbol: str) -> tuple[date | None, date | None]:

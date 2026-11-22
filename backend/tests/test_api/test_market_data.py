@@ -287,3 +287,27 @@ def test_bulk_market_data_with_date_filter(
     assert len(rows) == 2
     assert rows[0]["date"] == "2024-01-03"
     assert rows[1]["date"] == "2024-01-04"
+
+
+def test_bulk_market_data_multiple_symbols(
+    client: TestClient, db_session: Session, sample_ticker: Ticker, sample_market_data: list[MarketData]
+) -> None:
+    """Each symbol gets only its own rows, in date order, from a single request."""
+    db_session.add(Ticker(symbol="NVDA"))
+    db_session.add_all(
+        [
+            MarketData(ticker="NVDA", date=date(2024, 1, 4), open=1, high=2, low=1, close=2.0, volume=10),
+            MarketData(ticker="NVDA", date=date(2024, 1, 3), open=1, high=2, low=1, close=1.5, volume=10),
+        ]
+    )
+    db_session.commit()
+
+    response = client.post(
+        "/api/market-data/bulk",
+        json={"symbols": [sample_ticker.symbol, "NVDA", "ZZZZZ"], "start_date": "2024-01-01"},
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert [r["date"] for r in data[sample_ticker.symbol]] == ["2024-01-02", "2024-01-03", "2024-01-04"]
+    assert [r["close"] for r in data["NVDA"]] == [1.5, 2.0]
+    assert data["ZZZZZ"] == []
