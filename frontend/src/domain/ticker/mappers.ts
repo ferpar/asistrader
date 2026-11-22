@@ -15,5 +15,8 @@ export function mapTicker(dto: TickerDTO): Ticker {
     horizon: dto.horizon,
     beta: dto.beta,
     strategyId: dto.strategy_id,
+    instrumentType: dto.instrument_type,
+    listingCountry: dto.listing_country,
+    assetClassOverride: dto.asset_class_override,
   }
 }

@@ -29,6 +29,16 @@ export class TickerStore {
     return ticker
   }
 
+  /** Set (or clear, with null) a ticker's global Asset Class override. */
+  async setAssetClassOverride(
+    symbol: string,
+    assetClass: Ticker['assetClassOverride'],
+  ): Promise<Ticker> {
+    const ticker = await this.repo.setAssetClassOverride(symbol, assetClass)
+    this.tickers$.set(this.tickers$.get().map((t) => (t.symbol === ticker.symbol ? ticker : t)))
+    return ticker
+  }
+
   async fetchTickerPrice(symbol: string): Promise<TickerPriceResponse> {
     return this.repo.fetchTickerPrice(symbol)
   }

@@ -112,6 +112,7 @@ class HoldingFigures:
     last_price: float
     last_price_date: date
     asset_class: str
+    asset_class_override: str | None
     weighted_days_open: float | None
 
 
@@ -424,6 +425,7 @@ def compute_summary(
                     tickers[symbol].asset_class_override,
                     home_market,
                 ).value,
+                asset_class_override=tickers[symbol].asset_class_override,
                 weighted_days_open=weighted_days_open(lots, as_of),
             )
         )

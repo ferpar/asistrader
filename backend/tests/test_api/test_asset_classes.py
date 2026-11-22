@@ -233,12 +233,16 @@ class TestOverride:
         )
         assert response.status_code == 200, response.text
         assert response.json()["ticker"]["asset_class_override"] == "domestic_stock"
-        assert _classes(_summary(client, pid)) == {"ASML": "domestic_stock"}
+        summary = _summary(client, pid)
+        assert _classes(summary) == {"ASML": "domestic_stock"}
+        assert summary["holdings"][0]["asset_class_override"] == "domestic_stock"
 
         response = client.delete("/api/tickers/ASML/asset-class")
         assert response.status_code == 200, response.text
         assert response.json()["ticker"]["asset_class_override"] is None
-        assert _classes(_summary(client, pid)) == {"ASML": "international_stock"}
+        summary = _summary(client, pid)
+        assert _classes(summary) == {"ASML": "international_stock"}
+        assert summary["holdings"][0]["asset_class_override"] is None
 
     def test_override_classifies_a_ticker_without_metadata(
         self, client: TestClient, db_session: Session

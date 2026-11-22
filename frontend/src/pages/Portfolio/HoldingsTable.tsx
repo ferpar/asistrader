@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { observer } from '@legendapp/state/react'
 import { useIndicatorStore } from '../../container/ContainerContext'
 import { fmtMoney } from '../../components/portfolio/format'
@@ -6,7 +6,12 @@ import { signClass } from '../../components/portfolio/signClass'
 import { getRsiTone } from '../../components/radar/rsiHelpers'
 import { SortableTh } from '../../components/table/SortableTh'
 import { useMultiSort, useSortedRows, type Sortable } from '../../hooks/useMultiSort'
-import type { Holding } from '../../domain/portfolio/types'
+import {
+  ASSET_CLASS_LABELS,
+  type AssetClassChoice,
+  type AssetClassSubtotal,
+  type Holding,
+} from '../../domain/portfolio/types'
 import { holdingMeasures, type HoldingMeasures } from '../../domain/portfolio/holdingMeasures'
 import { fmtDate, fmtOptionalPct, fmtPrice, fmtUnits } from './format'
 import styles from './Portfolio.module.css'
@@ -15,6 +20,7 @@ type SortKey =
   | 'ticker'
   | 'value'
   | 'weight'
+  | 'daysOpen'
   | 'gain'
   | 'momentum'
   | 'bullishScore'
@@ -34,8 +40,14 @@ interface Row {
   error: string | null
 }
 
+/** The radar measure columns, which subtotal rows leave blank. */
+const MEASURE_COLUMNS = 6
+
+const OVERRIDE_CHOICES: AssetClassChoice[] = ['domestic_stock', 'international_stock', 'etf']
+
 const fmtPct1 = (v: number) => `${(v * 100).toFixed(1)}%`
 const fmtPct2 = (v: number) => `${(v * 100).toFixed(2)}%`
+const fmtDays = (v: number | null) => (v === null ? '—' : v.toFixed(0))
 
 function rowValue(row: Row, key: SortKey): Sortable {
   switch (key) {
@@ -45,6 +57,8 @@ function rowValue(row: Row, key: SortKey): Sortable {
       return row.holding.value.toNumber()
     case 'weight':
       return row.holding.weight
+    case 'daysOpen':
+      return row.holding.weightedDaysOpen
     case 'gain':
       return row.holding.unrealizedGainPct
     default:
@@ -59,20 +73,29 @@ function emptyTitle(row: Row): string {
 }
 
 /**
- * Holdings with their cost/value figures and, per ticker, the Momentum Score
- * and radar measures from the shared IndicatorStore (same values as the radar
- * card). Every column sorts; shift-click adds a tie-breaker.
+ * Holdings grouped by Asset Class, each group headed by a subtotal row
+ * (count, Invested, Portfolio Value, weight, Weighted Days Open, Unrealized
+ * Gain). Per ticker: cost/value figures plus the Momentum Score and radar
+ * measures from the shared IndicatorStore (same values as the radar card).
+ * Every column sorts within its group; shift-click adds a tie-breaker. The
+ * Class column overrides a ticker's Asset Class (global, as tickers are).
  */
 export const HoldingsTable = observer(function HoldingsTable({
   holdings,
+  assetClasses,
   currency,
+  onOverride,
 }: {
   holdings: Holding[]
+  assetClasses: AssetClassSubtotal[]
   currency: string
+  /** Set (or clear, with null) a ticker's Asset Class override. */
+  onOverride: (symbol: string, assetClass: AssetClassChoice | null) => Promise<void>
 }) {
   const indicatorStore = useIndicatorStore()
   const indicators = indicatorStore.indicators$.get()
   const loading = indicatorStore.loading$.get()
+  const [saving, setSaving] = useState<string | null>(null)
 
   const rows = useMemo<Row[]>(() => {
     const bySymbol = new Map(indicators.map((ind) => [ind.symbol.toUpperCase(), ind]))
@@ -90,6 +113,15 @@ export const HoldingsTable = observer(function HoldingsTable({
   const sort = useMultiSort<SortKey>()
   const sorted = useSortedRows(rows, sort.terms, rowValue)
 
+  const changeOverride = async (symbol: string, value: string) => {
+    setSaving(symbol)
+    try {
+      await onOverride(symbol, value === '' ? null : (value as AssetClassChoice))
+    } finally {
+      setSaving(null)
+    }
+  }
+
   const measure = (row: Row, value: number | null, format: (v: number) => string, tone = '') =>
     value === null ? (
       <td className={`${styles.num} ${styles.muted}`} title={emptyTitle(row)}>
@@ -103,17 +135,89 @@ export const HoldingsTable = observer(function HoldingsTable({
     <SortableTh label={label} sortKey={key} sort={sort} numeric className={styles.num} title={title} />
   )
 
+  const holdingRow = (row: Row) => {
+    const h = row.holding
+    const m = row.measures
+    const gain = h.unrealizedGain.toNumber()
+    return (
+      <tr key={h.ticker}>
+        <td>
+          <strong>{h.ticker}</strong>
+          {h.name && <div className={styles.muted}>{h.name}</div>}
+        </td>
+        <td>
+          <select
+            className={styles.classSelect}
+            value={h.assetClassOverride ?? ''}
+            disabled={saving === h.ticker}
+            onChange={(e) => changeOverride(h.ticker, e.target.value)}
+            title="Asset Class override (applies to this ticker everywhere)"
+            aria-label={`Asset Class of ${h.ticker}`}
+          >
+            <option value="">Auto</option>
+            {OVERRIDE_CHOICES.map((choice) => (
+              <option key={choice} value={choice}>
+                {ASSET_CLASS_LABELS[choice]}
+              </option>
+            ))}
+          </select>
+        </td>
+        <td className={styles.num}>{fmtUnits(h.units)}</td>
+        <td className={styles.num} title={fmtDate(h.lastPriceDate)}>
+          {fmtPrice(h.lastPrice)} <span className={styles.muted}>{h.currency}</span>
+        </td>
+        <td className={styles.num}>{fmtMoney(h.cost.toNumber(), currency)}</td>
+        <td className={styles.num}>{fmtMoney(h.value.toNumber(), currency)}</td>
+        <td className={styles.num}>{fmtOptionalPct(h.weight)}</td>
+        <td className={styles.num}>{fmtDays(h.weightedDaysOpen)}</td>
+        <td className={`${styles.num} ${signClass(gain)}`}>
+          {fmtMoney(gain, currency)} <small>({fmtOptionalPct(h.unrealizedGainPct)})</small>
+        </td>
+        {measure(row, m.momentum, fmtPct1, signClass(m.momentum ?? 0))}
+        {measure(row, m.bullishScore, (v) => `${v}/10`)}
+        {measure(row, m.lrSlopePct, fmtPct2, signClass(m.lrSlopePct ?? 0))}
+        {measure(row, m.lrR2, (v) => v.toFixed(2))}
+        {measure(row, m.tir, fmtPct1, signClass(m.tir ?? 0))}
+        {measure(row, m.rsi, (v) => v.toFixed(1), getRsiTone(m.rsi))}
+      </tr>
+    )
+  }
+
+  const subtotalRow = (group: AssetClassSubtotal) => {
+    const gain = group.unrealizedGain.toNumber()
+    return (
+      <tr className={styles.subtotal}>
+        <td colSpan={4}>
+          {ASSET_CLASS_LABELS[group.assetClass]}{' '}
+          <span className={styles.muted}>
+            ({group.count} {group.count === 1 ? 'Holding' : 'Holdings'})
+          </span>
+        </td>
+        <td className={styles.num}>{fmtMoney(group.invested.toNumber(), currency)}</td>
+        <td className={styles.num}>{fmtMoney(group.portfolioValue.toNumber(), currency)}</td>
+        <td className={styles.num}>{fmtOptionalPct(group.weight)}</td>
+        <td className={styles.num}>{fmtDays(group.weightedDaysOpen)}</td>
+        <td className={`${styles.num} ${signClass(gain)}`}>
+          {fmtMoney(gain, currency)} <small>({fmtOptionalPct(group.unrealizedGainPct)})</small>
+        </td>
+        <td colSpan={MEASURE_COLUMNS} />
+      </tr>
+    )
+  }
+
   return (
     <div className={styles.tableWrap}>
       <table className={styles.table}>
         <thead>
           <tr>
             <SortableTh label="Ticker" sortKey="ticker" sort={sort} />
+            <th>Class</th>
             <th className={styles.num}>Units</th>
             <th className={styles.num}>Last close</th>
-            <th className={styles.num}>Cost</th>
+            <th className={styles.num} title="Invested: cost of the remaining Lots">Cost</th>
             {th('Value', 'value')}
             {th('Weight', 'weight')}
+            {th('Days open', 'daysOpen', 'Weighted Days Open: age of the Lots weighted by cost')}
             {th('Unrealized Gain', 'gain', 'Sorts by the relative gain')}
             {th('Momentum', 'momentum', 'Momentum Score: 0.35·1M + 0.30·3M + 0.20·6M + 0.15·1Y (adjusted closes)')}
             {th('Bullish', 'bullishScore', 'SMA structure: bullish-ordered pairs out of 10')}
@@ -123,37 +227,12 @@ export const HoldingsTable = observer(function HoldingsTable({
             {th('RSI', 'rsi', 'RSI (14)')}
           </tr>
         </thead>
-        <tbody>
-          {sorted.map((row) => {
-            const h = row.holding
-            const m = row.measures
-            const gain = h.unrealizedGain.toNumber()
-            return (
-              <tr key={h.ticker}>
-                <td>
-                  <strong>{h.ticker}</strong>
-                  {h.name && <div className={styles.muted}>{h.name}</div>}
-                </td>
-                <td className={styles.num}>{fmtUnits(h.units)}</td>
-                <td className={styles.num} title={fmtDate(h.lastPriceDate)}>
-                  {fmtPrice(h.lastPrice)} <span className={styles.muted}>{h.currency}</span>
-                </td>
-                <td className={styles.num}>{fmtMoney(h.cost.toNumber(), currency)}</td>
-                <td className={styles.num}>{fmtMoney(h.value.toNumber(), currency)}</td>
-                <td className={styles.num}>{fmtOptionalPct(h.weight)}</td>
-                <td className={`${styles.num} ${signClass(gain)}`}>
-                  {fmtMoney(gain, currency)} <small>({fmtOptionalPct(h.unrealizedGainPct)})</small>
-                </td>
-                {measure(row, m.momentum, fmtPct1, signClass(m.momentum ?? 0))}
-                {measure(row, m.bullishScore, (v) => `${v}/10`)}
-                {measure(row, m.lrSlopePct, fmtPct2, signClass(m.lrSlopePct ?? 0))}
-                {measure(row, m.lrR2, (v) => v.toFixed(2))}
-                {measure(row, m.tir, fmtPct1, signClass(m.tir ?? 0))}
-                {measure(row, m.rsi, (v) => v.toFixed(1), getRsiTone(m.rsi))}
-              </tr>
-            )
-          })}
-        </tbody>
+        {assetClasses.map((group) => (
+          <tbody key={group.assetClass}>
+            {subtotalRow(group)}
+            {sorted.filter((row) => row.holding.assetClass === group.assetClass).map(holdingRow)}
+          </tbody>
+        ))}
       </table>
     </div>
   )

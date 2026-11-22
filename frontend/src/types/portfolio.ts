@@ -103,6 +103,24 @@ export interface PortfolioHoldingDTO {
   unrealized_gain_pct: number | null
   last_price: number
   last_price_date: string
+  asset_class: AssetClassDTO
+  asset_class_override: AssetClassChoiceDTO | null
+  weighted_days_open: number | null
+}
+
+export type AssetClassChoiceDTO = 'domestic_stock' | 'international_stock' | 'etf'
+export type AssetClassDTO = AssetClassChoiceDTO | 'unclassified'
+
+export interface PortfolioAssetClassDTO {
+  asset_class: AssetClassDTO
+  count: number
+  invested: number
+  portfolio_value: number
+  unrealized_gain: number
+  unrealized_gain_pct: number | null
+  weighted_days_open: number | null
+  weight: number | null
+  tickers: string[]
 }
 
 export interface PortfolioSummaryDTO {
@@ -118,4 +136,5 @@ export interface PortfolioSummaryDTO {
   weighted_days_open: number | null
   simple_tir: number | null
   xirr: number | null
+  asset_classes: PortfolioAssetClassDTO[]
 }

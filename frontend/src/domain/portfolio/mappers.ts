@@ -1,6 +1,7 @@
 import { Decimal } from '../shared/Decimal'
 import { parseDateOnly } from '../../utils/dateOnly'
 import type {
+  PortfolioAssetClassDTO,
   PortfolioDTO,
   PortfolioHistoryDTO,
   PortfolioHoldingDTO,
@@ -10,6 +11,7 @@ import type {
   PortfolioTransactionDTO,
 } from '../../types/portfolio'
 import type {
+  AssetClassSubtotal,
   Holding,
   ImportResult,
   ImportRowResult,
@@ -87,6 +89,23 @@ function mapHolding(dto: PortfolioHoldingDTO): Holding {
     unrealizedGainPct: dto.unrealized_gain_pct,
     lastPrice: Decimal.from(dto.last_price),
     lastPriceDate: parseDateOnly(dto.last_price_date),
+    assetClass: dto.asset_class,
+    assetClassOverride: dto.asset_class_override,
+    weightedDaysOpen: dto.weighted_days_open,
+  }
+}
+
+function mapAssetClass(dto: PortfolioAssetClassDTO): AssetClassSubtotal {
+  return {
+    assetClass: dto.asset_class,
+    count: dto.count,
+    invested: Decimal.from(dto.invested),
+    portfolioValue: Decimal.from(dto.portfolio_value),
+    unrealizedGain: Decimal.from(dto.unrealized_gain),
+    unrealizedGainPct: dto.unrealized_gain_pct,
+    weightedDaysOpen: dto.weighted_days_open,
+    weight: dto.weight,
+    tickers: dto.tickers,
   }
 }
 
@@ -104,5 +123,6 @@ export function mapSummary(dto: PortfolioSummaryDTO): PortfolioSummary {
     weightedDaysOpen: dto.weighted_days_open,
     simpleTir: dto.simple_tir,
     xirr: dto.xirr,
+    assetClasses: dto.asset_classes.map(mapAssetClass),
   }
 }

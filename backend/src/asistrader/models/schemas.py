@@ -1378,6 +1378,8 @@ class PortfolioHoldingSchema(BaseModel):
     last_price_date: date
     # domestic_stock | international_stock | etf | unclassified
     asset_class: str
+    # The ticker's global override when set (asset_class then equals it).
+    asset_class_override: str | None = None
     weighted_days_open: float | None = None
 
     model_config = {"from_attributes": True}
