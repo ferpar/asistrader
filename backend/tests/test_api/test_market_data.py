@@ -4,10 +4,15 @@ from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from asistrader.models.db import MarketData, Ticker
+
+
+# These routes require a logged-in user; see the `signed_in` fixture.
+pytestmark = pytest.mark.usefixtures("signed_in")
 
 
 def test_get_market_data_empty(client: TestClient, db_session: Session, sample_ticker: Ticker) -> None:

@@ -12,6 +12,10 @@ from asistrader.models.db import MarketData, SweepResultCache, Ticker
 from asistrader.services.strategies import draft_service
 from asistrader.services.strategy_service import create_strategy
 
+
+# These routes require a logged-in user; see the `signed_in` fixture.
+pytestmark = pytest.mark.usefixtures("signed_in")
+
 AUTO_PARAMS = {
     "engine": "historical_expected_days",
     "speed_period": 5,

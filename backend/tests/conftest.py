@@ -207,6 +207,17 @@ def auth_headers(sample_user: User) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+@pytest.fixture
+def signed_in(client: TestClient, auth_headers: dict[str, str]) -> None:
+    """Send the sample user's token on every `client` request.
+
+    For modules whose routes only need *a* logged-in user: mark them with
+    `pytestmark = pytest.mark.usefixtures("signed_in")` instead of threading
+    `auth_headers` through each call.
+    """
+    client.headers.update(auth_headers)
+
+
 # --- Layered Trade Fixtures ---
 
 

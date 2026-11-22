@@ -5,11 +5,16 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+import pytest
 from sqlalchemy.orm import Session
 
 from asistrader.db.seed_strategies import seed_strategies
 from asistrader.models.db import MarketData, Strategy, Ticker
 from asistrader.services.strategy_service import create_strategy
+
+
+# These routes require a logged-in user; see the `signed_in` fixture.
+pytestmark = pytest.mark.usefixtures("signed_in")
 
 DM_PARAMS = {
     "engine": "dispersion_momentum",

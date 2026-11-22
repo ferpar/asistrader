@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from asistrader.auth.dependencies import get_current_user
 from asistrader.db.database import get_db
 from asistrader.models.schemas import (
     BenchmarkCreateRequest,
@@ -24,7 +25,11 @@ from asistrader.services.benchmark_service import (
 )
 from asistrader.services.yahoo_search_service import search_yahoo_tickers
 
-router = APIRouter(prefix="/api/benchmarks", tags=["benchmarks"])
+router = APIRouter(
+    prefix="/api/benchmarks",
+    tags=["benchmarks"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("", response_model=BenchmarkListResponse)
