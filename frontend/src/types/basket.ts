@@ -41,3 +41,21 @@ export interface BasketMembersResponse {
   members: BasketMemberDTO[]
   count: number
 }
+
+export interface BasketCreateRequest {
+  name: string
+  description?: string | null
+}
+
+export interface BasketUpdateRequest {
+  name?: string
+  description?: string | null
+}
+
+export interface BasketCopyRequest {
+  name?: string
+}
+
+export interface BasketMemberAddRequest {
+  symbol: string
+}

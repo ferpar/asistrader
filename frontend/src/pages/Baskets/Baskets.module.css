@@ -6,6 +6,10 @@
   margin-bottom: 12px;
 }
 
+.newButton {
+  margin-left: auto;
+}
+
 .hint {
   margin: 0 0 12px;
   font-size: 0.8125rem;
@@ -97,3 +101,26 @@
   background-color: var(--color-surface);
 }
 
+
+.rowActions {
+  text-align: right;
+}
+
+.rowActions button {
+  padding: 0 4px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.rowActions button:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+.rowActions button.danger:hover {
+  color: var(--color-error-dark);
+}
