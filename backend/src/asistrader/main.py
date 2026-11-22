@@ -20,7 +20,7 @@ from asistrader.api.strategies import router as strategies_router
 from asistrader.api.tickers import router as tickers_router
 from asistrader.api.trades import router as trades_router
 from asistrader.db.database import MAX_OVERFLOW, POOL_SIZE
-from asistrader.memory import MemoryLogMiddleware
+from asistrader.memory import MemoryWatchMiddleware
 
 # ── Worker threadpool ──
 #
@@ -80,7 +80,7 @@ app.add_middleware(BrotliMiddleware, minimum_size=1000, gzip_fallback=True)
 
 # Outermost, so the measurement spans compression and the whole response.
 # See asistrader/memory.py.
-app.add_middleware(MemoryLogMiddleware)
+app.add_middleware(MemoryWatchMiddleware)
 
 app.include_router(auth_router)
 app.include_router(fund_router)
