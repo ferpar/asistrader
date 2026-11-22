@@ -2,10 +2,10 @@ import { observable } from '@legendapp/state'
 import type { IPortfolioRepository } from './IPortfolioRepository'
 import type {
   ImportResult,
-  NewBuy,
   Portfolio,
   PortfolioSummary,
   PortfolioTransaction,
+  TransactionInput,
 } from './types'
 
 const message = (err: unknown, fallback: string) =>
@@ -79,14 +79,26 @@ export class PortfolioStore {
     }
   }
 
-  /** Record a Buy and reload the detail. Throws so the form can show why. */
-  async addBuy(portfolioId: number, buy: NewBuy): Promise<void> {
-    await this.repo.createBuy(portfolioId, buy)
+  /** Record a Buy or Sell and reload the detail. Throws so the form can show
+   *  why (e.g. a Sell exceeding the units held). */
+  async addTransaction(portfolioId: number, input: TransactionInput): Promise<void> {
+    await this.repo.createTransaction(portfolioId, input)
+    await this.loadDetail(portfolioId)
+  }
+
+  /** Replace a Transaction and reload the detail. The backend replays the
+   *  whole list and rejects an edit that makes any Sell oversell. */
+  async updateTransaction(
+    portfolioId: number,
+    transactionId: number,
+    input: TransactionInput,
+  ): Promise<void> {
+    await this.repo.updateTransaction(portfolioId, transactionId, input)
     await this.loadDetail(portfolioId)
   }
 
   /**
-   * Import Buys from CSV text and reload the detail. Throws only when the file
+   * Import Buys and Sells from CSV text and reload the detail. Throws only when the file
    * as a whole is rejected; per-row failures come back in the result.
    */
   async importCsv(portfolioId: number, csv: string): Promise<ImportResult> {

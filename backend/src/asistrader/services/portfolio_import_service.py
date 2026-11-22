@@ -1,6 +1,6 @@
 """CSV import of Transactions into a Portfolio.
 
-Each data row is imported on its own, through `portfolio_service.create_buy`
+Each data row is imported on its own, through `portfolio_service.create_transaction`
 — the same path, and so the same validation, as a manual Transaction. Valid
 rows are recorded and failing rows are reported with a reason; a failing row
 never prevents the others from being imported. Only a file that can't be read
@@ -23,7 +23,7 @@ from decimal import Decimal, InvalidOperation
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from asistrader.models.db import PortfolioTransaction
+from asistrader.models.db import PortfolioTransaction, TransactionKind
 from asistrader.models.schemas import PortfolioTransactionCreateRequest
 from asistrader.services import portfolio_service
 from asistrader.services.portfolio_computation_service import PortfolioReplayError
@@ -131,10 +131,11 @@ def import_csv(
     for line, record in records:
         try:
             buy = _parse_buy(record)
-            transaction = portfolio_service.create_buy(
+            transaction = portfolio_service.create_transaction(
                 db,
                 user_id,
                 portfolio_id,
+                kind=TransactionKind.BUY,
                 on_date=buy.date,
                 ticker=buy.ticker,
                 units=buy.units,

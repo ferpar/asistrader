@@ -1219,10 +1219,11 @@ class PortfolioTransactionSchema(BaseModel):
 
 
 class PortfolioTransactionCreateRequest(BaseModel):
-    """Record a Buy. Units may be fractional; `fx_rate` is optional and
-    overrides the stored rate for the date (instrument → Portfolio currency)."""
+    """Record (or, on update, replace) a Buy or Sell. Units may be fractional;
+    `fx_rate` is optional and overrides the stored rate for the date
+    (instrument → Portfolio currency)."""
 
-    kind: Literal["buy"]
+    kind: Literal["buy", "sell"]
     date: date
     ticker: str = Field(min_length=1)
     units: Decimal = Field(gt=0)
@@ -1269,6 +1270,8 @@ class PortfolioSummarySchema(BaseModel):
     portfolio_value: float
     unrealized_gain: float
     unrealized_gain_pct: float | None
+    realized_gain: float
+    total_gain: float
     holdings: list[PortfolioHoldingSchema]
 
     model_config = {"from_attributes": True}
