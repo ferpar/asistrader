@@ -94,7 +94,7 @@ export const BasketDetailPage = observer(function BasketDetailPage({ basketId }:
       {basket.description && <p className={styles.hint}>{basket.description}</p>}
       {error && <p className={styles.error}>{error}</p>}
 
-      <div className={detail.section}>
+      <div className={`${detail.section} ${detail.chart}`}>
         <BenchmarkOverlayToggles benchmarks={benchmarks} selected={overlays} onToggle={toggle} />
         <RebasedLineChart
           series={series}

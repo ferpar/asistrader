@@ -33,6 +33,12 @@
   margin-top: 20px;
 }
 
+.chart {
+  /* The chart keeps its shape as it scales: past this width it grows taller
+   * than a screen and its text oversized. */
+  max-width: 1100px;
+}
+
 .section h3 {
   margin: 0 0 8px;
   font-size: 0.95rem;

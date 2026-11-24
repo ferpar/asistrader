@@ -8,6 +8,7 @@ import { useMultiSort, useSortedRows, type Sortable } from '../hooks/useMultiSor
 import { useTopN } from '../hooks/useTopN'
 import { SortableTh } from './table/SortableTh'
 import { ShowMore } from './table/ShowMore'
+import { DockToggle } from './table/DockToggle'
 import { formatPlanAge, formatOpenAge, formatPlanToOpen, formatOpenToClose } from '../utils/trade'
 import { getPositionNum } from '../utils/tradeLive'
 import { formatPrice } from '../utils/priceFormat'
@@ -158,12 +159,7 @@ export const TradeTable = observer(function TradeTable({ trades, loading, error 
 
   return (
     <>
-    <div className={styles.tableControls}>
-      <label className={styles.dockToggle}>
-        <input type="checkbox" checked={docked} onChange={(e) => setDocked(e.target.checked)} />
-        Dock columns
-      </label>
-    </div>
+    <DockToggle docked={docked} onChange={setDocked} />
     <div className={styles.tradeTableContainer}>
     <table data-testid="trade-table" className={styles.tradeTable}>
       <thead>

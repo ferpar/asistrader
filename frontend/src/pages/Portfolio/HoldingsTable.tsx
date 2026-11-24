@@ -5,6 +5,7 @@ import { fmtMoney, fmtPct, fmtPct1 } from '../../components/portfolio/format'
 import { signClass } from '../../components/portfolio/signClass'
 import { getRsiTone } from '../../components/radar/rsiHelpers'
 import { SortableTh } from '../../components/table/SortableTh'
+import { DockToggle } from '../../components/table/DockToggle'
 import { useMultiSort, useSortedRows, type Sortable } from '../../hooks/useMultiSort'
 import {
   ASSET_CLASS_LABELS,
@@ -95,6 +96,10 @@ export const HoldingsTable = observer(function HoldingsTable({
   const indicators = indicatorStore.indicators$.get()
   const loading = indicatorStore.loading$.get()
   const [saving, setSaving] = useState<string | null>(null)
+  const [docked, setDocked] = useState(true)
+  /** Pinned-column classes for the Ticker and Class columns while docked. */
+  const pin = (column: 'pinnedTicker' | 'pinnedClass' | 'pinnedGroup') =>
+    docked ? `${styles.pinned} ${styles[column]}` : ''
 
   const rows = useMemo<Row[]>(() => {
     const bySymbol = new Map(indicators.map((ind) => [ind.symbol.toUpperCase(), ind]))
@@ -140,11 +145,15 @@ export const HoldingsTable = observer(function HoldingsTable({
     const gain = h.unrealizedGain.toNumber()
     return (
       <tr key={h.ticker}>
-        <td>
+        <td className={pin('pinnedTicker')}>
           <strong>{h.ticker}</strong>
-          {h.name && <div className={styles.muted}>{h.name}</div>}
+          {h.name && (
+            <div className={`${styles.muted} ${styles.holdingName}`} title={h.name}>
+              {h.name}
+            </div>
+          )}
         </td>
-        <td>
+        <td className={pin('pinnedClass')}>
           <select
             className={styles.classSelect}
             value={h.assetClassOverride ?? ''}
@@ -189,12 +198,14 @@ export const HoldingsTable = observer(function HoldingsTable({
     const gain = group.unrealizedGain.toNumber()
     return (
       <tr className={styles.subtotal}>
-        <td colSpan={4}>
+        {/* The label spans the two pinned columns, so it stays in view too. */}
+        <td colSpan={2} className={pin('pinnedGroup')}>
           {ASSET_CLASS_LABELS[group.assetClass]}{' '}
           <span className={styles.muted}>
             ({group.count} {group.count === 1 ? 'Holding' : 'Holdings'})
           </span>
         </td>
+        <td colSpan={2} />
         <td className={styles.num}>{fmtMoney(group.invested.toNumber(), currency)}</td>
         <td className={styles.num}>{fmtMoney(group.portfolioValue.toNumber(), currency)}</td>
         <td className={styles.num}>{fmtOptionalPct(group.weight)}</td>
@@ -209,12 +220,14 @@ export const HoldingsTable = observer(function HoldingsTable({
   }
 
   return (
+    <>
+    <DockToggle docked={docked} onChange={setDocked} />
     <div className={styles.tableWrap}>
       <table className={styles.table}>
         <thead>
           <tr>
-            <SortableTh label="Ticker" sortKey="ticker" sort={sort} />
-            <th>Class</th>
+            <SortableTh label="Ticker" sortKey="ticker" sort={sort} className={pin('pinnedTicker')} />
+            <th className={pin('pinnedClass')}>Class</th>
             <th className={styles.num}>Units</th>
             <th className={styles.num}>Last close</th>
             <th className={styles.num} title="Invested: cost of the remaining Lots">Cost</th>
@@ -239,5 +252,6 @@ export const HoldingsTable = observer(function HoldingsTable({
         ))}
       </table>
     </div>
+    </>
   )
 })

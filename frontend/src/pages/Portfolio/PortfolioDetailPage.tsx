@@ -10,7 +10,8 @@ import { HomeMarketSelect } from './HomeMarketSelect'
 import { MoneyChart } from './MoneyChart'
 import { PerformanceSection } from './PerformanceSection'
 import { TransactionForm } from './TransactionForm'
-import { fmtDate, fmtOptionalPct, fmtPrice, fmtUnits } from './format'
+import { TransactionsTable } from './TransactionsTable'
+import { fmtDate, fmtOptionalPct } from './format'
 import styles from './Portfolio.module.css'
 
 /** Portfolio detail: KPI header, Holdings table and the Transactions list
@@ -37,7 +38,6 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
   const historyError = store.historyError$.get()
 
   const [actionError, setActionError] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<number | null>(null)
   const heldTickers = summary?.holdings.map((h) => h.ticker) ?? []
 
   const run = async (action: () => Promise<void>, fallback: string) => {
@@ -79,7 +79,7 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
 
   if (!portfolio) {
     return (
-      <section className={styles.page}>
+      <section>
         <button type="button" className={styles.link} onClick={() => router.navigate('/portfolio')}>
           ← Portfolios
         </button>
@@ -89,7 +89,7 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
   }
 
   return (
-    <section className={styles.page}>
+    <section>
       <button type="button" className={styles.link} onClick={() => router.navigate('/portfolio')}>
         ← Portfolios
       </button>
@@ -107,13 +107,15 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
 
       {summary && <SummaryKpis summary={summary} />}
 
-      {historyError ? (
-        <p className={styles.error}>{historyError}</p>
-      ) : (
-        history && <MoneyChart rows={history.rows} currency={history.currency} />
-      )}
-
-      {history && <PerformanceSection portfolioId={portfolio.id} name={portfolio.name} history={history} />}
+      {/* Side by side on wide screens, stacked on narrow ones. */}
+      <div className={styles.charts}>
+        {historyError ? (
+          <p className={styles.error}>{historyError}</p>
+        ) : (
+          history && <MoneyChart rows={history.rows} currency={history.currency} />
+        )}
+        {history && <PerformanceSection portfolioId={portfolio.id} name={portfolio.name} history={history} />}
+      </div>
 
       <div className={styles.sectionHeader}>
         <h3>Holdings</h3>
@@ -142,74 +144,13 @@ export const PortfolioDetailPage = observer(function PortfolioDetailPage({
         onSubmit={(input) => store.addTransaction(portfolio.id, input)}
       />
       <CsvImport onImport={handleImport} />
-      {transactions.length === 0 ? (
-        <p className={styles.empty}>No Transactions yet.</p>
-      ) : (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Kind</th>
-                <th>Ticker</th>
-                <th className={styles.num}>Units</th>
-                <th className={styles.num}>Price</th>
-                <th className={styles.num}>Fees</th>
-                <th className={styles.num}>FX rate</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {[...transactions].reverse().map((tx) =>
-                editingId === tx.id ? (
-                  <tr key={tx.id}>
-                    <td colSpan={8}>
-                      <TransactionForm
-                        portfolio={portfolio}
-                        heldTickers={heldTickers}
-                        initial={tx}
-                        onSubmit={async (input) => {
-                          await store.updateTransaction(portfolio.id, tx.id, input)
-                          setEditingId(null)
-                        }}
-                        onCancel={() => setEditingId(null)}
-                      />
-                    </td>
-                  </tr>
-                ) : (
-                  <tr key={tx.id}>
-                    <td>{fmtDate(tx.date)}</td>
-                    <td>{tx.kind}</td>
-                    <td>{tx.ticker}</td>
-                    <td className={styles.num}>{fmtUnits(tx.units)}</td>
-                    <td className={styles.num}>{fmtPrice(tx.price)}</td>
-                    <td className={styles.num}>{fmtPrice(tx.fees)}</td>
-                    <td className={styles.num}>{tx.fxRate === null ? 'stored' : fmtPrice(tx.fxRate)}</td>
-                    <td className={styles.num}>
-                      <button
-                        type="button"
-                        className={`${styles.iconButton} ${styles.editButton}`}
-                        aria-label={`Edit Transaction ${tx.id}`}
-                        onClick={() => setEditingId(tx.id)}
-                      >
-                        ✎
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.iconButton}
-                        aria-label={`Delete Transaction ${tx.id}`}
-                        onClick={() => handleDeleteTransaction(tx)}
-                      >
-                        ✕
-                      </button>
-                    </td>
-                  </tr>
-                ),
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <TransactionsTable
+        portfolio={portfolio}
+        transactions={transactions}
+        heldTickers={heldTickers}
+        onUpdate={(transactionId, input) => store.updateTransaction(portfolio.id, transactionId, input)}
+        onDelete={handleDeleteTransaction}
+      />
     </section>
   )
 })
