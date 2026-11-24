@@ -244,8 +244,9 @@ def backfill_instrument_metadata(db: Session, symbols: list[str] | None = None) 
     were recorded (or whose detection failed), from yfinance `.info`.
 
     Only tickers missing either field are looked up, so rerunning is cheap.
-    Existing values are never overwritten. Meant as a one-off after the
-    columns were added (see `asistrader.cli.backfill_instrument_metadata`).
+    Existing values are never overwritten. The login sync runs it per ticker
+    through `market_data_service.repair_ticker_history`;
+    `asistrader.cli.backfill_instrument_metadata` runs it by hand.
 
     Returns:
         Dict with 'results' (symbol -> {instrument_type, listing_country} after

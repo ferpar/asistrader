@@ -38,3 +38,6 @@ packages = ["src/asistrader"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
+markers = [
+    "history_repair: run the login sync's history repair stage (stubbed by default in the auto-sync tests)",
+]

@@ -1,4 +1,4 @@
-"""One-off backfill of adjusted closes for market data stored before they existed.
+"""Manual backfill of adjusted closes for market data stored before they existed.
 
 Usage:
     python -m asistrader.cli.backfill_adj_close [SYMBOL ...]
@@ -6,6 +6,10 @@ Usage:
 For every ticker (or only the given symbols) with rows whose adjusted close is
 NULL, refetches that date span from Yahoo and upserts it. Tickers that are
 already complete are skipped, so it is safe to rerun.
+
+The login sync does the same once per ticker it covers
+(`market_data_service.repair_ticker_history`); this covers every ticker at
+once, e.g. ones no user syncs.
 
 Uses the configured DATABASE_URL.
 """
