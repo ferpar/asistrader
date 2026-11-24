@@ -1,0 +1,43 @@
+/* Pinned ("docked") leading columns for wide tables that scroll sideways.
+ * Each table composes `stickyCol` into its own class and sets the `left`
+ * offset of each pinned column; row hover, selection and subtotal
+ * backgrounds stay in the table's own stylesheet, since they differ per
+ * table. The table needs `border-collapse: separate` so the pinned cells keep
+ * their borders while the rest scrolls under them. */
+
+.stickyCol {
+  position: sticky;
+  z-index: 1;
+  background-color: var(--color-bg);
+}
+
+th.stickyCol {
+  z-index: 2;
+  background-color: var(--color-table-header);
+}
+
+.controls {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.dockToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+/* On phones the pinned columns would cover most of the screen. */
+@media (max-width: 600px) {
+  .controls {
+    display: none;
+  }
+
+  .stickyCol {
+    position: static;
+  }
+}
