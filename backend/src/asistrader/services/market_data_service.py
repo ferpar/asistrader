@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from asistrader.models.db import MarketData, Ticker, TickerSplit
 from asistrader.services.ticker_service import (
     TickerValidationError,
+    backfill_instrument_metadata,
     backfill_ticker_metadata,
     validate_ticker_with_yfinance,
 )
@@ -321,9 +322,10 @@ def backfill_splits(db: Session, symbols: list[str] | None = None) -> dict:
     """Store the split events of existing tickers.
 
     Sync stores the splits found in the bars it fetches, so tickers whose
-    history was loaded before splits were recorded need this one-off pass
-    (see `asistrader.cli.backfill_instrument_metadata`). Rerunning is safe:
-    events are upserted by (ticker, date).
+    history was loaded before splits were recorded need this pass: the login
+    sync runs it per ticker through `repair_ticker_history`, and
+    `asistrader.cli.backfill_instrument_metadata` runs it by hand. Rerunning
+    is safe: events are upserted by (ticker, date).
 
     Returns:
         Dict with 'results' (symbol -> split events stored) and 'errors'
@@ -644,8 +646,9 @@ def backfill_adjusted_closes(db: Session, symbols: list[str] | None = None) -> d
     never get an adjusted close. This targets them explicitly: for each
     ticker with rows whose adj_close is NULL, refetch that date span from
     yfinance and upsert it. Tickers with complete adjusted closes are not
-    fetched, so running it again is cheap. Meant as a one-off after the
-    column was added (see `asistrader.cli.backfill_adj_close`).
+    fetched, so running it again is cheap. The login sync runs it per ticker
+    through `repair_ticker_history`; `asistrader.cli.backfill_adj_close` runs
+    it by hand.
 
     Returns:
         Dict with 'results' (symbol -> rows upserted), 'total_rows' and
@@ -670,6 +673,50 @@ def backfill_adjusted_closes(db: Session, symbols: list[str] | None = None) -> d
             db.rollback()
             errors[symbol] = str(e)
     return {"results": results, "total_rows": sum(results.values()), "errors": errors}
+
+
+def repair_ticker_history(db: Session, symbols: list[str]) -> dict:
+    """Load what tickers stored before it was recorded are missing, once each.
+
+    Tickers whose history was stored before adjusted closes, instrument
+    metadata and split events were recorded have NULL adjusted closes (no
+    Momentum Score), no Asset Class and no splits for their Portfolios, and
+    gap-filling sync never revisits stored rows. For each of `symbols` not yet
+    repaired this fills missing adjusted closes (re-fetching those rows also
+    restates their closes to Yahoo's current basis), fills missing instrument
+    metadata and stores every split event, then stamps
+    `history_repaired_at`. A ticker with any failure stays unstamped, so the
+    next sync tries it again; a stamped ticker is never fetched here again.
+
+    Returns:
+        Dict with 'repaired' (symbols stamped now) and 'errors'
+        (symbol -> message).
+    """
+    pending = [
+        symbol
+        for (symbol,) in db.query(Ticker.symbol)
+        .filter(Ticker.symbol.in_(symbols), Ticker.history_repaired_at.is_(None))
+        .order_by(Ticker.symbol)
+        .all()
+    ]
+    repaired: list[str] = []
+    errors: dict[str, str] = {}
+    for symbol in pending:
+        steps = (
+            backfill_adjusted_closes(db, [symbol]),
+            backfill_instrument_metadata(db, [symbol]),
+            backfill_splits(db, [symbol]),
+        )
+        failure = next((step["errors"][symbol] for step in steps if symbol in step["errors"]), None)
+        if failure is not None:
+            errors[symbol] = failure
+            continue
+        db.query(Ticker).filter(Ticker.symbol == symbol).update(
+            {Ticker.history_repaired_at: datetime.now(timezone.utc).replace(tzinfo=None)}
+        )
+        db.commit()
+        repaired.append(symbol)
+    return {"repaired": repaired, "errors": errors}
 
 
 def sync_ticker(

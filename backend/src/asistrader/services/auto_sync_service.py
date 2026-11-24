@@ -98,11 +98,16 @@ def ensure_user_data_fresh(db: Session, user_id: int) -> dict:
     Each stage is wrapped individually so a single failure (e.g. yfinance
     flake) doesn't poison the others. Returns a summary keyed by stage:
         {"fx": {...}, "tickers": {...}, "basket_members": {...},
-         "benchmarks": {...}, "errors": {...}}
+         "benchmarks": {...}, "history": {...}, "errors": {...}}
 
     Basket members are synced over the radar window
     (`basket_service.MEMBER_HISTORY_DAYS`), so the Basket ranking and its
     Momentum Scores are current.
+
+    Last, the user's tickers and Basket members not yet repaired get their
+    history repaired once (`market_data_service.repair_ticker_history`):
+    adjusted closes, instrument metadata and split events that tickers stored
+    before those were recorded lack.
 
     Idempotent: gap detection inside each downstream function short-circuits
     when the data is already current — at most a few DB bounds queries.
@@ -112,6 +117,7 @@ def ensure_user_data_fresh(db: Session, user_id: int) -> dict:
         "tickers": None,
         "basket_members": None,
         "benchmarks": None,
+        "history": None,
         "errors": {},
     }
     since_date = _user_oldest_date(db, user_id)
@@ -144,5 +150,15 @@ def ensure_user_data_fresh(db: Session, user_id: int) -> dict:
     except Exception as e:
         logger.warning("Auto-sync: benchmarks failed for user %s: %s", user_id, e)
         summary["errors"]["benchmarks"] = str(e)
+
+    try:
+        symbols = sorted(
+            set(_user_ticker_symbols(db, user_id)) | set(_visible_basket_members(db, user_id))
+        )
+        if symbols:
+            summary["history"] = market_data_service.repair_ticker_history(db, symbols)
+    except Exception as e:
+        logger.warning("Auto-sync: history repair failed for user %s: %s", user_id, e)
+        summary["errors"]["history"] = str(e)
 
     return summary

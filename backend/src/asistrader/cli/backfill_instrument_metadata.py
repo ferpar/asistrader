@@ -1,4 +1,4 @@
-"""One-off backfill of instrument metadata for existing tickers.
+"""Manual backfill of instrument metadata for existing tickers.
 
 Usage:
     python -m asistrader.cli.backfill_instrument_metadata [SYMBOL ...]
@@ -10,6 +10,10 @@ Then stores every ticker's (or the given symbols') split events, which
 Portfolios apply automatically; sync only records the splits in the bars it
 fetches, so history loaded before splits were recorded needs this pass.
 Events are upserted, so it is safe to rerun.
+
+The login sync does the same once per ticker it covers
+(`market_data_service.repair_ticker_history`); this covers every ticker at
+once, e.g. ones no user syncs.
 
 Uses the configured DATABASE_URL.
 """

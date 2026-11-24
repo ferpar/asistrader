@@ -28,6 +28,20 @@ from asistrader.models.db import (
 from asistrader.services import auto_sync_service
 
 
+@pytest.fixture(autouse=True)
+def no_history_repair(request: pytest.FixtureRequest):
+    """Stub the once-per-ticker history repair (it calls Yahoo) so these tests
+    see only the gap-filling stages. Tests marked `history_repair` run it."""
+    if request.node.get_closest_marker("history_repair"):
+        yield
+        return
+    with patch(
+        "asistrader.services.market_data_service.repair_ticker_history",
+        return_value={"repaired": [], "errors": {}},
+    ):
+        yield
+
+
 def _ohlc_frame(d: date) -> pd.DataFrame:
     return pd.DataFrame(
         {
@@ -367,3 +381,95 @@ class TestEnsureUserDataFreshForBaskets:
 
         assert set(result["basket_members"]["errors"]) == {"CUR", "MINE"}
         assert mock_bench_fetch.called
+
+
+@pytest.mark.history_repair
+class TestEnsureUserDataFreshRepairsHistory:
+    @patch("asistrader.services.market_data_service.repair_ticker_history")
+    @patch("asistrader.services.market_data_service.fetch_from_yfinance")
+    @patch("asistrader.services.benchmark_service.fetch_from_yfinance")
+    @patch("asistrader.services.fx_service.fetch_from_yfinance")
+    def test_repairs_the_users_tickers_and_visible_basket_members(
+        self,
+        mock_fx_fetch: MagicMock,
+        mock_bench_fetch: MagicMock,
+        mock_md_fetch: MagicMock,
+        mock_repair: MagicMock,
+        db_session: Session,
+        user_with_eur_trade: User,
+        baskets_of_three_owners: User,
+    ) -> None:
+        mock_md_fetch.return_value = _ohlc_frame(date.today())
+        mock_repair.return_value = {"repaired": ["CUR", "MINE", "MTS.MC"], "errors": {}}
+
+        result = auto_sync_service.ensure_user_data_fresh(db_session, user_with_eur_trade.id)
+
+        mock_repair.assert_called_once_with(db_session, ["CUR", "MINE", "MTS.MC"])
+        assert result["history"] == {"repaired": ["CUR", "MINE", "MTS.MC"], "errors": {}}
+
+    @patch("asistrader.services.market_data_service.fetch_splits_from_yfinance")
+    @patch("asistrader.services.ticker_service.yf.Ticker")
+    @patch("asistrader.services.market_data_service.fetch_from_yfinance")
+    @patch("asistrader.services.benchmark_service.fetch_from_yfinance")
+    @patch("asistrader.services.fx_service.fetch_from_yfinance")
+    def test_a_legacy_ticker_gets_its_history_repaired_once(
+        self,
+        mock_fx_fetch: MagicMock,
+        mock_bench_fetch: MagicMock,
+        mock_md_fetch: MagicMock,
+        mock_yf_ticker: MagicMock,
+        mock_splits: MagicMock,
+        db_session: Session,
+        user_with_eur_trade: User,
+    ) -> None:
+        from asistrader.models.db import MarketData
+
+        # Yahoo answers with a bar, adjusted close included, at the start asked for.
+        mock_md_fetch.side_effect = lambda symbol, start, end: _ohlc_frame(start).assign(
+            **{"Adj Close": [0.9]}
+        )
+        mock_yf_ticker.return_value.info = {"quoteType": "EQUITY", "market": "es_market"}
+        mock_splits.return_value = pd.Series([], dtype=float)
+        # A bar stored before adjusted closes were recorded.
+        db_session.add(
+            MarketData(ticker="MTS.MC", date=date(2025, 1, 2), open=1.0, high=1.0,
+                       low=1.0, close=1.0, volume=0)
+        )
+        db_session.commit()
+
+        result = auto_sync_service.ensure_user_data_fresh(db_session, user_with_eur_trade.id)
+
+        assert result["history"] == {"repaired": ["MTS.MC"], "errors": {}}
+        ticker = db_session.get(Ticker, "MTS.MC")
+        assert (ticker.instrument_type, ticker.listing_country) == ("stock", "ES")
+        assert ticker.history_repaired_at is not None
+        assert db_session.query(MarketData).filter(
+            MarketData.ticker == "MTS.MC", MarketData.adj_close.is_(None)
+        ).count() == 0
+
+        mock_splits.reset_mock()
+        again = auto_sync_service.ensure_user_data_fresh(db_session, user_with_eur_trade.id)
+
+        assert again["history"] == {"repaired": [], "errors": {}}
+        assert not mock_splits.called
+
+    @patch("asistrader.services.market_data_service.repair_ticker_history")
+    @patch("asistrader.services.market_data_service.fetch_from_yfinance")
+    @patch("asistrader.services.benchmark_service.fetch_from_yfinance")
+    @patch("asistrader.services.fx_service.fetch_from_yfinance")
+    def test_a_repair_failure_does_not_fail_the_sync(
+        self,
+        mock_fx_fetch: MagicMock,
+        mock_bench_fetch: MagicMock,
+        mock_md_fetch: MagicMock,
+        mock_repair: MagicMock,
+        db_session: Session,
+        user_with_eur_trade: User,
+    ) -> None:
+        mock_md_fetch.return_value = _ohlc_frame(date.today())
+        mock_repair.side_effect = Exception("database hiccup")
+
+        result = auto_sync_service.ensure_user_data_fresh(db_session, user_with_eur_trade.id)
+
+        assert result["errors"] == {"history": "database hiccup"}
+        assert result["tickers"] is not None

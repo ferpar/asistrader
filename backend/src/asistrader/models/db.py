@@ -240,6 +240,11 @@ class Ticker(Base):
     # Global (tickers are shared): an `AssetClass` value except UNCLASSIFIED
     # that wins over detection when set.
     asset_class_override = Column(String(32), nullable=True)
+    # When the login sync last completed this ticker's history repair: its
+    # adjusted closes, instrument metadata and split events loaded from Yahoo
+    # (tickers stored before those were recorded lack them). NULL = not yet,
+    # or the last attempt failed; the next sync tries again.
+    history_repaired_at = Column(DateTime, nullable=True)
 
     trades = relationship("Trade", back_populates="ticker_rel")
     strategy_rel = relationship("Strategy", back_populates="tickers")
