@@ -40,11 +40,10 @@ export function mapTransaction(dto: PortfolioTransactionDTO): PortfolioTransacti
     kind: dto.kind,
     date: parseDateOnly(dto.date),
     ticker: dto.ticker,
-    units: decimalOrNull(dto.units),
-    price: decimalOrNull(dto.price),
+    units: Decimal.from(dto.units),
+    price: Decimal.from(dto.price),
     fees: Decimal.from(dto.fees),
     fxRate: decimalOrNull(dto.fx_rate),
-    splitRatio: decimalOrNull(dto.split_ratio ?? null),
   }
 }
 
@@ -52,6 +51,7 @@ function mapImportRow(dto: PortfolioImportRowResultDTO): ImportRowResult {
   if (dto.status === 'created' && dto.transaction) {
     return { row: dto.row, status: 'created', transaction: mapTransaction(dto.transaction) }
   }
+  if (dto.status === 'valid') return { row: dto.row, status: 'valid' }
   return { row: dto.row, status: 'error', error: dto.error ?? 'Not imported' }
 }
 

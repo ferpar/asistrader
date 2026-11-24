@@ -165,7 +165,8 @@ def bootstrap_sync(
     db: Session = Depends(get_db),
 ) -> BootstrapSyncResponse:
     """
-    Best-effort refresh of the user's FX rates, ticker and benchmark market data.
+    Best-effort refresh of the user's FX rates, ticker, Basket member and
+    benchmark market data.
 
     Split out of /me so session restore never waits on yfinance. Slow by nature
     (external HTTP, gap-dependent) and safe to call on every session start —

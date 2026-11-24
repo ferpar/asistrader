@@ -7,6 +7,7 @@ import {
   type TradeScope,
   type StructureCategory,
   type TrendSignFilter,
+  type MomentumFilter,
   type RsiZoneFilter,
   type DivergenceFilter,
   type ActivityFilter,
@@ -63,6 +64,12 @@ const TREND_OPTIONS: readonly { value: TrendSignFilter; label: string }[] = [
   { value: 'any', label: 'Any' },
   { value: 'up', label: 'Up' },
   { value: 'down', label: 'Down' },
+]
+
+const MOMENTUM_OPTIONS: readonly { value: MomentumFilter; label: string }[] = [
+  { value: 'any', label: 'Any' },
+  { value: 'positive', label: 'Positive' },
+  { value: 'negative', label: 'Negative' },
 ]
 
 const RSI_ZONE_OPTIONS: readonly { value: RsiZoneFilter; label: string }[] = [
@@ -159,6 +166,12 @@ export function RadarFilterBar({ value, onChange, onReset }: RadarFilterBarProps
           options={TREND_OPTIONS}
           value={value.ticker.trendSign}
           onChange={(trendSign) => patchTicker({ trendSign })}
+        />
+        <PillGroup
+          label="Momentum Score"
+          options={MOMENTUM_OPTIONS}
+          value={value.ticker.momentum}
+          onChange={(momentum) => patchTicker({ momentum })}
         />
         <PillGroup
           label="RSI"

@@ -1,13 +1,15 @@
-"""One-off backfill of instrument type and listing country for existing tickers.
+"""One-off backfill of instrument metadata for existing tickers.
 
 Usage:
     python -m asistrader.cli.backfill_instrument_metadata [SYMBOL ...]
 
 For every ticker (or only the given symbols) missing its instrument type or
 listing country, looks the ticker up on Yahoo and fills what is missing; those
-two fields decide a Holding's Asset Class. Complete tickers are skipped, so it
-is safe to rerun. The same backfill is available as
-POST /api/tickers/backfill-instrument-metadata.
+two fields decide a Holding's Asset Class. Complete tickers are skipped.
+Then stores every ticker's (or the given symbols') split events, which
+Portfolios apply automatically; sync only records the splits in the bars it
+fetches, so history loaded before splits were recorded needs this pass.
+Events are upserted, so it is safe to rerun.
 
 Uses the configured DATABASE_URL.
 """
@@ -20,13 +22,14 @@ import sys
 from sqlalchemy.orm import Session
 
 from asistrader.db.database import SessionLocal
+from asistrader.services.market_data_service import backfill_splits
 from asistrader.services.ticker_service import backfill_instrument_metadata
 
 
 def main(argv: list[str] | None = None, session: Session | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="asistrader.cli.backfill_instrument_metadata",
-        description="Fill instrument type and listing country on existing tickers.",
+        description="Fill instrument type, listing country and split events on existing tickers.",
     )
     parser.add_argument("symbols", nargs="*", help="Limit to these symbols (default: all).")
     args = parser.parse_args(argv)
@@ -36,6 +39,7 @@ def main(argv: list[str] | None = None, session: Session | None = None) -> int:
         session = SessionLocal()
     try:
         result = backfill_instrument_metadata(session, args.symbols or None)
+        splits = backfill_splits(session, args.symbols or None)
     finally:
         if owns_session:
             session.close()
@@ -45,7 +49,13 @@ def main(argv: list[str] | None = None, session: Session | None = None) -> int:
     for symbol, message in result["errors"].items():
         print(f"{symbol}: error: {message}", file=sys.stderr)
     print(f"total: {len(result['results'])} tickers, {len(result['errors'])} errors")
-    return 1 if result["errors"] else 0
+    for symbol, count in splits["results"].items():
+        if count:
+            print(f"{symbol}: {count} split{'s' if count != 1 else ''}")
+    for symbol, message in splits["errors"].items():
+        print(f"{symbol}: splits error: {message}", file=sys.stderr)
+    print(f"splits: {sum(splits['results'].values())} events, {len(splits['errors'])} errors")
+    return 1 if result["errors"] or splits["errors"] else 0
 
 
 if __name__ == "__main__":

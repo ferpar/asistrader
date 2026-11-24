@@ -2,7 +2,8 @@ import { observable } from '@legendapp/state'
 import type { IRadarRepository } from './IRadarRepository'
 import type { IPriceProvider } from '../trade/ITradeRepository'
 import type { TickerIndicators } from './types'
-import { buildTickerIndicators, startDate, SYNC_THROTTLE_MS } from './indicatorBuild'
+import { buildTickerIndicators } from './indicatorBuild'
+import { startDate, SYNC_THROTTLE_MS } from '../shared/marketDataWindow'
 
 /** The screened/observed universe: watchlist ∪ non-canceled traded tickers. */
 export function computeUniverse(

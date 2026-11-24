@@ -18,7 +18,12 @@ from asistrader.models.db import (
     PortfolioTransaction,
     Trade,
 )
-from asistrader.services import benchmark_service, fx_service, market_data_service
+from asistrader.services import (
+    basket_service,
+    benchmark_service,
+    fx_service,
+    market_data_service,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -79,17 +84,36 @@ def _user_oldest_date(db: Session, user_id: int) -> date:
     return date.today() - timedelta(days=DEFAULT_LOOKBACK_DAYS)
 
 
+def _visible_basket_members(db: Session, user_id: int) -> list[str]:
+    """Members of every Basket the user can see (Curated + their Personal)."""
+    return sorted(
+        {m.ticker for b in basket_service.get_visible_baskets(db, user_id) for m in b.members}
+    )
+
+
 def ensure_user_data_fresh(db: Session, user_id: int) -> dict:
-    """Best-effort sync of FX rates, ticker market data, and benchmark market data.
+    """Best-effort sync of FX rates, ticker market data, Basket members and
+    benchmark market data.
 
     Each stage is wrapped individually so a single failure (e.g. yfinance
     flake) doesn't poison the others. Returns a summary keyed by stage:
-        {"fx": {...}, "tickers": {...}, "benchmarks": {...}, "errors": {...}}
+        {"fx": {...}, "tickers": {...}, "basket_members": {...},
+         "benchmarks": {...}, "errors": {...}}
+
+    Basket members are synced over the radar window
+    (`basket_service.MEMBER_HISTORY_DAYS`), so the Basket ranking and its
+    Momentum Scores are current.
 
     Idempotent: gap detection inside each downstream function short-circuits
     when the data is already current — at most a few DB bounds queries.
     """
-    summary: dict = {"fx": None, "tickers": None, "benchmarks": None, "errors": {}}
+    summary: dict = {
+        "fx": None,
+        "tickers": None,
+        "basket_members": None,
+        "benchmarks": None,
+        "errors": {},
+    }
     since_date = _user_oldest_date(db, user_id)
 
     try:
@@ -105,6 +129,15 @@ def ensure_user_data_fresh(db: Session, user_id: int) -> dict:
     except Exception as e:
         logger.warning("Auto-sync: tickers failed for user %s: %s", user_id, e)
         summary["errors"]["tickers"] = str(e)
+
+    try:
+        members = _visible_basket_members(db, user_id)
+        if members:
+            radar_start = date.today() - timedelta(days=basket_service.MEMBER_HISTORY_DAYS)
+            summary["basket_members"] = market_data_service.sync_all(db, radar_start, members)
+    except Exception as e:
+        logger.warning("Auto-sync: Basket members failed for user %s: %s", user_id, e)
+        summary["errors"]["basket_members"] = str(e)
 
     try:
         summary["benchmarks"] = benchmark_service.sync_all(db, since_date)

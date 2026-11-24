@@ -1,20 +1,21 @@
 """CSV import of Transactions into a Portfolio.
 
-Each data row is imported on its own, through `portfolio_service.create_transaction`
-— the same path, and so the same validation, as a manual Transaction. Valid
-rows are recorded and failing rows are reported with a reason; a failing row
-never prevents the others from being imported. Only a file that can't be read
-as a whole (no header, missing columns, no rows) is rejected outright.
+Every row is parsed first; then all parsed rows go to
+`portfolio_service.create_transactions`, which validates them together with
+the existing Transactions (the same rules as a manual Transaction) by
+replaying them in date order, file order within a date. So a Sell may be
+listed before its Buy as long as it is dated later. The import is
+all-or-nothing: if any row fails to parse or validate, nothing is created
+and every failing row is reported with a reason; the other rows are reported
+as valid. A file that can't be read as a whole (no header, missing columns,
+no rows) is rejected outright.
 
 Format: a header row naming the columns `date, ticker, units, price, fees`
 and optionally `fx_rate` and `kind` (case-insensitive, any order). Separator
 `,` or `;` (detected from the header), so a Spanish-locale spreadsheet export
 works as-is: dates `YYYY-MM-DD` or `DD/MM/YYYY`, decimal point or decimal
 comma, no thousands separators. `kind` is `buy` (the default when the
-column or cell is empty) or `sell`; anything else fails its row. Rows are
-recorded in file order and each is validated against the full Transaction
-list so far, so a Sell exceeding the units held fails its row, and a Sell
-must come after (in the file) the Buys it sells from.
+column or cell is empty) or `sell`; anything else fails its row.
 """
 
 import csv
@@ -29,8 +30,7 @@ from sqlalchemy.orm import Session
 from asistrader.models.db import PortfolioTransaction, TransactionKind
 from asistrader.models.schemas import PortfolioTransactionCreateRequest
 from asistrader.services import portfolio_service
-from asistrader.services.portfolio_computation_service import PortfolioReplayError
-from asistrader.services.ticker_service import TickerValidationError
+from asistrader.services.portfolio_service import TransactionBatchError, TransactionFields
 
 REQUIRED_COLUMNS = ("date", "ticker", "units", "price", "fees")
 DATE_FORMATS = ("%Y-%m-%d", "%d/%m/%Y")
@@ -96,8 +96,6 @@ def _parse_row(record: dict[str | None, str | None]) -> PortfolioTransactionCrea
         )
     except ValidationError as e:
         raise RowError("; ".join(f"{err['loc'][0]}: {err['msg']}" for err in e.errors()))
-    if request.date > date.today():
-        raise RowError("A Transaction can't be in the future")
     return request
 
 
@@ -111,7 +109,11 @@ def _reader(text: str) -> csv.DictReader:
 def import_csv(
     db: Session, user_id: int, portfolio_id: int, text: str
 ) -> list[ImportRowResult]:
-    """Import each data row of `text` as a Buy or Sell, in file order.
+    """Import every data row of `text` as a Buy or Sell, or none of them.
+
+    Returns one result per row, in file order: all "created", or, when any
+    row fails, "error" (with its reason) or "valid" for each row and nothing
+    created.
 
     Raises:
         PortfolioNotFoundError: the Portfolio isn't the user's.
@@ -130,24 +132,48 @@ def import_csv(
     if not records:
         raise ImportFileError("The file has no data rows")
 
-    results = []
+    errors: dict[int, str] = {}
+    parsed: list[tuple[int, TransactionFields]] = []
     for line, record in records:
         try:
             request = _parse_row(record)
-            transaction = portfolio_service.create_transaction(
-                db,
-                user_id,
-                portfolio_id,
-                kind=TransactionKind(request.kind),
-                on_date=request.date,
-                ticker=request.ticker,
-                units=request.units,
-                price=request.price,
-                fees=request.fees,
-                fx_rate=request.fx_rate,
+        except RowError as e:
+            errors[line] = str(e)
+            continue
+        parsed.append(
+            (
+                line,
+                TransactionFields(
+                    kind=TransactionKind(request.kind),
+                    on_date=request.date,
+                    ticker=request.ticker,
+                    units=request.units,
+                    price=request.price,
+                    fees=request.fees,
+                    fx_rate=request.fx_rate,
+                ),
             )
-        except (RowError, TickerValidationError, PortfolioReplayError) as e:
-            results.append(ImportRowResult(line, "error", error=str(e)))
+        )
+
+    # With a row that didn't even parse, the rest is still validated (so every
+    # failing row is reported) but not recorded.
+    created: dict[int, PortfolioTransaction] = {}
+    try:
+        transactions = portfolio_service.create_transactions(
+            db, user_id, portfolio_id, [fields for _, fields in parsed], record=not errors
+        )
+    except TransactionBatchError as e:
+        errors.update({parsed[i][0]: reason for i, reason in e.errors.items()})
+    else:
+        if not errors:
+            created = {line: tx for (line, _), tx in zip(parsed, transactions)}
+
+    results = []
+    for line, _ in records:
+        if line in errors:
+            results.append(ImportRowResult(line, "error", error=errors[line]))
+        elif line in created:
+            results.append(ImportRowResult(line, "created", created[line]))
         else:
-            results.append(ImportRowResult(line, "created", transaction))
+            results.append(ImportRowResult(line, "valid"))
     return results

@@ -1,7 +1,9 @@
 /** Money / percentage / IRR formatting shared by IRR/portfolio views. */
 
+import { isPence } from '../../utils/priceFormat'
+
 export function fmtMoney(value: number, ccy: string): string {
-  if (ccy === 'GBp' || ccy === 'GBX') return `${value.toFixed(0)} GBp`
+  if (isPence(ccy)) return `${value.toFixed(0)} GBp`
   return value.toLocaleString('en-US', {
     style: 'currency',
     currency: ccy || 'USD',
@@ -10,9 +12,11 @@ export function fmtMoney(value: number, ccy: string): string {
   })
 }
 
-export function fmtPct(value: number): string {
-  return `${(value * 100).toFixed(2)}%`
+export function fmtPct(value: number, digits = 2): string {
+  return `${(value * 100).toFixed(digits)}%`
 }
+
+export const fmtPct1 = (value: number) => fmtPct(value, 1)
 
 /** XIRR on sub-month trades genuinely explodes — clamp the display. */
 export function fmtXirr(value: number | null): string {

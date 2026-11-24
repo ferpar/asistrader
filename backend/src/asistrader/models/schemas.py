@@ -5,7 +5,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, EmailStr, Field, StringConstraints, model_validator
+from pydantic import BaseModel, EmailStr, Field, StringConstraints
 
 
 class TradeStatus(str, Enum):
@@ -387,25 +387,6 @@ class TickerAssetClassRequest(BaseModel):
     asset_class: Literal["domestic_stock", "international_stock", "etf"]
 
 
-class BackfillInstrumentMetadataRequest(BaseModel):
-    """Request schema for the instrument-metadata backfill. No symbols = every
-    ticker missing instrument type or listing country."""
-
-    symbols: list[str] | None = None
-
-
-class InstrumentMetadataSchema(BaseModel):
-    instrument_type: str | None
-    listing_country: str | None
-
-
-class BackfillInstrumentMetadataResponse(BaseModel):
-    """Metadata per backfilled symbol, plus per-symbol lookup errors."""
-
-    results: dict[str, InstrumentMetadataSchema]
-    errors: dict[str, str]
-
-
 class TickerResponse(BaseModel):
     """Response schema for a single-ticker update."""
 
@@ -714,20 +695,6 @@ class SyncRequest(BaseModel):
     start_date: date
     symbols: list[str] | None = None  # None = all tickers
     force_refresh: bool = False  # If True, wipe existing rows and re-fetch.
-
-
-class BackfillAdjustedClosesRequest(BaseModel):
-    """Request schema for the adjusted-close backfill. No symbols = every ticker."""
-
-    symbols: list[str] | None = None
-
-
-class BackfillAdjustedClosesResponse(BaseModel):
-    """Rows upserted per symbol, plus per-symbol fetch errors."""
-
-    results: dict[str, int]
-    total_rows: int
-    errors: dict[str, str]
 
 
 class SyncResponse(BaseModel):
@@ -1293,62 +1260,38 @@ class PortfolioResponse(BaseModel):
 
 
 class PortfolioTransactionSchema(BaseModel):
-    """A dated Buy/Sell/Split in a Portfolio. Price and fees are in the
-    instrument's currency; `fx_rate` converts it into the Portfolio's. A
-    Split has only `split_ratio` (no units, price or FX rate)."""
+    """A dated Buy or Sell in a Portfolio, with the units and price the user
+    entered. Price and fees are in the instrument's currency; `fx_rate`
+    converts it into the Portfolio's."""
 
     id: int
     kind: str
     date: date
     ticker: str
-    units: float | None
-    price: float | None
+    units: float
+    price: float
     fees: float
     fx_rate: float | None
-    split_ratio: float | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
 
 
 class PortfolioTransactionCreateRequest(BaseModel):
-    """Record (or, on update, replace) a Buy, Sell or Split.
+    """Record (or, on update, replace) a Buy or Sell.
 
-    A Buy or Sell needs `units` (fractional allowed) and `price`; `fx_rate` is
-    optional and overrides the stored rate for the date (instrument →
-    Portfolio currency). A Split needs only `split_ratio` (new units per old
-    unit, e.g. 2 for a 2-for-1 split, 0.1 for a 1-for-10 reverse split) and
-    takes no units, price, fees or FX rate.
+    `units` (fractional allowed) and `price` are as the broker reports them on
+    that date; splits are applied automatically. `fx_rate` is optional and
+    overrides the stored rate for the date (instrument → Portfolio currency).
     """
 
-    kind: Literal["buy", "sell", "split"]
+    kind: Literal["buy", "sell"]
     date: date
     ticker: str = Field(min_length=1)
-    units: Decimal | None = Field(default=None, gt=0)
-    price: Decimal | None = Field(default=None, gt=0)
+    units: Decimal = Field(gt=0)
+    price: Decimal = Field(gt=0)
     fees: Decimal = Field(default=Decimal(0), ge=0)
     fx_rate: Decimal | None = Field(default=None, gt=0)
-    split_ratio: Decimal | None = Field(default=None, gt=0)
-
-    @model_validator(mode="after")
-    def _fields_match_kind(self) -> "PortfolioTransactionCreateRequest":
-        if self.kind == "split":
-            if self.split_ratio is None:
-                raise ValueError("A Split needs a split_ratio")
-            given = [
-                name
-                for name in ("units", "price", "fx_rate")
-                if getattr(self, name) is not None
-            ] + (["fees"] if self.fees else [])
-            if given:
-                raise ValueError(f"A Split takes no {', '.join(given)}")
-        else:
-            missing = [n for n in ("units", "price") if getattr(self, n) is None]
-            if missing:
-                raise ValueError(f"A {self.kind.capitalize()} needs {' and '.join(missing)}")
-            if self.split_ratio is not None:
-                raise ValueError("Only a Split takes a split_ratio")
-        return self
 
 
 class PortfolioTransactionListResponse(BaseModel):
@@ -1472,10 +1415,12 @@ class PortfolioImportRequest(BaseModel):
 
 class PortfolioImportRowResult(BaseModel):
     """What happened to one data row. `row` is its line number in the file,
-    the header being line 1."""
+    the header being line 1. The import is all-or-nothing: either every row
+    is "created", or nothing is and each row is "error" (with its reason) or
+    "valid" (it would have been recorded)."""
 
     row: int
-    status: Literal["created", "error"]
+    status: Literal["created", "error", "valid"]
     transaction: PortfolioTransactionSchema | None = None
     error: str | None = None
 

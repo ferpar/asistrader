@@ -13,10 +13,16 @@ Transaction's date. A Sell consumes the oldest Lots first (FIFO) and is
 rejected if it exceeds the units held at that point of the replay; its
 proceeds net of fees, converted the same way, minus the consumed Lots' cost
 accumulate into Realized Gain. Both are recorded as dated cash flows for XIRR.
-A Split multiplies the units of every open Lot of its ticker by its ratio,
-leaving their cost unchanged, and is rejected when no units are held at that
-point. Portfolio Value uses each instrument's latest raw close
-(never the adjusted close — ADR 0002) converted at that close's date.
+
+Splits are applied automatically. Stored closes are split-adjusted (but not
+dividend-adjusted, ADR 0002), so Lot units are expressed in that same
+split-adjusted basis: a Buy's or Sell's entered units are multiplied by the
+product of the ratios of the ticker's split events dated after the
+Transaction (its price divided by it), while the Transaction itself keeps
+what the user entered. Cost and proceeds are money, so a split never changes
+them: Portfolio Value is continuous across a split and the Performance Index
+doesn't see it. Portfolio Value uses each instrument's latest stored close
+(never the adjusted close) converted at the valuation day's FX rate.
 
 Each Holding has an Asset Class: its ticker's override if set; else ETF when
 the instrument type is ETF; else Domestic Stock when the listing country is
@@ -41,14 +47,21 @@ from asistrader.models.db import (
     Portfolio,
     PortfolioTransaction,
     Ticker,
+    TickerSplit,
     TransactionKind,
 )
 from asistrader.services import fund_service, fx_service
+from asistrader.services.daily_series import CarriedSeries
 from asistrader.services.irr_service import _simple_tir, _xirr
 
 
 class PortfolioReplayError(Exception):
-    """A Transaction list that can't be replayed into a valid Portfolio state."""
+    """A Transaction list that can't be replayed into a valid Portfolio state.
+
+    `transaction`, once raised by `replay`, is the Transaction that failed.
+    """
+
+    transaction: PortfolioTransaction | None = None
 
 
 class PortfolioFxUnavailableError(PortfolioReplayError):
@@ -63,16 +76,13 @@ class OversellError(PortfolioReplayError):
     """A Sell exceeds the units held at that point of the replay (long-only)."""
 
 
-class NothingHeldError(PortfolioReplayError):
-    """A Split of a ticker with no units held at that point of the replay."""
-
-
 @dataclass
 class Lot:
     """Units bought in one Buy, with their date and cost in Portfolio currency.
 
-    A Sell that consumes part of a Lot shrinks its units and cost pro rata;
-    the Lot keeps its original date.
+    `units` is in the split-adjusted basis of the stored closes. A Sell that
+    consumes part of a Lot shrinks its units and cost pro rata; the Lot keeps
+    its original date.
     """
 
     ticker: str
@@ -91,6 +101,8 @@ class Ledger:
     realized_gain: float = 0.0
     lots: dict[str, list[Lot]] = field(default_factory=lambda: defaultdict(list))
     instrument_currency: dict[str, str] = field(default_factory=dict)
+    # Latest Transaction price per ticker, split-adjusted like the Lots: the
+    # valuation fallback before an instrument's first stored close.
     last_price: dict[str, tuple[date, float]] = field(default_factory=dict)
     cash_flows: list[tuple[date, float]] = field(default_factory=list)
 
@@ -155,6 +167,8 @@ class SummaryFigures:
 def _to_portfolio_currency(
     db: Session, amount: float, from_ccy: str, to_ccy: str, on_date: date
 ) -> float:
+    """Convert a Transaction's amount at the stored rate for its date (within
+    fx_service's fallback window)."""
     try:
         return fx_service.convert(db, amount, from_ccy, to_ccy, on_date)
     except fx_service.FxRateUnavailable as e:
@@ -179,16 +193,20 @@ def _transaction_amount(
     )
 
 
-def _consume_fifo(lots: list[Lot], units: Decimal, tx: PortfolioTransaction) -> float:
-    """Remove `units` from the oldest Lots first; return the cost consumed.
+def _consume_fifo(
+    lots: list[Lot], units: Decimal, factor: Decimal, tx: PortfolioTransaction
+) -> float:
+    """Remove `units` (split-adjusted) from the oldest Lots first; return the
+    cost consumed. `factor` converts the Sell's entered units into that basis.
 
     Raises `OversellError` (leaving `lots` untouched) when fewer units are held.
     """
     held = sum((lot.units for lot in lots), Decimal(0))
     if units > held:
+        held_then = held / factor
         raise OversellError(
-            f"Sell of {units.normalize():f} {tx.ticker} on {tx.date.isoformat()} "
-            f"exceeds the {held.normalize():f} units held then"
+            f"Sell of {Decimal(tx.units).normalize():f} {tx.ticker} on "
+            f"{tx.date.isoformat()} exceeds the {held_then.normalize():f} units held then"
         )
     consumed = 0.0
     remaining = units
@@ -207,19 +225,59 @@ def _consume_fifo(lots: list[Lot], units: Decimal, tx: PortfolioTransaction) -> 
     return consumed
 
 
-def _apply_split(ledger: Ledger, tx: PortfolioTransaction) -> None:
-    """Multiply the units of every open Lot of the ticker by the ratio; cost
-    is unchanged. Raises `NothingHeldError` when no units are held then."""
-    lots = ledger.lots[tx.ticker]
-    if not lots:
-        raise NothingHeldError(
-            f"No units of {tx.ticker} are held on {tx.date.isoformat()} to split"
+class _SplitFactors:
+    """Per ticker, the factor that turns units entered on a date into the
+    split-adjusted basis of the stored closes: the product of the ratios of
+    the split events dated after it."""
+
+    def __init__(self, db: Session, symbols: set[str]) -> None:
+        self._splits: dict[str, list[tuple[date, Decimal]]] = defaultdict(list)
+        rows = (
+            db.query(TickerSplit.ticker, TickerSplit.date, TickerSplit.ratio)
+            .filter(TickerSplit.ticker.in_(symbols))
+            .all()
         )
-    ratio = Decimal(tx.split_ratio)
-    for lot in lots:
-        lot.units *= ratio
-    price_date, price = ledger.last_price[tx.ticker]
-    ledger.last_price[tx.ticker] = (price_date, price / float(ratio))
+        for symbol, day, ratio in rows:
+            self._splits[symbol].append((day, Decimal(ratio)))
+
+    def at(self, symbol: str, on_date: date) -> Decimal:
+        factor = Decimal(1)
+        for day, ratio in self._splits.get(symbol, ()):
+            if day > on_date:
+                factor *= ratio
+        return factor
+
+
+def _apply(
+    db: Session,
+    ledger: Ledger,
+    tx: PortfolioTransaction,
+    ccy: str | None,
+    factors: _SplitFactors,
+) -> None:
+    """Apply one Buy or Sell to the Ledger, in the split-adjusted basis."""
+    if ccy is None:
+        raise InstrumentCurrencyUnknownError(f"The currency of {tx.ticker} is unknown")
+    ledger.instrument_currency[tx.ticker] = ccy
+
+    factor = factors.at(tx.ticker, tx.date)
+    units = Decimal(tx.units) * factor
+    if tx.kind == TransactionKind.BUY.value:
+        native_cost = float(Decimal(tx.units) * Decimal(tx.price) + Decimal(tx.fees or 0))
+        cost = _transaction_amount(db, tx, native_cost, ccy, ledger.currency)
+        ledger.lots[tx.ticker].append(
+            Lot(ticker=tx.ticker, date=tx.date, units=units, cost=cost)
+        )
+        ledger.cash_flows.append((tx.date, -cost))
+    elif tx.kind == TransactionKind.SELL.value:
+        consumed_cost = _consume_fifo(ledger.lots[tx.ticker], units, factor, tx)
+        native_proceeds = float(Decimal(tx.units) * Decimal(tx.price) - Decimal(tx.fees or 0))
+        proceeds = _transaction_amount(db, tx, native_proceeds, ccy, ledger.currency)
+        ledger.realized_gain += proceeds - consumed_cost
+        ledger.cash_flows.append((tx.date, proceeds))
+    else:
+        raise PortfolioReplayError(f"Unsupported Transaction kind: {tx.kind}")
+    ledger.last_price[tx.ticker] = (tx.date, float(Decimal(tx.price) / factor))
 
 
 def transactions_of(db: Session, portfolio_id: int) -> list[PortfolioTransaction]:
@@ -252,42 +310,18 @@ def replay(
         db.query(Ticker.symbol, Ticker.currency).filter(Ticker.symbol.in_(symbols)).all()
     )
 
+    factors = _SplitFactors(db, symbols)
     ledger = Ledger(currency=portfolio.currency)
     replayed_date: date | None = None
     for tx in transactions:
         if on_new_date is not None and tx.date != replayed_date:
             on_new_date(tx.date, ledger)
             replayed_date = tx.date
-        ccy = currencies.get(tx.ticker)
-        if ccy is None:
-            raise InstrumentCurrencyUnknownError(
-                f"The currency of {tx.ticker} is unknown"
-            )
-        ledger.instrument_currency[tx.ticker] = ccy
-
-        if tx.kind == TransactionKind.BUY.value:
-            units = Decimal(tx.units)
-            native_cost = float(units * Decimal(tx.price) + Decimal(tx.fees or 0))
-            cost = _transaction_amount(db, tx, native_cost, ccy, portfolio.currency)
-            ledger.lots[tx.ticker].append(
-                Lot(ticker=tx.ticker, date=tx.date, units=units, cost=cost)
-            )
-            ledger.cash_flows.append((tx.date, -cost))
-            ledger.last_price[tx.ticker] = (tx.date, float(tx.price))
-        elif tx.kind == TransactionKind.SELL.value:
-            units = Decimal(tx.units)
-            consumed_cost = _consume_fifo(ledger.lots[tx.ticker], units, tx)
-            native_proceeds = float(units * Decimal(tx.price) - Decimal(tx.fees or 0))
-            proceeds = _transaction_amount(
-                db, tx, native_proceeds, ccy, portfolio.currency
-            )
-            ledger.realized_gain += proceeds - consumed_cost
-            ledger.cash_flows.append((tx.date, proceeds))
-            ledger.last_price[tx.ticker] = (tx.date, float(tx.price))
-        elif tx.kind == TransactionKind.SPLIT.value:
-            _apply_split(ledger, tx)
-        else:
-            raise PortfolioReplayError(f"Unsupported Transaction kind: {tx.kind}")
+        try:
+            _apply(db, ledger, tx, currencies.get(tx.ticker), factors)
+        except PortfolioReplayError as e:
+            e.transaction = tx
+            raise
 
     return ledger
 
@@ -321,6 +355,76 @@ def portfolio_xirr(
     return _xirr([*flows, (as_of, portfolio_value)])
 
 
+@dataclass(frozen=True)
+class Gain:
+    """Unrealized Gain (absolute and relative to Invested) and Total Gain."""
+
+    unrealized: float
+    unrealized_pct: float | None
+    total: float
+
+
+def gain(value: float, invested: float, realized: float = 0.0) -> Gain:
+    """The one Gain computation: Unrealized = value − invested (relative to
+    invested, None when nothing is invested); Total = Unrealized + realized."""
+    unrealized = value - invested
+    return Gain(
+        unrealized=unrealized,
+        unrealized_pct=unrealized / invested if invested else None,
+        total=unrealized + realized,
+    )
+
+
+class Valuation:
+    """Values a Portfolio's Holdings on non-decreasing days, the same way for
+    the summary and every history row.
+
+    An instrument is priced at its latest stored close on or before the day
+    (so a market holiday carries it forward); before its first stored close,
+    at its latest Transaction price (split-adjusted, from the Ledger). Money
+    is converted into the Portfolio currency at the day's FX rate: the latest
+    stored rate on or before it, however old. Closes and rates are read from
+    the database once per instrument / currency, up to `end`.
+    """
+
+    def __init__(self, db: Session, currency: str, end: date) -> None:
+        self._db = db
+        self._currency = currency
+        self._end = end
+        self._closes: dict[str, CarriedSeries] = {}
+        self._rates = fx_service.RateTable(db, end)
+
+    def _close_series(self, symbol: str) -> CarriedSeries:
+        if symbol not in self._closes:
+            rows = (
+                self._db.query(MarketData.date, MarketData.close)
+                .filter(
+                    MarketData.ticker == symbol,
+                    MarketData.date <= self._end,
+                    MarketData.close.isnot(None),
+                )
+                .order_by(MarketData.date)
+                .all()
+            )
+            self._closes[symbol] = CarriedSeries([(d, c) for d, c in rows])
+        return self._closes[symbol]
+
+    def price(self, ledger: Ledger, symbol: str, day: date) -> tuple[date, float]:
+        """The instrument's (date, price) used on `day`."""
+        series = self._close_series(symbol)
+        close = series.at(day)
+        if close is None:
+            return ledger.last_price[symbol]
+        return series.date, close
+
+    def fx_factor(self, currency: str, day: date) -> float:
+        """Portfolio-currency units per unit of `currency` on `day`."""
+        try:
+            return self._rates.factor(currency, self._currency, day)
+        except fx_service.FxRateUnavailable as e:
+            raise PortfolioFxUnavailableError(str(e)) from e
+
+
 def classify(
     instrument_type: str | None,
     listing_country: str | None,
@@ -352,14 +456,15 @@ def _asset_class_subtotals(
             continue
         invested = sum(h.cost for h in members)
         value = sum(h.value for h in members)
+        g = gain(value, invested)
         subtotals.append(
             AssetClassFigures(
                 asset_class=asset_class.value,
                 count=len(members),
                 invested=invested,
                 portfolio_value=value,
-                unrealized_gain=value - invested,
-                unrealized_gain_pct=(value - invested) / invested if invested else None,
+                unrealized_gain=g.unrealized,
+                unrealized_gain_pct=g.unrealized_pct,
                 weighted_days_open=weighted_days_open(
                     [lot for h in members for lot in ledger.lots[h.ticker]], as_of
                 ),
@@ -370,29 +475,17 @@ def _asset_class_subtotals(
     return subtotals
 
 
-def _latest_close(db: Session, symbol: str, as_of: date) -> tuple[date, float] | None:
-    row = (
-        db.query(MarketData.date, MarketData.close)
-        .filter(
-            MarketData.ticker == symbol,
-            MarketData.date <= as_of,
-            MarketData.close.isnot(None),
-        )
-        .order_by(MarketData.date.desc())
-        .first()
-    )
-    return (row[0], row[1]) if row else None
-
-
 def compute_summary(
     db: Session, portfolio: Portfolio, as_of: date | None = None
 ) -> SummaryFigures:
     """Invested, Portfolio Value, Unrealized / Realized / Total Gain,
-    Weighted Days Open, Simple TIR, XIRR and Holdings as of `as_of`.
+    Weighted Days Open, Simple TIR, XIRR and Holdings as of `as_of` (today
+    by default).
 
-    A Holding is valued at its latest raw close on or before `as_of`; an
-    instrument with no stored close yet is valued at its latest Transaction
-    price, so a fresh Buy still shows up instead of vanishing.
+    Holdings are valued by `Valuation` on `as_of`, exactly like the history
+    rows, so the money figures equal the history's last row. An instrument
+    with no stored close yet is valued at its latest Transaction price, so a
+    fresh Buy still shows up instead of vanishing.
     """
     as_of = as_of or date.today()
     ledger = replay(db, portfolio)
@@ -401,17 +494,16 @@ def compute_summary(
         for t in db.query(Ticker).filter(Ticker.symbol.in_(ledger.open_tickers()))
     }
     home_market = fund_service.get_home_market(db, portfolio.user_id)
+    valuation = Valuation(db, portfolio.currency, as_of)
 
     rows: list[dict] = []
     for symbol in ledger.open_tickers():
         lots = ledger.lots[symbol]
         units = sum((lot.units for lot in lots), Decimal(0))
         cost = sum(lot.cost for lot in lots)
-        price_date, price = _latest_close(db, symbol, as_of) or ledger.last_price[symbol]
+        price_date, price = valuation.price(ledger, symbol, as_of)
         ccy = ledger.instrument_currency[symbol]
-        value = _to_portfolio_currency(
-            db, float(units) * price, ccy, portfolio.currency, price_date
-        )
+        value = float(units) * price * valuation.fx_factor(ccy, as_of)
         rows.append(
             dict(
                 ticker=symbol,
@@ -435,17 +527,18 @@ def compute_summary(
 
     invested = sum(r["cost"] for r in rows)
     portfolio_value = sum(r["value"] for r in rows)
-    holdings = [
-        HoldingFigures(
-            **r,
-            weight=r["value"] / portfolio_value if portfolio_value else None,
-            unrealized_gain=r["value"] - r["cost"],
-            unrealized_gain_pct=(r["value"] - r["cost"]) / r["cost"] if r["cost"] else None,
+    holdings = []
+    for r in rows:
+        g = gain(r["value"], r["cost"])
+        holdings.append(
+            HoldingFigures(
+                **r,
+                weight=r["value"] / portfolio_value if portfolio_value else None,
+                unrealized_gain=g.unrealized,
+                unrealized_gain_pct=g.unrealized_pct,
+            )
         )
-        for r in rows
-    ]
-    unrealized = portfolio_value - invested
-    unrealized_pct = unrealized / invested if invested else None
+    total = gain(portfolio_value, invested, ledger.realized_gain)
     wdo = weighted_days_open(
         [lot for lots in ledger.lots.values() for lot in lots], as_of
     )
@@ -454,13 +547,13 @@ def compute_summary(
         as_of=as_of,
         invested=invested,
         portfolio_value=portfolio_value,
-        unrealized_gain=unrealized,
-        unrealized_gain_pct=unrealized_pct,
+        unrealized_gain=total.unrealized,
+        unrealized_gain_pct=total.unrealized_pct,
         realized_gain=ledger.realized_gain,
-        total_gain=unrealized + ledger.realized_gain,
+        total_gain=total.total,
         holdings=holdings,
         weighted_days_open=wdo,
-        simple_tir=simple_tir(unrealized_pct, wdo),
+        simple_tir=simple_tir(total.unrealized_pct, wdo),
         xirr=portfolio_xirr(ledger.cash_flows, as_of, portfolio_value),
         asset_classes=_asset_class_subtotals(holdings, ledger, as_of, portfolio_value),
     )

@@ -119,11 +119,6 @@ def delete_portfolio(
 # ── Transactions ──
 
 
-def _reject_future(request: PortfolioTransactionCreateRequest) -> None:
-    if request.date > date.today():
-        raise HTTPException(status_code=422, detail="A Transaction can't be in the future")
-
-
 def _transaction_fields(request: PortfolioTransactionCreateRequest) -> dict:
     return dict(
         kind=TransactionKind(request.kind),
@@ -133,7 +128,6 @@ def _transaction_fields(request: PortfolioTransactionCreateRequest) -> dict:
         price=request.price,
         fees=request.fees,
         fx_rate=request.fx_rate,
-        split_ratio=request.split_ratio,
     )
 
 
@@ -162,7 +156,6 @@ def create_transaction(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PortfolioTransactionResponse:
-    _reject_future(request)
     try:
         transaction = portfolio_service.create_transaction(
             db, current_user.id, portfolio_id, **_transaction_fields(request)
@@ -192,7 +185,6 @@ def update_transaction(
 ) -> PortfolioTransactionResponse:
     """Replace a Transaction. Rejected (422) if the edited list no longer
     replays, e.g. a later Sell would exceed the units held."""
-    _reject_future(request)
     try:
         transaction = portfolio_service.update_transaction(
             db,
@@ -222,9 +214,10 @@ def import_transactions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PortfolioImportResponse:
-    """Import Buys and Sells from CSV text. Each row succeeds or fails on its
-    own: valid rows are recorded, failing rows (e.g. a Sell exceeding the
-    units held) are reported with a reason."""
+    """Import Buys and Sells from CSV text, all or nothing. The rows are
+    validated together with the existing Transactions in date order; if any
+    row fails (e.g. a Sell exceeding the units held), nothing is recorded and
+    every failing row is reported with a reason."""
     try:
         results = portfolio_import_service.import_csv(
             db, current_user.id, portfolio_id, request.csv
@@ -247,9 +240,8 @@ def import_transactions(
         for r in results
     ]
     created = sum(1 for r in rows if r.status == "created")
-    return PortfolioImportResponse(
-        results=rows, created=created, failed=len(rows) - created
-    )
+    failed = sum(1 for r in rows if r.status == "error")
+    return PortfolioImportResponse(results=rows, created=created, failed=failed)
 
 
 @router.delete("/{portfolio_id}/transactions/{transaction_id}", status_code=204)

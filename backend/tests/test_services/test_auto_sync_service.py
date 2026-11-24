@@ -3,7 +3,7 @@
 Hooked into /api/auth/me; bundles FX, ticker MD, and benchmark MD sync.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -12,6 +12,8 @@ import pytest
 from sqlalchemy.orm import Session
 
 from asistrader.models.db import (
+    Basket,
+    BasketMember,
     Benchmark,
     Bias,
     FxRate,
@@ -297,3 +299,71 @@ class TestEnsureUserDataFreshForPortfolios:
         fx_calls = {(call[0][0], call[0][1]) for call in mock_fx_fetch.call_args_list}
         assert ("GBPUSD=X", date(2024, 5, 27)) in fx_calls
         assert ("EURUSD=X", date(2024, 5, 27)) in fx_calls
+
+
+@pytest.fixture
+def baskets_of_three_owners(db_session: Session, sample_user: User) -> User:
+    """A Curated Basket, a Personal Basket of the user and one of another user."""
+    other = User(email="other@example.com", hashed_password="x", is_active=True)
+    db_session.add_all(
+        [Ticker(symbol=s, currency="USD", price_hint=2) for s in ("CUR", "MINE", "THEIRS")]
+        + [other]
+    )
+    db_session.commit()
+    db_session.add_all([
+        Basket(kind="curated", name="Curated", slug="curated",
+               members=[BasketMember(ticker="CUR")]),
+        Basket(kind="personal", owner_user_id=sample_user.id, name="Mine",
+               members=[BasketMember(ticker="MINE")]),
+        Basket(kind="personal", owner_user_id=other.id, name="Theirs",
+               members=[BasketMember(ticker="THEIRS")]),
+    ])
+    db_session.commit()
+    return sample_user
+
+
+class TestEnsureUserDataFreshForBaskets:
+    @patch("asistrader.services.market_data_service.fetch_from_yfinance")
+    @patch("asistrader.services.benchmark_service.fetch_from_yfinance")
+    @patch("asistrader.services.fx_service.fetch_from_yfinance")
+    def test_syncs_members_of_visible_baskets_over_the_radar_window(
+        self,
+        mock_fx_fetch: MagicMock,
+        mock_bench_fetch: MagicMock,
+        mock_md_fetch: MagicMock,
+        db_session: Session,
+        baskets_of_three_owners: User,
+    ) -> None:
+        mock_md_fetch.return_value = _ohlc_frame(date.today())
+
+        result = auto_sync_service.ensure_user_data_fresh(
+            db_session, baskets_of_three_owners.id
+        )
+
+        assert result["errors"] == {}
+        calls = {(call[0][0], call[0][1]) for call in mock_md_fetch.call_args_list}
+        radar_start = date.today() - timedelta(days=400)
+        assert calls == {("CUR", radar_start), ("MINE", radar_start)}
+
+    @patch("asistrader.services.market_data_service.fetch_from_yfinance")
+    @patch("asistrader.services.benchmark_service.fetch_from_yfinance")
+    @patch("asistrader.services.fx_service.fetch_from_yfinance")
+    def test_a_basket_sync_failure_does_not_block_the_other_stages(
+        self,
+        mock_fx_fetch: MagicMock,
+        mock_bench_fetch: MagicMock,
+        mock_md_fetch: MagicMock,
+        db_session: Session,
+        baskets_of_three_owners: User,
+    ) -> None:
+        db_session.add(Benchmark(symbol="^STOXX50E"))
+        db_session.commit()
+        mock_md_fetch.side_effect = Exception("yfinance tickers are down")
+        mock_bench_fetch.return_value = _ohlc_frame(date.today())
+
+        result = auto_sync_service.ensure_user_data_fresh(
+            db_session, baskets_of_three_owners.id
+        )
+
+        assert set(result["basket_members"]["errors"]) == {"CUR", "MINE"}
+        assert mock_bench_fetch.called

@@ -205,19 +205,23 @@ def test_bulk_fetch_with_error(mock_fetch: MagicMock, db_session: Session) -> No
     assert "API error" in result["errors"]["ASML"]
 
 
-@patch("asistrader.services.market_data_service.fetch_and_store")
+@patch("asistrader.services.market_data_service.fetch_from_yfinance")
 def test_extend_series_forward(
-    mock_fetch_store: MagicMock, db_session: Session, sample_ticker: Ticker, sample_market_data: list[MarketData]
+    mock_fetch: MagicMock, db_session: Session, sample_ticker: Ticker, sample_market_data: list[MarketData]
 ) -> None:
-    """Test extending series forward."""
-    mock_fetch_store.return_value = 5
+    """Extending forward fetches only the gap after the latest stored day."""
+    days = pd.bdate_range(date(2024, 1, 5), date(2024, 1, 11))
+    mock_fetch.return_value = pd.DataFrame(
+        {"Open": 1.0, "High": 1.0, "Low": 1.0, "Close": 1.0, "Volume": 0.0},
+        index=days,
+    )
 
     count = market_data_service.extend_series(
         db_session, sample_ticker.symbol, "forward", date(2024, 1, 10)
     )
 
     assert count == 5
-    mock_fetch_store.assert_called_once()
+    mock_fetch.assert_called_once_with(sample_ticker.symbol, date(2024, 1, 5), date(2024, 1, 10))
 
 
 @patch("asistrader.services.market_data_service.fetch_and_store")

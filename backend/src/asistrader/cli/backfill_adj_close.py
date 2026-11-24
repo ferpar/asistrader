@@ -5,8 +5,7 @@ Usage:
 
 For every ticker (or only the given symbols) with rows whose adjusted close is
 NULL, refetches that date span from Yahoo and upserts it. Tickers that are
-already complete are skipped, so it is safe to rerun. The same backfill is
-available as POST /api/market-data/backfill-adjusted-closes.
+already complete are skipped, so it is safe to rerun.
 
 Uses the configured DATABASE_URL.
 """

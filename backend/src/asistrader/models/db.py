@@ -379,6 +379,8 @@ class MarketData(Base):
     open = Column(Float, nullable=True)
     high = Column(Float, nullable=True)
     low = Column(Float, nullable=True)
+    # Raw OHLC are Yahoo's auto_adjust=False prices: split-adjusted, not
+    # dividend-adjusted (ADR 0002).
     close = Column(Float, nullable=True)
     # Split/dividend-adjusted close, for measurement only (Momentum Score,
     # Basket Indexes). SL/TP detection keeps using the raw OHLC (ADR 0002).
@@ -391,6 +393,27 @@ class MarketData(Base):
     )
 
     ticker_rel = relationship("Ticker", back_populates="market_data")
+
+
+class TickerSplit(Base):
+    """A split event of an instrument, as Yahoo reports it ("Stock Splits").
+
+    `ratio` is new units per old unit (2 for a 2-for-1 split, 0.1 for a
+    1-for-10 reverse split) effective from `date`. Stored closes are already
+    split-adjusted (ADR 0002), so a Portfolio applies these automatically to
+    express Lots bought before a split in the same basis.
+    """
+
+    __tablename__ = "ticker_splits"
+
+    id = Column(Integer, primary_key=True)
+    ticker = Column(String, ForeignKey("tickers.symbol"), nullable=False)
+    date = Column(Date, nullable=False)
+    ratio = Column(Numeric(28, 10), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("ticker", "date", name="uq_ticker_splits_ticker_date"),
+    )
 
 
 class Benchmark(Base):
@@ -641,7 +664,6 @@ class TransactionKind(str, PyEnum):
 
     BUY = "buy"
     SELL = "sell"
-    SPLIT = "split"
 
 
 class Portfolio(Base):
@@ -682,12 +704,13 @@ class Portfolio(Base):
 
 
 class PortfolioTransaction(Base):
-    """A dated Buy, Sell or Split of an instrument within a Portfolio.
+    """A dated Buy or Sell of an instrument within a Portfolio.
 
     `units` is fractional (Numeric, not Integer). `price` and `fees` are in the
     instrument's currency; `fx_rate` (optional) converts one unit of the
     instrument's currency into the Portfolio's currency — when absent, the
-    stored FX rate for `date` is used. `split_ratio` is only set on Splits.
+    stored FX rate for `date` is used. Units and price are as the user entered
+    them; splits are applied automatically from the ticker's split events.
     """
 
     __tablename__ = "portfolio_transactions"
@@ -703,7 +726,6 @@ class PortfolioTransaction(Base):
     price = Column(Numeric(28, 10), nullable=True)
     fees = Column(Numeric(28, 10), nullable=False, default=0)
     fx_rate = Column(Numeric(28, 10), nullable=True)
-    split_ratio = Column(Numeric(28, 10), nullable=True)
     created_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

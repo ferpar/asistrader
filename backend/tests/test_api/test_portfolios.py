@@ -279,7 +279,7 @@ class TestFx:
         # 1005 USD / 1.25 USD-per-EUR on the Buy date.
         assert summary["invested"] == pytest.approx(804.0)
 
-    def test_value_uses_latest_close_at_that_days_fx_rate(
+    def test_value_uses_latest_close_at_the_valuation_days_fx_rate(
         self, client: TestClient, db_session: Session, eur_portfolio: int
     ) -> None:
         db_session.add_all([
@@ -291,7 +291,7 @@ class TestFx:
         _buy(client, eur_portfolio, ticker="SPY", units=10, price=100.0)
 
         summary = client.get(f"/api/portfolios/{eur_portfolio}/summary").json()
-        # 10 × 110 USD / 1.10 on the latest close's date = 1000 EUR; cost 800 EUR.
+        # 10 × 110 USD / 1.10, the latest rate on the valuation day = 1000 EUR; cost 800 EUR.
         assert summary["portfolio_value"] == pytest.approx(1000.0)
         assert summary["unrealized_gain"] == pytest.approx(200.0)
         assert summary["unrealized_gain_pct"] == pytest.approx(0.25)
@@ -685,6 +685,7 @@ class TestEditTransactions:
         )
 
         assert response.status_code == 422
+        assert "future" in response.json()["detail"]
 
     def test_editing_a_missing_or_foreign_transaction_is_not_found(
         self, client: TestClient, spy_two_lots: int, other_headers: dict[str, str]

@@ -9,8 +9,8 @@ import styles from './BenchmarkOverlayToggles.module.css'
  * charted index takes series 1; past the palette, benchmarks fall back to the
  * muted ink rather than a generated hue.
  */
-export function benchmarkColor(position: number): string {
-  return position < 7 ? `var(--series-${position + 2})` : 'var(--color-text-muted)'
+export function benchmarkColor(colorIndex: number): string {
+  return colorIndex < 7 ? `var(--series-${colorIndex + 2})` : 'var(--color-text-muted)'
 }
 
 /**
@@ -18,8 +18,8 @@ export function benchmarkColor(position: number): string {
  * cycling through the same palette as benchmarks; charts draw them dashed so
  * a Basket never reads as the benchmark sharing its hue.
  */
-export function basketColor(position: number): string {
-  return `var(--series-${(position % 7) + 2})`
+export function basketColor(colorIndex: number): string {
+  return `var(--series-${(colorIndex % 7) + 2})`
 }
 
 /** The optional second group of chips: which Baskets to overlay (by id). */
@@ -80,13 +80,13 @@ export function BenchmarkOverlayToggles({
       {benchmarks.length > 0 && (
         <div className={styles.overlays} role="group" aria-label="Benchmark overlays">
           <span className={styles.overlayLabel}>Compare with</span>
-          {benchmarks.map((b, position) => (
+          {benchmarks.map((b, colorIndex) => (
             <Chip
               key={b.symbol}
               label={b.name ?? b.symbol}
               title={b.symbol}
               on={selected.includes(b.symbol)}
-              color={benchmarkColor(position)}
+              color={benchmarkColor(colorIndex)}
               onClick={() => onToggle(b.symbol)}
             />
           ))}
@@ -95,13 +95,13 @@ export function BenchmarkOverlayToggles({
       {baskets && basketList.length > 0 && (
         <div className={styles.overlays} role="group" aria-label="Basket overlays">
           <span className={styles.overlayLabel}>Baskets</span>
-          {basketList.map((b, position) => (
+          {basketList.map((b, colorIndex) => (
             <Chip
               key={b.id}
               label={b.name}
               title={`${b.kind === 'curated' ? 'Curated' : 'Personal'} Basket Index`}
               on={baskets.selected.includes(b.id)}
-              color={basketColor(position)}
+              color={basketColor(colorIndex)}
               dashed
               onClick={() => baskets.onToggle(b.id)}
             />

@@ -100,7 +100,7 @@ describe('mergeWithDefault', () => {
 describe('diff/merge round-trip', () => {
   it('a diffed-then-merged view equals the original', () => {
     const view = buildViewState({
-      ticker: { structure: 'bullish', divergence: 'bearish', hideErrored: true },
+      ticker: { structure: 'bullish', divergence: 'bearish', momentum: 'positive', hideErrored: true },
       trade: { status: 'open', proximity: { target: 'sl', withinPct: 10 } },
       sort: { key: 'biggestLoser', dir: 'asc' },
       flatView: true,

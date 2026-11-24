@@ -29,6 +29,7 @@ export type RadarPresetConfig = {
 const TICKER_KEYS = [
   'structure',
   'trendSign',
+  'momentum',
   'rsiZone',
   'divergence',
   'activity',
@@ -47,6 +48,7 @@ const TRADE_KEYS = [
 const ALLOWED = {
   structure: ['any', 'bullish', 'bearish', 'mixed'],
   trendSign: ['any', 'up', 'down'],
+  momentum: ['any', 'positive', 'negative'],
   rsiZone: ['any', 'overbought', 'oversold', 'neutral'],
   divergence: ['any', 'present', 'bullish', 'bearish', 'none'],
   activity: ['any', 'hasOpen', 'hasPlan', 'hasActive', 'hasNone'],
@@ -109,6 +111,7 @@ function mergeTicker(raw: unknown): TickerScope {
   return {
     structure: pickEnum(t.structure, ALLOWED.structure, d.structure),
     trendSign: pickEnum(t.trendSign, ALLOWED.trendSign, d.trendSign),
+    momentum: pickEnum(t.momentum, ALLOWED.momentum, d.momentum),
     rsiZone: pickEnum(t.rsiZone, ALLOWED.rsiZone, d.rsiZone),
     divergence: pickEnum(t.divergence, ALLOWED.divergence, d.divergence),
     activity: pickEnum(t.activity, ALLOWED.activity, d.activity),

@@ -1,5 +1,6 @@
 import type { IBasketRepository } from './IBasketRepository'
-import type { Basket, BasketIndexPoint, BasketMember } from './types'
+import type { Basket, BasketMember } from './types'
+import type { LevelPoint } from '../shared/rebase'
 import type {
   BasketCopyRequest,
   BasketCreateRequest,
@@ -12,16 +13,10 @@ import type {
 } from '../../types/basket'
 import type { CloseSeriesDTO } from '../../types/radar'
 import { mapBasket, mapBasketIndex, mapBasketMember } from './mappers'
-import { buildHeaders } from '../shared/httpHelpers'
+import { buildHeaders, failure } from '../shared/httpHelpers'
 import { fetchWithTimeout, MARKET_DATA_TIMEOUT_MS } from '../../api/http'
 
 /** An Error carrying the API's `detail` (e.g. why Yahoo rejected a symbol). */
-async function failure(response: Response, fallback: string): Promise<Error> {
-  const body = await response.json().catch(() => null)
-  const detail = body?.detail
-  return new Error(typeof detail === 'string' ? detail : fallback)
-}
-
 export class HttpBasketRepository implements IBasketRepository {
   constructor(
     private readonly baseUrl: string,
@@ -40,7 +35,7 @@ export class HttpBasketRepository implements IBasketRepository {
   }
 
   async fetchBasketIndexes(startDate: string): Promise<{
-    data: Record<number, BasketIndexPoint[]>
+    data: Record<number, LevelPoint[]>
     errors: Record<number, string>
   }> {
     const params = new URLSearchParams({ start_date: startDate })
@@ -53,7 +48,7 @@ export class HttpBasketRepository implements IBasketRepository {
       throw new Error(`Failed to fetch basket indexes: ${response.statusText}`)
     }
     const result: BulkBasketIndexResponse = await response.json()
-    const data: Record<number, BasketIndexPoint[]> = {}
+    const data: Record<number, LevelPoint[]> = {}
     for (const [id, series] of Object.entries(result.data)) {
       data[Number(id)] = mapBasketIndex(series)
     }
@@ -75,7 +70,7 @@ export class HttpBasketRepository implements IBasketRepository {
     return mapBasket(result)
   }
 
-  async fetchBasketIndex(id: number, startDate: string): Promise<BasketIndexPoint[]> {
+  async fetchBasketIndex(id: number, startDate: string): Promise<LevelPoint[]> {
     const params = new URLSearchParams({ start_date: startDate })
     const response = await fetchWithTimeout(
       `${this.baseUrl}/api/baskets/${id}/index?${params}`,

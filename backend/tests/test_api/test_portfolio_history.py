@@ -5,7 +5,7 @@ record Transactions through the API, and assert only on the columnar history
 the API returns.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -181,6 +181,39 @@ class TestValuation:
         assert history["portfolio_value"] == pytest.approx([800.0, 800.0, 1000.0])
         assert history["unrealized_gain"] == pytest.approx([0.0, 0.0, 200.0])
 
+    def test_the_summary_matches_the_last_history_row(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        """The summary values at the valuation day's FX rate, as the history
+        does, not at the rate of the latest close's date. (Weighted Days Open
+        is as of today in the summary, so it differs on weekends.)"""
+        last_business_day = date.today()
+        while last_business_day.weekday() >= 5:
+            last_business_day -= timedelta(days=1)
+        _seed_ticker(db_session, "SPY", "USD", {date(2024, 1, 2): 100.0})
+        db_session.add_all([
+            FxRate(currency="EUR", date=date(2024, 1, 2), rate_to_usd=1.25),
+            FxRate(currency="EUR", date=last_business_day, rate_to_usd=1.0),
+        ])
+        db_session.commit()
+        pid = _create_portfolio(client, "Broker EUR", "EUR")
+        _record(
+            client, pid, "buy", date="2024-01-02", ticker="SPY", units=10, price=100.0,
+            fx_rate=0.8,
+        )
+
+        history = _history(client, pid)
+        summary = client.get(f"/api/portfolios/{pid}/summary").json()
+
+        last = _row(history, history["dates"][-1])
+        assert history["dates"][-1] == last_business_day.isoformat()
+        assert summary["portfolio_value"] == pytest.approx(1000.0)
+        for key in (
+            "invested", "portfolio_value", "unrealized_gain", "unrealized_gain_pct",
+            "realized_gain", "total_gain",
+        ):
+            assert summary[key] == pytest.approx(last[key]), key
+
     @patch("asistrader.services.fx_service.fetch_from_yfinance")
     def test_missing_fx_rates_are_synced_on_read(
         self, mock_fx_fetch: MagicMock, client: TestClient, db_session: Session
@@ -348,24 +381,6 @@ class TestPerformanceIndex:
         assert history["performance_index"] == pytest.approx(
             [100.0, 110.0, 110.0 * (1 - 110 / 2100)]
         )
-
-    def test_a_split_does_not_move_the_index(
-        self, client: TestClient, db_session: Session
-    ) -> None:
-        # Raw closes halve on the Split day; 20 units × 60 = 10 units × 120.
-        _seed_ticker(
-            db_session,
-            "NVDA",
-            "USD",
-            {date(2024, 1, 2): 120.0, date(2024, 1, 3): 120.0, date(2024, 1, 4): 60.0},
-        )
-        pid = _create_portfolio(client, "US", "USD")
-        _record(client, pid, "buy", date="2024-01-02", ticker="NVDA", units=10, price=120.0)
-        _record(client, pid, "split", date="2024-01-04", ticker="NVDA", split_ratio=2)
-
-        history = _history(client, pid, to="2024-01-04")
-
-        assert history["performance_index"] == pytest.approx([100.0] * 3)
 
     def test_after_selling_everything_the_index_carries_flat_until_the_next_buy(
         self, client: TestClient, db_session: Session
