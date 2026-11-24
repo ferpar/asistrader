@@ -3,6 +3,8 @@ import type { BasketKind, RankingRow } from '../../domain/basket/types'
 import { annualizedTir } from '../../domain/radar/indicators'
 import { useMultiSort, useSortedRows } from '../../hooks/useMultiSort'
 import { SortableTh } from '../../components/table/SortableTh'
+import { ShowMore } from '../../components/table/ShowMore'
+import { useTopN } from '../../hooks/useTopN'
 import { fmtPct } from '../../components/portfolio/format'
 import { signClass } from '../../components/portfolio/signClass'
 import styles from './Baskets.module.css'
@@ -65,6 +67,9 @@ const PctCell = ({ v }: { v: number | null }) => <td className={`${styles.num} $
 
 type BasketRow = Extract<RankingRow, { kind: BasketKind }>
 
+/** Rows shown before "Show all", as on the Trades table. */
+export const RANKING_ROW_LIMIT = 25
+
 interface BasketRankingTableProps {
   rows: RankingRow[]
   onOpen: (id: number) => void
@@ -81,6 +86,7 @@ export function BasketRankingTable({ rows, onOpen, renderActions }: BasketRankin
   const sort = useMultiSort<RankingKey>([{ key: 'momentum', dir: 'desc' }])
   const getValue = useCallback(value, [])
   const sorted = useSortedRows(rows, sort.terms, getValue)
+  const top = useTopN(sorted, RANKING_ROW_LIMIT)
 
   const th = (label: string, key: RankingKey, title?: string, numeric = true) => (
     <SortableTh label={label} sortKey={key} numeric={numeric} sort={sort} title={title} />
@@ -108,7 +114,7 @@ export function BasketRankingTable({ rows, onOpen, renderActions }: BasketRankin
           </tr>
         </thead>
         <tbody>
-          {sorted.map((row) => {
+          {top.visible.map((row) => {
             const { momentum, sma, linearRegression, rsi } = row.indicators
             const tir = annualizedTir(linearRegression.lr50.slopePct)
             const isBasket = row.kind !== 'benchmark'
@@ -149,6 +155,7 @@ export function BasketRankingTable({ rows, onOpen, renderActions }: BasketRankin
           })}
         </tbody>
       </table>
+      {top.canExpand && <ShowMore expanded={top.expanded} total={top.total} onToggle={top.toggle} />}
     </div>
   )
 }

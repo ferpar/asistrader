@@ -6,6 +6,8 @@ import type { TickerIndicators } from '../../domain/radar/types'
 import { annualizedTir } from '../../domain/radar/indicators'
 import { useMultiSort, useSortedRows, type Sortable } from '../../hooks/useMultiSort'
 import { SortableTh } from '../../components/table/SortableTh'
+import { ShowMore } from '../../components/table/ShowMore'
+import { useTopN } from '../../hooks/useTopN'
 import { fmtPct } from '../../components/portfolio/format'
 import { signClass } from '../../components/portfolio/signClass'
 import styles from './Baskets.module.css'
@@ -27,6 +29,9 @@ type MemberKey =
 
 /** Why a member's measures may be empty: still loading, or no indicator set for its ticker. */
 type MeasureStatus = 'ready' | 'loading' | 'missing'
+
+/** Rows shown before "Show all", as on the Drivers tables. */
+export const MEMBER_ROW_LIMIT = 12
 
 interface Row {
   member: BasketMember
@@ -100,6 +105,7 @@ export const BasketMembersTable = observer(function BasketMembersTable({
 
   const sort = useMultiSort<MemberKey>([{ key: 'momentum', dir: 'desc' }])
   const sorted = useSortedRows(rows, sort.terms, rowValue)
+  const top = useTopN(sorted, MEMBER_ROW_LIMIT)
 
   const th = (label: string, key: MemberKey, title?: string, numeric = true) => (
     <SortableTh label={label} sortKey={key} numeric={numeric} sort={sort} title={title} />
@@ -138,7 +144,7 @@ export const BasketMembersTable = observer(function BasketMembersTable({
           </tr>
         </thead>
         <tbody>
-          {sorted.map((row) => {
+          {top.visible.map((row) => {
             const { member, indicators: ind } = row
             return (
               <tr key={member.symbol}>
@@ -179,6 +185,7 @@ export const BasketMembersTable = observer(function BasketMembersTable({
           })}
         </tbody>
       </table>
+      {top.canExpand && <ShowMore expanded={top.expanded} total={top.total} onToggle={top.toggle} />}
     </div>
   )
 })

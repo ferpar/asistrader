@@ -1,24 +1,3 @@
-.tableControls {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 8px;
-}
-
-.dockToggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8125rem;
-  color: var(--color-text-muted);
-  cursor: pointer;
-}
-
-@media (max-width: 600px) {
-  .tableControls {
-    display: none;
-  }
-}
-
 .sortable {
   cursor: pointer;
   user-select: none;
@@ -53,14 +32,7 @@
 }
 
 .stickyCol {
-  position: sticky;
-  z-index: 1;
-  background-color: var(--color-bg);
-}
-
-.tradeTable th.stickyCol {
-  z-index: 2;
-  background-color: var(--color-table-header);
+  composes: stickyCol from './table/StickyColumns.module.css';
 }
 
 .stickyCol1 { left: 0; min-width: 40px; }
@@ -254,10 +226,6 @@
 }
 
 @media (max-width: 600px) {
-  .stickyCol {
-    position: static;
-  }
-
   .stickyCol4 {
     border-right: none;
   }

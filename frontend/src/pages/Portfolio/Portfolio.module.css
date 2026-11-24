@@ -1,7 +1,15 @@
-.page {
-  padding: 1rem;
-  max-width: 1100px;
-  margin: 0 auto;
+/* The Money chart and the Performance section: side by side when both fit at
+ * a readable size, stacked otherwise. */
+.charts {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 1200px) {
+  .charts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .header {
@@ -151,9 +159,12 @@
   margin-bottom: 1.5rem;
 }
 
+/* `separate` with no spacing looks the same as `collapse`, and keeps the
+ * borders of pinned columns in place while the table scrolls under them. */
 .table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .table th,
@@ -279,4 +290,45 @@
 
 .basketLink:hover {
   text-decoration: underline;
+}
+
+/* Holdings: the Ticker and Class columns stay pinned while the measures
+ * scroll sideways ("Dock columns"). The Ticker column gets a fixed width so
+ * the Class column knows where to pin. */
+.pinned {
+  composes: stickyCol from '../../components/table/StickyColumns.module.css';
+}
+
+.pinnedTicker {
+  left: 0;
+  box-sizing: border-box;
+  width: 11rem;
+  min-width: 11rem;
+  max-width: 11rem;
+}
+
+.pinnedClass,
+.pinnedGroup {
+  border-right: 2px solid var(--color-border);
+}
+
+.pinnedClass {
+  left: 11rem;
+}
+
+.pinnedGroup {
+  left: 0;
+}
+
+.holdingName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table tbody tr:hover td.pinned {
+  background-color: var(--color-table-row-hover);
+}
+
+.table tbody tr.subtotal td.pinned {
+  background-color: var(--color-surface);
 }

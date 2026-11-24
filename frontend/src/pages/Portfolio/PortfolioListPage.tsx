@@ -41,7 +41,7 @@ export const PortfolioListPage = observer(function PortfolioListPage() {
   }
 
   return (
-    <section className={styles.page}>
+    <section>
       <header className={styles.header}>
         <h2>Portfolios</h2>
       </header>
